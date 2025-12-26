@@ -106,6 +106,23 @@ export default function SettingsPage() {
   const handleBackgroundUpload = async (file: File) => {
     setUploadingBackground(true)
     try {
+      // Validate file before upload
+      const isVideo = file.type.startsWith('video/')
+      const isImage = file.type.startsWith('image/')
+      
+      if (!isVideo && !isImage) {
+        toast.error('Please upload an image (JPEG, PNG, WebP) or video (MP4) file')
+        setUploadingBackground(false)
+        return
+      }
+
+      const maxSize = isVideo ? 20 * 1024 * 1024 : 5 * 1024 * 1024 // 20MB for video, 5MB for image
+      if (file.size > maxSize) {
+        toast.error(`File size must be less than ${isVideo ? '20MB' : '5MB'}`)
+        setUploadingBackground(false)
+        return
+      }
+
       const formData = new FormData()
       formData.append('file', file)
 
@@ -114,11 +131,13 @@ export default function SettingsPage() {
         body: formData,
       })
 
+      const responseData = await response.json()
+
       if (!response.ok) {
-        throw new Error('Failed to upload background')
+        throw new Error(responseData.error || 'Failed to upload background')
       }
 
-      const { id: mediaId } = await response.json()
+      const { id: mediaId } = responseData
       
       // Update settings with new background
       const updateResponse = await fetch('/api/admin/settings', {
@@ -129,9 +148,16 @@ export default function SettingsPage() {
 
       if (updateResponse.ok) {
         setSettings({ ...settings, welcomeBackgroundMediaId: mediaId })
+        // Update preview for video
+        if (isVideo) {
+          setBackgroundPreview(`/api/media/${mediaId}`)
+        } else {
+          setBackgroundPreview(`/api/media/${mediaId}`)
+        }
         toast.success('Background uploaded successfully!')
       } else {
-        throw new Error('Failed to update background')
+        const errorData = await updateResponse.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to update background')
       }
     } catch (error: any) {
       console.error('Error uploading background:', error)
@@ -159,6 +185,7 @@ export default function SettingsPage() {
     const file = e.target.files?.[0]
     if (file) {
       setBackgroundFile(file)
+      // Create preview for both images and videos
       const reader = new FileReader()
       reader.onloadend = () => {
         setBackgroundPreview(reader.result as string)
@@ -313,11 +340,22 @@ export default function SettingsPage() {
                 <div className="space-y-2">
                   {backgroundPreview && (
                     <div className="relative">
-                      <img
-                        src={backgroundPreview}
-                        alt="Welcome Background"
-                        className="w-full h-48 object-cover rounded-lg border-2 border-white/20"
-                      />
+                      {backgroundPreview.startsWith('data:video/') || settings.welcomeBackgroundMediaId ? (
+                        <video
+                          src={backgroundPreview.startsWith('data:') ? backgroundPreview : backgroundPreview}
+                          className="w-full h-48 object-cover rounded-lg border-2 border-white/20"
+                          controls={false}
+                          muted
+                          loop
+                          playsInline
+                        />
+                      ) : (
+                        <img
+                          src={backgroundPreview}
+                          alt="Welcome Background"
+                          className="w-full h-48 object-cover rounded-lg border-2 border-white/20"
+                        />
+                      )}
                       <button
                         type="button"
                         onClick={() => {

@@ -43,8 +43,10 @@ export async function POST(request: NextRequest) {
     // Validate file
     const validation = uploadSchema.safeParse({ file })
     if (!validation.success) {
+      const errorMessage = validation.error.errors[0].message
+      console.error('Validation error:', errorMessage, 'File type:', file.type, 'File size:', file.size)
       return NextResponse.json(
-        { error: validation.error.errors[0].message },
+        { error: errorMessage },
         { status: 400 }
       )
     }
@@ -62,10 +64,15 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    console.log('Media uploaded successfully:', { id: media.id, mimeType: media.mimeType, size: media.size })
     return NextResponse.json({ id: media.id, mimeType: media.mimeType, size: media.size })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error uploading media:', error)
-    return new NextResponse('Internal server error', { status: 500 })
+    const errorMessage = error?.message || 'Internal server error'
+    return NextResponse.json(
+      { error: errorMessage },
+      { status: 500 }
+    )
   }
 }
 
