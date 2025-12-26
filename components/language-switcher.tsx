@@ -11,7 +11,7 @@ interface LanguageSwitcherProps {
 
 export function LanguageSwitcher({ currentLang, onLanguageChange }: LanguageSwitcherProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; right: number } | null>(null)
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; right: number }>({ top: 0, right: 0 })
   const dropdownRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
 
@@ -24,7 +24,6 @@ export function LanguageSwitcher({ currentLang, onLanguageChange }: LanguageSwit
         !buttonRef.current.contains(event.target as Node)
       ) {
         setIsOpen(false)
-        setDropdownPosition(null)
       }
     }
 
@@ -65,10 +64,16 @@ export function LanguageSwitcher({ currentLang, onLanguageChange }: LanguageSwit
         }
       }
       
-      // Calculate position immediately
-      calculatePosition()
+      // Set initial position immediately
+      if (buttonRef.current) {
+        const buttonRect = buttonRef.current.getBoundingClientRect()
+        setDropdownPosition({
+          top: buttonRect.bottom + 8,
+          right: Math.max(8, window.innerWidth - buttonRect.right)
+        })
+      }
       
-      // Also recalculate after a tiny delay to ensure button is fully rendered
+      // Recalculate after a tiny delay to ensure button is fully rendered
       const positionTimeoutId = setTimeout(calculatePosition, 10)
       
       // Add click outside handler with a small delay to avoid immediate closing
@@ -81,8 +86,6 @@ export function LanguageSwitcher({ currentLang, onLanguageChange }: LanguageSwit
         clearTimeout(clickTimeoutId)
         document.removeEventListener('mousedown', handleClickOutside)
       }
-    } else {
-      setDropdownPosition(null)
     }
   }, [isOpen])
 
@@ -108,18 +111,10 @@ export function LanguageSwitcher({ currentLang, onLanguageChange }: LanguageSwit
         <div
           ref={dropdownRef}
           className="fixed backdrop-blur-xl bg-[#400810]/95 rounded-xl shadow-2xl z-[9999] min-w-[120px] max-w-[calc(100vw-2rem)] border border-white/20 language-dropdown-animation"
-          style={
-            dropdownPosition
-              ? {
-                  top: `${dropdownPosition.top}px`,
-                  right: `${dropdownPosition.right}px`,
-                }
-              : {
-                  top: '100px',
-                  right: '16px',
-                  visibility: 'hidden',
-                }
-          }
+          style={{
+            top: `${dropdownPosition.top}px`,
+            right: `${dropdownPosition.right}px`,
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           {languages.map((lang) => (
@@ -129,7 +124,6 @@ export function LanguageSwitcher({ currentLang, onLanguageChange }: LanguageSwit
                 e.stopPropagation()
                 onLanguageChange(lang.code)
                 setIsOpen(false)
-                setDropdownPosition(null)
               }}
               className={`w-full text-left px-4 py-2 text-sm hover:bg-white/10 first:rounded-t-xl last:rounded-b-xl transition-colors ${
                 currentLang === lang.code
