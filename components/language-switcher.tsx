@@ -29,8 +29,6 @@ export function LanguageSwitcher({ currentLang, onLanguageChange }: LanguageSwit
     }
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-      
       // Calculate dropdown position (for fixed positioning relative to viewport)
       const calculatePosition = () => {
         if (buttonRef.current) {
@@ -71,31 +69,41 @@ export function LanguageSwitcher({ currentLang, onLanguageChange }: LanguageSwit
       calculatePosition()
       
       // Also recalculate after a tiny delay to ensure button is fully rendered
-      const timeoutId = setTimeout(calculatePosition, 10)
+      const positionTimeoutId = setTimeout(calculatePosition, 10)
+      
+      // Add click outside handler with a small delay to avoid immediate closing
+      const clickTimeoutId = setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside)
+      }, 100)
       
       return () => {
-        clearTimeout(timeoutId)
+        clearTimeout(positionTimeoutId)
+        clearTimeout(clickTimeoutId)
+        document.removeEventListener('mousedown', handleClickOutside)
       }
     } else {
       setDropdownPosition(null)
     }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
   }, [isOpen])
+
+  const handleButtonClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setIsOpen(!isOpen)
+  }
 
   return (
     <>
       <div className="relative w-full h-full">
         <button
           ref={buttonRef}
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={handleButtonClick}
           className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-all backdrop-blur-sm border border-white/20 hover:border-white/30 shadow-sm w-full h-full flex items-center justify-center"
           aria-label="Change language"
+          type="button"
         >
           <Globe className="w-6 h-6 text-white" />
         </button>
+      </div>
       {isOpen && (
         <div
           ref={dropdownRef}
@@ -112,27 +120,29 @@ export function LanguageSwitcher({ currentLang, onLanguageChange }: LanguageSwit
                   visibility: 'hidden',
                 }
           }
+          onClick={(e) => e.stopPropagation()}
         >
-            {languages.map((lang) => (
-              <button
-                key={lang.code}
-                onClick={() => {
-                  onLanguageChange(lang.code)
-                  setIsOpen(false)
-                  setDropdownPosition(null)
-                }}
-                className={`w-full text-left px-4 py-2 text-sm hover:bg-white/10 first:rounded-t-xl last:rounded-b-xl transition-colors ${
-                  currentLang === lang.code
-                    ? 'bg-white/20 text-white font-semibold'
-                    : 'text-white/80'
-                }`}
-              >
-                {lang.nativeName}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+          {languages.map((lang) => (
+            <button
+              key={lang.code}
+              onClick={(e) => {
+                e.stopPropagation()
+                onLanguageChange(lang.code)
+                setIsOpen(false)
+                setDropdownPosition(null)
+              }}
+              className={`w-full text-left px-4 py-2 text-sm hover:bg-white/10 first:rounded-t-xl last:rounded-b-xl transition-colors ${
+                currentLang === lang.code
+                  ? 'bg-white/20 text-white font-semibold'
+                  : 'text-white/80'
+              }`}
+              type="button"
+            >
+              {lang.nativeName}
+            </button>
+          ))}
+        </div>
+      )}
     </>
   )
 }
