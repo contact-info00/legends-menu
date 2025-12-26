@@ -35,6 +35,29 @@ export async function GET(
       ? media.bytes 
       : Buffer.from(media.bytes as any)
 
+    // Support range requests for better mobile video streaming
+    const range = request.headers.get('range')
+    if (range && media.mimeType.startsWith('video/')) {
+      const parts = range.replace(/bytes=/, '').split('-')
+      const start = parseInt(parts[0], 10)
+      const end = parts[1] ? parseInt(parts[1], 10) : media.size - 1
+      const chunksize = end - start + 1
+      const chunk = buffer.slice(start, end + 1)
+
+      return new NextResponse(chunk, {
+        status: 206,
+        headers: {
+          'Content-Range': `bytes ${start}-${end}/${media.size}`,
+          'Accept-Ranges': 'bytes',
+          'Content-Length': chunksize.toString(),
+          'Content-Type': media.mimeType,
+          'Cache-Control': 'public, max-age=31536000, immutable',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, HEAD',
+        },
+      })
+    }
+
     return new NextResponse(buffer, {
       headers: {
         'Content-Type': media.mimeType,

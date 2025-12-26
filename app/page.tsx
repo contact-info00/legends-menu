@@ -105,19 +105,83 @@ export default function WelcomePage() {
                   preload="auto"
                   className="w-full h-full object-cover background-media-fade absolute inset-0"
                   style={{ zIndex: 2, opacity: 0, transition: 'opacity 1s ease-in' }}
+                  ref={(video) => {
+                    // Set mobile-specific attributes
+                    if (video) {
+                      video.setAttribute('webkit-playsinline', 'true')
+                      video.setAttribute('playsinline', 'true')
+                      video.setAttribute('x5-playsinline', 'true')
+                      video.setAttribute('x5-video-player-type', 'h5')
+                      video.setAttribute('x5-video-player-fullscreen', 'false')
+                      
+                      // Explicitly play video on mobile devices
+                      const playPromise = video.play()
+                      if (playPromise !== undefined) {
+                        playPromise
+                          .then(() => {
+                            console.log('Video autoplay started')
+                            video.style.opacity = '1'
+                          })
+                          .catch((error) => {
+                            console.log('Autoplay prevented, trying to play:', error)
+                            // Try to play after user interaction
+                            const tryPlay = () => {
+                              video.play()
+                                .then(() => {
+                                  console.log('Video play started after interaction')
+                                  video.style.opacity = '1'
+                                })
+                                .catch((err) => {
+                                  console.error('Video play failed:', err)
+                                })
+                            }
+                            // Try on first user interaction
+                            document.addEventListener('touchstart', tryPlay, { once: true })
+                            document.addEventListener('click', tryPlay, { once: true })
+                          })
+                      }
+                    }
+                  }}
                   onLoadedData={(e) => {
                     // Fade in video once loaded
                     console.log('Video loaded successfully')
                     const target = e.currentTarget
-                    setTimeout(() => {
-                      target.style.opacity = '1'
-                    }, 100)
+                    const playPromise = target.play()
+                    if (playPromise !== undefined) {
+                      playPromise
+                        .then(() => {
+                          setTimeout(() => {
+                            target.style.opacity = '1'
+                          }, 100)
+                        })
+                        .catch(() => {
+                          // Autoplay blocked, but video is loaded
+                          target.style.opacity = '1'
+                        })
+                    }
                   }}
                   onCanPlay={(e) => {
                     // Video is ready to play
                     console.log('Video can play')
                     const target = e.currentTarget
-                    target.style.opacity = '1'
+                    const playPromise = target.play()
+                    if (playPromise !== undefined) {
+                      playPromise
+                        .then(() => {
+                          target.style.opacity = '1'
+                        })
+                        .catch(() => {
+                          // Autoplay might be blocked, but show video anyway
+                          target.style.opacity = '1'
+                        })
+                    } else {
+                      target.style.opacity = '1'
+                    }
+                  }}
+                  onPlaying={(e) => {
+                    // Video is actually playing
+                    console.log('Video is playing')
+                    e.currentTarget.style.opacity = '1'
                   }}
                   onError={(e) => {
                     // If video fails to load, fall back to image
