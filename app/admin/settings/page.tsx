@@ -116,9 +116,11 @@ export default function SettingsPage() {
         return
       }
 
-      const maxSize = isVideo ? 20 * 1024 * 1024 : 5 * 1024 * 1024 // 20MB for video, 5MB for image
+      // Vercel serverless functions have a 4.5MB body size limit
+      // We use 4MB to be safe
+      const maxSize = 4 * 1024 * 1024 // 4MB for both images and videos
       if (file.size > maxSize) {
-        toast.error(`File size must be less than ${isVideo ? '20MB' : '5MB'}`)
+        toast.error('File size must be less than 4MB (Vercel serverless function limit)')
         setUploadingBackground(false)
         return
       }
@@ -131,7 +133,20 @@ export default function SettingsPage() {
         body: formData,
       })
 
-      const responseData = await response.json()
+      // Handle different response types
+      let responseData: any = {}
+      const contentType = response.headers.get('content-type')
+      
+      if (contentType?.includes('application/json')) {
+        responseData = await response.json()
+      } else {
+        // Handle non-JSON responses (like 413 errors)
+        const text = await response.text()
+        if (response.status === 413) {
+          throw new Error('File is too large. Maximum size is 4MB due to Vercel serverless function limits. Please compress your video or use a smaller file.')
+        }
+        throw new Error(text || 'Failed to upload background')
+      }
 
       if (!response.ok) {
         throw new Error(responseData.error || 'Failed to upload background')
@@ -373,7 +388,7 @@ export default function SettingsPage() {
                       <div className="flex flex-col items-center justify-center pt-5 pb-6">
                         <Upload className="w-8 h-8 mb-2 text-white/70" />
                         <p className="text-sm text-white/70">Click to upload background</p>
-                        <p className="text-xs text-white/50 mt-1">PNG, JPG, WEBP, MP4 (max 20MB)</p>
+                        <p className="text-xs text-white/50 mt-1">PNG, JPG, WEBP, MP4 (max 4MB)</p>
                       </div>
                     )}
                     <input

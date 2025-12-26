@@ -22,9 +22,18 @@ export function AdminAuthWrapper({
       try {
         const response = await fetch('/api/admin/check-session')
         if (!response.ok) {
+          // 401 is expected when not logged in, don't log as error
+          if (response.status !== 401) {
+            console.error('Auth check failed with status:', response.status)
+          }
           router.push('/admin/login')
         }
       } catch (error) {
+        // Only log unexpected errors, not network issues
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          // Network error, might be offline
+          return
+        }
         console.error('Auth check failed:', error)
         router.push('/admin/login')
       }
