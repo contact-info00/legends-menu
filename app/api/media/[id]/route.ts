@@ -15,6 +15,20 @@ export async function GET(
       return new NextResponse('Media not found', { status: 404 })
     }
 
+    // Handle HEAD requests (for content-type detection)
+    if (request.method === 'HEAD') {
+      return new NextResponse(null, {
+        status: 200,
+        headers: {
+          'Content-Type': media.mimeType,
+          'Content-Length': media.size.toString(),
+          'Cache-Control': 'public, max-age=31536000, immutable',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, HEAD',
+        },
+      })
+    }
+
     // Convert bytes to Buffer for response
     // Prisma returns bytes as Buffer in Node.js
     const buffer = Buffer.isBuffer(media.bytes) 
@@ -27,7 +41,8 @@ export async function GET(
         'Content-Length': media.size.toString(),
         'Cache-Control': 'public, max-age=31536000, immutable',
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET',
+        'Access-Control-Allow-Methods': 'GET, HEAD',
+        'Accept-Ranges': 'bytes',
       },
     })
   } catch (error) {

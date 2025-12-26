@@ -37,25 +37,28 @@ export default function WelcomePage() {
           // Try to detect video type via HEAD request
           fetch(`/api/media/${data.welcomeBackgroundMediaId}`, { method: 'HEAD' })
             .then((res) => {
+              if (!res.ok) {
+                throw new Error(`HEAD request failed: ${res.status}`)
+              }
               const contentType = res.headers.get('content-type')
+              console.log('Detected content type:', contentType)
               setBackgroundMimeType(contentType)
               
               // If it's a video, start loading it
               if (contentType?.startsWith('video/')) {
                 setPosterImage(null)
-                // Start loading video after a short delay
-                setTimeout(() => {
-                  setShouldLoadVideo(true)
-                }, 300)
+                // Start loading video immediately
+                setShouldLoadVideo(true)
+              } else {
+                // It's an image, don't try to load as video
+                setShouldLoadVideo(false)
               }
             })
-            .catch(() => {
-              // If HEAD fails, try to load anyway and detect from file extension or let browser handle it
-              // Assume it might be a video and try loading
+            .catch((error) => {
+              console.error('Error detecting media type:', error)
+              // If HEAD fails, try loading as video anyway (browser will handle it)
               setBackgroundMimeType('video/mp4') // Default assumption
-              setTimeout(() => {
-                setShouldLoadVideo(true)
-              }, 300)
+              setShouldLoadVideo(true)
             })
         }
       })
@@ -90,7 +93,7 @@ export default function WelcomePage() {
                 className="absolute inset-0 bg-gradient-to-b from-[#400810] via-[#5C0015] to-[#800020] background-media-fade"
                 style={{ zIndex: 1 }}
               />
-              {/* Video - loads lazily */}
+              {/* Video - loads when shouldLoadVideo is true */}
               {shouldLoadVideo && (
                 <video
                   key={restaurant.welcomeBackgroundMediaId}
@@ -99,19 +102,26 @@ export default function WelcomePage() {
                   loop
                   muted
                   playsInline
-                  preload="metadata"
+                  preload="auto"
                   className="w-full h-full object-cover background-media-fade absolute inset-0"
                   style={{ zIndex: 2, opacity: 0, transition: 'opacity 1s ease-in' }}
                   onLoadedData={(e) => {
                     // Fade in video once loaded
+                    console.log('Video loaded successfully')
                     const target = e.currentTarget
                     setTimeout(() => {
                       target.style.opacity = '1'
                     }, 100)
                   }}
+                  onCanPlay={(e) => {
+                    // Video is ready to play
+                    console.log('Video can play')
+                    const target = e.currentTarget
+                    target.style.opacity = '1'
+                  }}
                   onError={(e) => {
                     // If video fails to load, fall back to image
-                    console.error('Video failed to load, falling back to image')
+                    console.error('Video failed to load, falling back to image', e)
                     setBackgroundMimeType('image/jpeg')
                     setShouldLoadVideo(false)
                   }}
