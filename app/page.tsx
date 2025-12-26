@@ -14,18 +14,12 @@ export default function WelcomePage() {
   const [shouldLoadVideo, setShouldLoadVideo] = useState(false)
   const [posterImage, setPosterImage] = useState<string | null>(null)
 
-  useEffect(() => {
-    // Load language from localStorage
-    const savedLang = localStorage.getItem('language') as Language
-    if (savedLang && languages.some((l) => l.code === savedLang)) {
-      setSelectedLang(savedLang)
-    }
-
-    // Show UI immediately - don't block render
-    setIsLoaded(true)
-
+  const fetchRestaurantData = () => {
     // Fetch restaurant data (non-blocking)
-    fetch('/api/restaurant')
+    // Add cache-busting timestamp to ensure fresh data
+    fetch(`/api/restaurant?t=${Date.now()}`, {
+      cache: 'no-store',
+    })
       .then((res) => {
         if (!res.ok) throw new Error('Failed to fetch')
         return res.json()
@@ -65,6 +59,27 @@ export default function WelcomePage() {
       .catch((error) => {
         console.error('Error fetching restaurant:', error)
       })
+  }
+
+  useEffect(() => {
+    // Load language from localStorage
+    const savedLang = localStorage.getItem('language') as Language
+    if (savedLang && languages.some((l) => l.code === savedLang)) {
+      setSelectedLang(savedLang)
+    }
+
+    // Show UI immediately - don't block render
+    setIsLoaded(true)
+
+    // Fetch restaurant data
+    fetchRestaurantData()
+
+    // Refresh restaurant data every 30 seconds to catch updates
+    const refreshInterval = setInterval(() => {
+      fetchRestaurantData()
+    }, 30000)
+
+    return () => clearInterval(refreshInterval)
   }, [])
 
   const handleLanguageSelect = (lang: Language) => {
