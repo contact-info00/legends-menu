@@ -15,83 +15,74 @@ export function LanguageSwitcher({ currentLang, onLanguageChange }: LanguageSwit
   const dropdownRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
 
+  // Calculate position whenever dropdown opens
   useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const calculatePosition = () => {
+        const buttonRect = buttonRef.current!.getBoundingClientRect()
+        const dropdownHeight = 120
+        const spaceBelow = window.innerHeight - buttonRect.bottom
+        const spaceAbove = buttonRect.top
+        
+        let top: number
+        const right = Math.max(8, window.innerWidth - buttonRect.right)
+        
+        if (spaceBelow >= dropdownHeight || spaceBelow > spaceAbove) {
+          top = buttonRect.bottom + 8
+        } else {
+          top = buttonRect.top - dropdownHeight - 8
+        }
+        
+        if (top < 8) top = 8
+        
+        setDropdownPosition({ top, right })
+      }
+      
+      // Calculate immediately
+      calculatePosition()
+      
+      // Recalculate on scroll/resize
+      window.addEventListener('scroll', calculatePosition, true)
+      window.addEventListener('resize', calculatePosition)
+      
+      return () => {
+        window.removeEventListener('scroll', calculatePosition, true)
+        window.removeEventListener('resize', calculatePosition)
+      }
+    }
+  }, [isOpen])
+
+  // Handle click outside
+  useEffect(() => {
+    if (!isOpen) return
+
     const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node
       if (
         dropdownRef.current &&
         buttonRef.current &&
-        !dropdownRef.current.contains(event.target as Node) &&
-        !buttonRef.current.contains(event.target as Node)
+        !dropdownRef.current.contains(target) &&
+        !buttonRef.current.contains(target)
       ) {
         setIsOpen(false)
       }
     }
 
-    if (isOpen) {
-      // Calculate dropdown position (for fixed positioning relative to viewport)
-      const calculatePosition = () => {
-        if (buttonRef.current) {
-          const buttonRect = buttonRef.current.getBoundingClientRect()
-          const dropdownHeight = 120 // Approximate height of dropdown (3 languages)
-          const spaceBelow = window.innerHeight - buttonRect.bottom
-          const spaceAbove = buttonRect.top
-          
-          let top: number
-          let right: number
-          
-          // Position dropdown below button if there's space, otherwise above
-          if (spaceBelow >= dropdownHeight || spaceBelow > spaceAbove) {
-            // Position below button (using viewport coordinates for fixed positioning)
-            top = buttonRect.bottom + 8
-          } else {
-            // Position above button
-            top = buttonRect.top - dropdownHeight - 8
-          }
-          
-          // Align right edge with button's right edge
-          // For fixed positioning, right is distance from right edge of viewport
-          right = Math.max(8, window.innerWidth - buttonRect.right)
-          
-          // Ensure dropdown doesn't go off top of screen
-          if (top < 8) {
-            top = 8
-          }
-          
-          setDropdownPosition({ top, right })
-        } else {
-          // Fallback position if button ref is not available
-          setDropdownPosition({ top: 100, right: 16 })
-        }
-      }
-      
-      // Set initial position immediately
-      if (buttonRef.current) {
-        const buttonRect = buttonRef.current.getBoundingClientRect()
-        setDropdownPosition({
-          top: buttonRect.bottom + 8,
-          right: Math.max(8, window.innerWidth - buttonRect.right)
-        })
-      }
-      
-      // Recalculate after a tiny delay to ensure button is fully rendered
-      const positionTimeoutId = setTimeout(calculatePosition, 10)
-      
-      // Add click outside handler with a small delay to avoid immediate closing
-      const clickTimeoutId = setTimeout(() => {
-        document.addEventListener('mousedown', handleClickOutside)
-      }, 100)
-      
-      return () => {
-        clearTimeout(positionTimeoutId)
-        clearTimeout(clickTimeoutId)
-        document.removeEventListener('mousedown', handleClickOutside)
-      }
+    // Delay to prevent immediate closing
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside)
+    }, 50)
+
+    return () => {
+      clearTimeout(timeoutId)
+      document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [isOpen])
 
   const handleButtonClick = (e: React.MouseEvent) => {
+    e.preventDefault()
     e.stopPropagation()
-    setIsOpen(!isOpen)
+    setIsOpen(prev => !prev)
   }
 
   return (
@@ -110,17 +101,21 @@ export function LanguageSwitcher({ currentLang, onLanguageChange }: LanguageSwit
       {isOpen && (
         <div
           ref={dropdownRef}
-          className="fixed backdrop-blur-xl bg-[#400810]/95 rounded-xl shadow-2xl z-[9999] min-w-[120px] max-w-[calc(100vw-2rem)] border border-white/20 language-dropdown-animation"
+          className="fixed backdrop-blur-xl bg-[#400810]/95 rounded-xl shadow-2xl z-[99999] min-w-[120px] max-w-[calc(100vw-2rem)] border border-white/20 language-dropdown-animation"
           style={{
             top: `${dropdownPosition.top}px`,
             right: `${dropdownPosition.right}px`,
+            pointerEvents: 'auto',
           }}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+          }}
         >
           {languages.map((lang) => (
             <button
               key={lang.code}
               onClick={(e) => {
+                e.preventDefault()
                 e.stopPropagation()
                 onLanguageChange(lang.code)
                 setIsOpen(false)
