@@ -1,0 +1,289 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --menu-gradient-start: #400810;
+  --menu-gradient-end: #5C0015;
+  --header-text: #FFFFFF;
+  --header-icons: #FFFFFF;
+  --active-tab: #FFFFFF;
+  --inactive-tab: rgba(255, 255, 255, 0.7);
+  --category-card-bg: rgba(255, 255, 255, 0.1);
+  --item-card-bg: rgba(255, 255, 255, 0.15);
+  --item-name-text: #FFFFFF;
+  --item-desc-text: rgba(255, 255, 255, 0.9);
+  --price-text: #FBBF24;
+  --divider-line: rgba(255, 255, 255, 0.2);
+  --modal-bg: rgba(64, 8, 16, 0.95);
+  --modal-overlay: rgba(0,0,0,0.7);
+  --button-bg: linear-gradient(135deg, #800020 0%, #5C0015 100%);
+  --button-text: #FFFFFF;
+  --feedback-card-bg: rgba(255, 255, 255, 0.1);
+  --feedback-card-text: #FFFFFF;
+  --welcome-overlay-color: rgba(0, 0, 0, 0.3);
+  --welcome-overlay-opacity: 0.5;
+  /* Typography sizes - defaults, will be overridden by inline styles from API */
+  --menu-section-size: 22px;
+  --menu-category-size: 18px;
+  --menu-item-name-size: 16px;
+  --menu-item-desc-size: 14px;
+  --menu-item-price-size: 16px;
+  --header-logo-size: 32px;
+}
+
+/* Apply brand colors dynamically */
+[style*="--menu-gradient-start"] {
+  background: linear-gradient(
+    to bottom,
+    var(--menu-gradient-start),
+    var(--menu-gradient-end)
+  );
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  position: relative;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: #400810;
+  min-height: 100dvh;
+  background-attachment: fixed;
+}
+
+/* Prevent horizontal overflow from media */
+img, video, canvas, svg, iframe {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Ensure containers don't exceed viewport */
+.container,
+[class*="max-w-"] {
+  max-width: 100vw;
+}
+
+/* Prevent fixed/absolute elements from causing overflow */
+[class*="fixed"],
+[class*="absolute"] {
+  max-width: 100vw;
+}
+
+/* Ensure text wraps properly */
+p, span, h1, h2, h3, h4, h5, h6 {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Glassmorphism utility classes */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 140px;
+}
+
+/* Enhanced smooth scrolling for better UX */
+* {
+  scroll-margin-top: 140px;
+}
+
+/* Custom scrollbar with dark red theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(64, 8, 16, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #800020, #5C0015);
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #A00028, #6B0018);
+}
+
+/* Smooth transitions for all interactive elements */
+button, a, [role="button"] {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Prevent layout shift during scroll */
+.sticky, .fixed {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Ensure sticky positioning works correctly */
+nav[style*="position: sticky"],
+nav.sticky {
+  position: sticky !important;
+  top: 0 !important;
+  will-change: transform;
+}
+
+/* Basket rise animation - pops up from below viewport to bottom */
+@keyframes basketRise {
+  0% {
+    transform: translateX(100px) translateY(-50%) scale(0.5);
+    opacity: 0;
+  }
+  60% {
+    transform: translateX(-15px) translateY(-50%) scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0) translateY(-50%) scale(1);
+    opacity: 1;
+  }
+}
+
+.basket-rise-animation {
+  animation: basketRise 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Popup fade animation for item add confirmation */
+@keyframes popupFade {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(-10px);
+  }
+  15% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  85% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.9) translateY(-5px);
+  }
+}
+
+.popup-fade-animation {
+  animation: popupFade 2s ease-out forwards;
+}
+
+/* Welcome page fade-in animation - 3 seconds from 0% to 100% opacity */
+@keyframes welcomeFadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.welcome-fade-in {
+  opacity: 0;
+  pointer-events: auto; /* Allow clicking during animation */
+}
+
+.welcome-fade-in.animate-in {
+  animation: welcomeFadeIn 6s ease-in-out forwards;
+  pointer-events: auto; /* Ensure components remain clickable */
+}
+
+/* Background fade-in animation - 4 seconds with smooth transition */
+.background-fade-in {
+  opacity: 0;
+}
+
+.background-fade-in.animate-in {
+  animation: welcomeFadeIn 4s ease-in-out forwards;
+}
+
+/* Language dropdown animation */
+@keyframes languageDropdownFade {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.language-dropdown-animation {
+  animation: languageDropdownFade 0.2s ease-out forwards;
+}
+
+/* Ensure video and image inside background container also fade smoothly */
+.background-media-fade {
+  opacity: 0;
+  transition: opacity 4s ease-in-out;
+}
+
+.background-fade-in.animate-in .background-media-fade {
+  opacity: 1;
+}
+
+/* Welcome text lighting effect with menu background color */
+.welcome-text-lighting {
+  color: #FFFFFF;
+  text-shadow: 
+    0 0 10px rgba(128, 0, 32, 0.8),
+    0 0 20px rgba(128, 0, 32, 0.6),
+    0 0 30px rgba(92, 0, 21, 0.5),
+    0 0 40px rgba(64, 8, 16, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.7);
+  filter: drop-shadow(0 0 8px rgba(128, 0, 32, 0.6));
+}
+
+/* Luxury font for welcome text - using fallback fonts */
+.luxury-font {
+  font-family: var(--font-bebas), 'Bebas Neue', 'Oswald', 'Impact', sans-serif;
+  font-weight: normal;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-style: normal;
+}
+

@@ -1,0 +1,127 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Restaurant {
+  id          String   @id @default(cuid())
+  nameKu      String
+  nameEn      String
+  nameAr      String
+  logoMediaId String?
+  logo        Media?   @relation("RestaurantLogo", fields: [logoMediaId], references: [id])
+  welcomeBackgroundMediaId String?
+  welcomeBackground Media? @relation("WelcomeBackground", fields: [welcomeBackgroundMediaId], references: [id])
+  welcomeOverlayColor String @default("#000000")
+  welcomeOverlayOpacity Float @default(0.5)
+  welcomeTextEn String?
+  googleMapsUrl String?
+  phoneNumber  String?
+  brandColors  Json?   // Store custom colors as JSON
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  sections     Section[]
+}
+
+model Section {
+  id          String   @id @default(cuid())
+  restaurantId String
+  restaurant  Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  nameKu      String
+  nameEn      String
+  nameAr      String
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  categories  Category[]
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  sectionId   String
+  section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  nameKu      String
+  nameEn      String
+  nameAr      String
+  imageMediaId String?
+  image       Media?   @relation("CategoryImage", fields: [imageMediaId], references: [id])
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  items       Item[]
+}
+
+model Item {
+  id          String   @id @default(cuid())
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  nameKu      String
+  nameEn      String
+  nameAr      String
+  descriptionKu String?
+  descriptionEn String?
+  descriptionAr String?
+  price       Float
+  imageMediaId String?
+  image       Media?   @relation("ItemImage", fields: [imageMediaId], references: [id])
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Feedback {
+  id          String   @id @default(cuid())
+  staffRating Int      // 1-5 stars
+  serviceRating Int    // 1-5 stars
+  hygieneRating Int    // 1-5 stars
+  satisfactionEmoji String? // emoji string
+  phoneNumber String?
+  tableNumber String?
+  comment     String?
+  createdAt   DateTime @default(now())
+}
+
+model AdminUser {
+  id          String   @id @default(cuid())
+  pinHash     String   // bcrypt hashed PIN
+  lastLoginAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Media {
+  id          String   @id @default(cuid())
+  mimeType    String
+  bytes       Bytes    // BYTEA in PostgreSQL
+  size        Int      // Size in bytes
+  createdAt   DateTime @default(now())
+  restaurantLogos Restaurant[] @relation("RestaurantLogo")
+  welcomeBackgrounds Restaurant[] @relation("WelcomeBackground")
+  categoryImages Category[] @relation("CategoryImage")
+  itemImages  Item[]   @relation("ItemImage")
+}
+
+model UiSettings {
+  id                  String   @id @default("ui-settings-1")
+  sectionTitleSize    Int      @default(22)
+  categoryTitleSize   Int      @default(18)
+  itemNameSize        Int      @default(16)
+  itemDescriptionSize Int      @default(14)
+  itemPriceSize       Int      @default(16)
+  headerLogoSize      Int      @default(32)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+
+
