@@ -24,8 +24,8 @@
   --welcome-overlay-color: rgba(0, 0, 0, 0.3);
   --welcome-overlay-opacity: 0.5;
   /* Typography sizes - defaults, will be overridden by inline styles from API */
-  --menu-section-size: 22px;
-  --menu-category-size: 18px;
+  --menu-section-size: 18px;
+  --menu-category-size: 15px;
   --menu-item-name-size: 16px;
   --menu-item-desc-size: 14px;
   --menu-item-price-size: 16px;

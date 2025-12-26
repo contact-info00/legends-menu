@@ -28,31 +28,56 @@ export function LanguageSwitcher({ currentLang, onLanguageChange }: LanguageSwit
       }
     }
 
-    if (isOpen && buttonRef.current) {
+    if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside)
       
-      // Calculate dropdown position based on button position
-      const buttonRect = buttonRef.current.getBoundingClientRect()
-      const spaceBelow = window.innerHeight - buttonRect.bottom
-      const spaceAbove = buttonRect.top
-      const dropdownHeight = 120 // Approximate height of dropdown
-      
-      let top: number
-      let right: number
-      
-      // Position dropdown below button if there's space, otherwise above
-      if (spaceBelow >= dropdownHeight || spaceBelow > spaceAbove) {
-        // Position below button
-        top = buttonRect.bottom + window.scrollY + 8
-      } else {
-        // Position above button
-        top = buttonRect.top + window.scrollY - dropdownHeight - 8
+      // Calculate dropdown position (for fixed positioning relative to viewport)
+      const calculatePosition = () => {
+        if (buttonRef.current) {
+          const buttonRect = buttonRef.current.getBoundingClientRect()
+          const dropdownHeight = 120 // Approximate height of dropdown (3 languages)
+          const spaceBelow = window.innerHeight - buttonRect.bottom
+          const spaceAbove = buttonRect.top
+          
+          let top: number
+          let right: number
+          
+          // Position dropdown below button if there's space, otherwise above
+          if (spaceBelow >= dropdownHeight || spaceBelow > spaceAbove) {
+            // Position below button (using viewport coordinates for fixed positioning)
+            top = buttonRect.bottom + 8
+          } else {
+            // Position above button
+            top = buttonRect.top - dropdownHeight - 8
+          }
+          
+          // Align right edge with button's right edge
+          // For fixed positioning, right is distance from right edge of viewport
+          right = Math.max(8, window.innerWidth - buttonRect.right)
+          
+          // Ensure dropdown doesn't go off top of screen
+          if (top < 8) {
+            top = 8
+          }
+          
+          setDropdownPosition({ top, right })
+        } else {
+          // Fallback position if button ref is not available
+          setDropdownPosition({ top: 100, right: 16 })
+        }
       }
       
-      // Align right edge with button's right edge
-      right = window.innerWidth - buttonRect.right
+      // Calculate position immediately
+      calculatePosition()
       
-      setDropdownPosition({ top, right })
+      // Also recalculate after a tiny delay to ensure button is fully rendered
+      const timeoutId = setTimeout(calculatePosition, 10)
+      
+      return () => {
+        clearTimeout(timeoutId)
+      }
+    } else {
+      setDropdownPosition(null)
     }
 
     return () => {
@@ -71,36 +96,45 @@ export function LanguageSwitcher({ currentLang, onLanguageChange }: LanguageSwit
         >
           <Globe className="w-6 h-6 text-white" />
         </button>
-      </div>
-      {isOpen && dropdownPosition && (
+      {isOpen && (
         <div
           ref={dropdownRef}
           className="fixed backdrop-blur-xl bg-[#400810]/95 rounded-xl shadow-2xl z-[9999] min-w-[120px] max-w-[calc(100vw-2rem)] border border-white/20 language-dropdown-animation"
-          style={{
-            top: `${dropdownPosition.top}px`,
-            right: `${dropdownPosition.right}px`,
-          }}
+          style={
+            dropdownPosition
+              ? {
+                  top: `${dropdownPosition.top}px`,
+                  right: `${dropdownPosition.right}px`,
+                }
+              : {
+                  top: '100px',
+                  right: '16px',
+                  visibility: 'hidden',
+                }
+          }
         >
-          {languages.map((lang) => (
-            <button
-              key={lang.code}
-              onClick={() => {
-                onLanguageChange(lang.code)
-                setIsOpen(false)
-                setDropdownPosition(null)
-              }}
-              className={`w-full text-left px-4 py-2 text-sm hover:bg-white/10 first:rounded-t-xl last:rounded-b-xl transition-colors ${
-                currentLang === lang.code
-                  ? 'bg-white/20 text-white font-semibold'
-                  : 'text-white/80'
-              }`}
-            >
-              {lang.nativeName}
-            </button>
-          ))}
-        </div>
-      )}
+            {languages.map((lang) => (
+              <button
+                key={lang.code}
+                onClick={() => {
+                  onLanguageChange(lang.code)
+                  setIsOpen(false)
+                  setDropdownPosition(null)
+                }}
+                className={`w-full text-left px-4 py-2 text-sm hover:bg-white/10 first:rounded-t-xl last:rounded-b-xl transition-colors ${
+                  currentLang === lang.code
+                    ? 'bg-white/20 text-white font-semibold'
+                    : 'text-white/80'
+                }`}
+              >
+                {lang.nativeName}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </>
   )
 }
+
 
