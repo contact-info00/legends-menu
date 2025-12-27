@@ -723,7 +723,7 @@ export default function MenuBuilderPage() {
               className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
               onClick={(e) => e.stopPropagation()}
             >
-              <GripVertical className="w-4 h-4 sm:w-5 sm:h-5 text-white/60 hover:text-white transition-all" />
+              <GripVertical className="w-6 h-6 sm:w-7 sm:h-7 text-white transition-all" />
             </div>
             <button
               onClick={(e) => {
@@ -754,7 +754,7 @@ export default function MenuBuilderPage() {
               onClick={() => handleEditSection(section)}
               className="h-8 w-8 p-0 sm:h-9 sm:w-9"
             >
-              <Edit2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              <Edit2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </Button>
             <Button
               size="sm"
@@ -762,7 +762,7 @@ export default function MenuBuilderPage() {
               onClick={() => setDeletingSection(section.id)}
               className="h-8 w-8 p-0 sm:h-9 sm:w-9 text-red-400 hover:text-red-500 hover:bg-red-500/10"
             >
-              <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+              <Trash2 className="w-5 h-5 sm:w-6 sm:h-6" />
             </Button>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -856,7 +856,7 @@ export default function MenuBuilderPage() {
               className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
               onClick={(e) => e.stopPropagation()}
             >
-              <GripVertical className="w-3 h-3 sm:w-4 sm:h-4 text-white/60 hover:text-white transition-all" />
+              <GripVertical className="w-6 h-6 sm:w-7 sm:h-7 text-white transition-all" />
             </div>
             <button
               onClick={(e) => {
@@ -888,7 +888,7 @@ export default function MenuBuilderPage() {
               onClick={() => handleEditCategory(category)}
               className="h-8 w-8 p-0 sm:h-9 sm:w-9"
             >
-              <Edit2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              <Edit2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </Button>
             <Button
               size="sm"
@@ -896,7 +896,7 @@ export default function MenuBuilderPage() {
               onClick={() => setDeletingCategory(category.id)}
               className="h-8 w-8 p-0 sm:h-9 sm:w-9 text-red-400 hover:text-red-500 hover:bg-red-500/10"
             >
-              <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+              <Trash2 className="w-5 h-5 sm:w-6 sm:h-6" />
             </Button>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -1013,7 +1013,7 @@ export default function MenuBuilderPage() {
             onClick={() => handleEditItem(item)}
             className="h-8 w-8 p-0 sm:h-9 sm:w-9"
           >
-            <Edit2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+            <Edit2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </Button>
           <Button
             size="sm"
@@ -1021,7 +1021,7 @@ export default function MenuBuilderPage() {
             onClick={() => setDeletingItem(item.id)}
             className="h-8 w-8 p-0 sm:h-9 sm:w-9 text-red-400 hover:text-red-500 hover:bg-red-500/10"
           >
-            <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+            <Trash2 className="w-5 h-5 sm:w-6 sm:h-6" />
           </Button>
         </div>
       </div>
