@@ -150,10 +150,10 @@ export function MenuClient() {
         console.error('Error fetching UI settings:', error)
       })
 
-    // Auto-refresh menu data every 30 seconds
+    // Auto-refresh menu data every 10 seconds to see updates quickly
     const refreshInterval = setInterval(() => {
       fetchMenuData()
-    }, 30000)
+    }, 10000)
 
     // Cleanup interval on unmount
     return () => {
