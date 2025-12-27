@@ -10,6 +10,8 @@ const DEFAULT_SETTINGS = {
   itemDescriptionSize: 14,
   itemPriceSize: 16,
   headerLogoSize: 32,
+  bottomNavSectionSize: 18,
+  bottomNavCategorySize: 15,
 }
 
 export async function GET() {
@@ -47,6 +49,8 @@ export async function GET() {
       itemDescriptionSize: settings.itemDescriptionSize,
       itemPriceSize: settings.itemPriceSize,
       headerLogoSize: settings.headerLogoSize,
+      bottomNavSectionSize: settings.bottomNavSectionSize,
+      bottomNavCategorySize: settings.bottomNavCategorySize,
     })
   } catch (error) {
     console.error('Error fetching UI settings:', error)
@@ -75,6 +79,8 @@ export async function PUT(request: NextRequest) {
       'itemDescriptionSize',
       'itemPriceSize',
       'headerLogoSize',
+      'bottomNavSectionSize',
+      'bottomNavCategorySize',
     ]
 
     for (const field of fields) {
@@ -149,6 +155,8 @@ export async function PUT(request: NextRequest) {
       itemDescriptionSize: uiSettings.itemDescriptionSize,
       itemPriceSize: uiSettings.itemPriceSize,
       headerLogoSize: uiSettings.headerLogoSize,
+      bottomNavSectionSize: uiSettings.bottomNavSectionSize,
+      bottomNavCategorySize: uiSettings.bottomNavCategorySize,
     })
   } catch (error: any) {
     console.error('Error updating UI settings:', error)

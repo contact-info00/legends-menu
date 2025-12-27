@@ -80,6 +80,8 @@ export function MenuClient() {
     itemDescriptionSize: 14,
     itemPriceSize: 16,
     headerLogoSize: 32,
+    bottomNavSectionSize: 18,
+    bottomNavCategorySize: 15,
   })
 
   // Function to fetch menu data with cache-busting
@@ -362,7 +364,7 @@ export function MenuClient() {
                         ? 'bg-gradient-to-r from-[#800020] to-[#5C0015] text-white shadow-lg border-[#A00028]'
                         : 'bg-white/10 text-white/80 hover:bg-white/20 border-white/20 hover:border-white/30'
                     }`}
-                    style={{ fontSize: 'var(--menu-section-size)', lineHeight: '1.2' }}
+                    style={{ fontSize: `${uiSettings.bottomNavSectionSize}px`, lineHeight: '1.2' }}
                   >
                     {getLocalizedText(section, currentLang)}
                   </button>
@@ -382,7 +384,7 @@ export function MenuClient() {
                       <div className="relative px-2 sm:px-3 py-1.5 bg-gradient-to-r from-[#800020]/40 to-[#5C0015]/40 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-gradient-to-r hover:from-[#800020]/60 hover:to-[#5C0015]/60 hover:border-white/40 transition-colors duration-300">
                         <span 
                           className="relative text-white font-semibold whitespace-nowrap text-xs sm:text-sm"
-                          style={{ fontSize: 'var(--menu-category-size)' }}
+                          style={{ fontSize: `${uiSettings.bottomNavCategorySize}px` }}
                         >
                           {getLocalizedText(category, currentLang)}
                         </span>

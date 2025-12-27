@@ -13,6 +13,8 @@ interface UiSettings {
   itemDescriptionSize: number
   itemPriceSize: number
   headerLogoSize: number
+  bottomNavSectionSize: number
+  bottomNavCategorySize: number
 }
 
 export default function TypographyPage() {
@@ -24,6 +26,8 @@ export default function TypographyPage() {
     itemDescriptionSize: 14,
     itemPriceSize: 16,
     headerLogoSize: 32,
+    bottomNavSectionSize: 18,
+    bottomNavCategorySize: 15,
   })
   const [inputValues, setInputValues] = useState<Record<string, string>>({})
   const [isLoading, setIsLoading] = useState(false)
@@ -46,6 +50,8 @@ export default function TypographyPage() {
           itemDescriptionSize: String(data.itemDescriptionSize),
           itemPriceSize: String(data.itemPriceSize),
           headerLogoSize: String(data.headerLogoSize || 32),
+          bottomNavSectionSize: String(data.bottomNavSectionSize || 18),
+          bottomNavCategorySize: String(data.bottomNavCategorySize || 15),
         })
       }
     } catch (error) {
@@ -237,6 +243,36 @@ export default function TypographyPage() {
                   className="w-full"
                 />
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">
+                  Bottom Navigation Section Size (px)
+                </label>
+                <Input
+                  type="number"
+                  min="10"
+                  max="40"
+                  value={inputValues.bottomNavSectionSize ?? settings.bottomNavSectionSize}
+                  onChange={(e) => updateInputValue('bottomNavSectionSize', e.target.value)}
+                  onBlur={() => handleBlur('bottomNavSectionSize')}
+                  className="w-full"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">
+                  Bottom Navigation Category Size (px)
+                </label>
+                <Input
+                  type="number"
+                  min="10"
+                  max="40"
+                  value={inputValues.bottomNavCategorySize ?? settings.bottomNavCategorySize}
+                  onChange={(e) => updateInputValue('bottomNavCategorySize', e.target.value)}
+                  onBlur={() => handleBlur('bottomNavCategorySize')}
+                  className="w-full"
+                />
+              </div>
             </div>
           </div>
 
@@ -252,6 +288,8 @@ export default function TypographyPage() {
                 ['--menu-item-desc-size' as any]: `${settings.itemDescriptionSize}px`,
                 ['--menu-item-price-size' as any]: `${settings.itemPriceSize}px`,
                 ['--header-logo-size' as any]: `${settings.headerLogoSize}px`,
+                ['--bottom-nav-section-size' as any]: `${settings.bottomNavSectionSize}px`,
+                ['--bottom-nav-category-size' as any]: `${settings.bottomNavCategorySize}px`,
               }}
             >
               {/* Section Preview */}
@@ -321,6 +359,31 @@ export default function TypographyPage() {
                       }}
                     >
                       Logo
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Navigation Preview */}
+              <div>
+                <h3 className="text-sm font-medium text-white/80 mb-2">Bottom Navigation Preview</h3>
+                <div className="backdrop-blur-xl bg-gradient-to-r from-[#800020]/30 to-[#5C0015]/30 rounded-xl p-4 border border-white/20">
+                  <div className="space-y-3">
+                    <div className="flex gap-2 items-center justify-center">
+                      <div 
+                        className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#800020] to-[#5C0015] text-white font-medium"
+                        style={{ fontSize: 'var(--bottom-nav-section-size)' }}
+                      >
+                        Section
+                      </div>
+                    </div>
+                    <div className="flex gap-2 items-center justify-center">
+                      <div 
+                        className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#800020]/40 to-[#5C0015]/40 text-white font-semibold"
+                        style={{ fontSize: 'var(--bottom-nav-category-size)' }}
+                      >
+                        Category
+                      </div>
                     </div>
                   </div>
                 </div>
