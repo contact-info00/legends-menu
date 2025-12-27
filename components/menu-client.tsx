@@ -174,6 +174,10 @@ export function MenuClient() {
   const handleLanguageChange = (lang: Language) => {
     setCurrentLang(lang)
     localStorage.setItem('language', lang)
+    // Update URL if needed
+    const newUrl = new URL(window.location.href)
+    newUrl.searchParams.set('lang', lang)
+    window.history.pushState({}, '', newUrl.toString())
   }
 
   const handleItemClick = (itemId: string) => {
