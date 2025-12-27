@@ -240,7 +240,7 @@ export default function SettingsPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6 backdrop-blur-xl bg-white/10 rounded-2xl p-3 sm:p-4 border border-white/20 shadow-lg">
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">Settings</h1>
           <Button 
-            onClick={() => router.push('/admin')} 
+            onClick={() => router.push('/admin-portal')} 
             className="bg-white/10 hover:bg-white/15 border border-white/20 text-white shadow-lg text-sm sm:text-base w-full sm:w-auto"
           >
             Back
