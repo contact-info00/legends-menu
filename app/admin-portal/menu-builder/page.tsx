@@ -736,16 +736,24 @@ export default function MenuBuilderPage() {
         >
           <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 w-full sm:w-auto">
             {/* Drag Handle - Far left, vertically centered, large hit area */}
-            <div
+            <button
+              type="button"
               {...attributes}
               {...listeners}
               data-drag-handle
-              style={{ touchAction: 'none' }}
-              className="cursor-grab active:cursor-grabbing flex-shrink-0 flex items-center justify-center min-w-[40px] min-h-[40px]"
+              style={{ 
+                touchAction: 'none',
+                userSelect: 'none',
+                WebkitUserSelect: 'none',
+                WebkitTouchCallout: 'none',
+              }}
+              className="cursor-grab active:cursor-grabbing flex-shrink-0 flex items-center justify-center min-w-[40px] min-h-[40px] bg-transparent border-0 p-0"
               onPointerDown={(e) => {
+                e.preventDefault()
                 e.stopPropagation()
               }}
               onTouchStart={(e) => {
+                e.preventDefault()
                 e.stopPropagation()
                 const touch = e.touches[0]
                 setTooltipPosition({ x: touch.clientX, y: touch.clientY })
@@ -754,6 +762,7 @@ export default function MenuBuilderPage() {
                 }, 2000)
               }}
               onTouchEnd={(e) => {
+                e.preventDefault()
                 e.stopPropagation()
                 if (tooltipTimerRef.current) {
                   clearTimeout(tooltipTimerRef.current)
@@ -763,13 +772,20 @@ export default function MenuBuilderPage() {
                   setShowDragTooltip(false)
                 }
               }}
+              onTouchMove={(e) => {
+                e.preventDefault()
+              }}
               onClick={(e) => {
                 e.stopPropagation()
                 e.preventDefault()
               }}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+              }}
             >
-              <GripVertical className="w-6 h-6 sm:w-7 sm:h-7 text-white transition-all pointer-events-none" />
-            </div>
+              <GripVertical className="w-6 h-6 sm:w-7 sm:h-7 text-white transition-all pointer-events-none select-none" />
+            </button>
             <button
               onClick={(e) => {
                 e.stopPropagation()
@@ -896,16 +912,24 @@ export default function MenuBuilderPage() {
         >
           <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 w-full sm:w-auto">
             {/* Drag Handle - Far left, vertically centered, large hit area */}
-            <div
+            <button
+              type="button"
               {...attributes}
               {...listeners}
               data-drag-handle
-              style={{ touchAction: 'none' }}
-              className="cursor-grab active:cursor-grabbing flex-shrink-0 flex items-center justify-center min-w-[40px] min-h-[40px]"
+              style={{ 
+                touchAction: 'none',
+                userSelect: 'none',
+                WebkitUserSelect: 'none',
+                WebkitTouchCallout: 'none',
+              }}
+              className="cursor-grab active:cursor-grabbing flex-shrink-0 flex items-center justify-center min-w-[40px] min-h-[40px] bg-transparent border-0 p-0"
               onPointerDown={(e) => {
+                e.preventDefault()
                 e.stopPropagation()
               }}
               onTouchStart={(e) => {
+                e.preventDefault()
                 e.stopPropagation()
                 const touch = e.touches[0]
                 setTooltipPosition({ x: touch.clientX, y: touch.clientY })
@@ -914,6 +938,7 @@ export default function MenuBuilderPage() {
                 }, 2000)
               }}
               onTouchEnd={(e) => {
+                e.preventDefault()
                 e.stopPropagation()
                 if (tooltipTimerRef.current) {
                   clearTimeout(tooltipTimerRef.current)
@@ -923,13 +948,20 @@ export default function MenuBuilderPage() {
                   setShowDragTooltip(false)
                 }
               }}
+              onTouchMove={(e) => {
+                e.preventDefault()
+              }}
               onClick={(e) => {
                 e.stopPropagation()
                 e.preventDefault()
               }}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+              }}
             >
-              <GripVertical className="w-6 h-6 sm:w-7 sm:h-7 text-white transition-all pointer-events-none" />
-            </div>
+              <GripVertical className="w-6 h-6 sm:w-7 sm:h-7 text-white transition-all pointer-events-none select-none" />
+            </button>
             <button
               onClick={(e) => {
                 e.stopPropagation()
@@ -1039,21 +1071,29 @@ export default function MenuBuilderPage() {
       <div
         ref={setNodeRef}
         style={style}
-        className="flex items-center gap-3 p-2 rounded border border-white/20"
+        className="flex items-center justify-between gap-3 w-full p-2 rounded border border-white/20"
       >
         {/* Left Group: Grip + Photo + Name+Price */}
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           {/* Drag Handle - Far left, vertically centered, large hit area */}
-          <div
+          <button
+            type="button"
             {...attributes}
             {...listeners}
             data-drag-handle
-            style={{ touchAction: 'none' }}
-            className="cursor-grab active:cursor-grabbing flex-shrink-0 flex items-center justify-center min-w-[40px] min-h-[40px]"
+            style={{ 
+              touchAction: 'none',
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+              WebkitTouchCallout: 'none',
+            }}
+            className="cursor-grab active:cursor-grabbing flex-shrink-0 flex items-center justify-center min-w-[40px] min-h-[40px] bg-transparent border-0 p-0"
             onPointerDown={(e) => {
+              e.preventDefault()
               e.stopPropagation()
             }}
             onTouchStart={(e) => {
+              e.preventDefault()
               e.stopPropagation()
               const touch = e.touches[0]
               setTooltipPosition({ x: touch.clientX, y: touch.clientY })
@@ -1062,6 +1102,7 @@ export default function MenuBuilderPage() {
               }, 2000)
             }}
             onTouchEnd={(e) => {
+              e.preventDefault()
               e.stopPropagation()
               if (tooltipTimerRef.current) {
                 clearTimeout(tooltipTimerRef.current)
@@ -1071,13 +1112,20 @@ export default function MenuBuilderPage() {
                 setShowDragTooltip(false)
               }
             }}
+            onTouchMove={(e) => {
+              e.preventDefault()
+            }}
             onClick={(e) => {
               e.stopPropagation()
               e.preventDefault()
             }}
+            onContextMenu={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+            }}
           >
-            <GripVertical className="w-6 h-6 sm:w-7 sm:h-7 text-white transition-all pointer-events-none" />
-          </div>
+            <GripVertical className="w-6 h-6 sm:w-7 sm:h-7 text-white transition-all pointer-events-none select-none" />
+          </button>
           
           {/* Photo */}
           <div className="w-14 h-14 sm:w-16 sm:h-16 rounded bg-gray-700 overflow-hidden flex-shrink-0">
@@ -1095,7 +1143,7 @@ export default function MenuBuilderPage() {
           </div>
           
           {/* Name + Price */}
-          <div className="flex-1 min-w-0">
+          <div className="flex flex-col min-w-0 flex-1">
             <div className="font-semibold text-white truncate text-sm sm:text-base">
               {item.nameEn}
             </div>
@@ -1106,9 +1154,9 @@ export default function MenuBuilderPage() {
         </div>
         
         {/* Right Group: Actions */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-3 flex-shrink-0">
           <label 
-            className="relative inline-flex items-center cursor-pointer"
+            className="relative inline-flex items-center cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
           >
             <input
@@ -1129,7 +1177,7 @@ export default function MenuBuilderPage() {
               e.stopPropagation()
               handleEditItem(item)
             }}
-            className="h-8 w-8 p-0 sm:h-9 sm:w-9"
+            className="h-9 w-9 p-0 min-w-[36px] min-h-[36px]"
           >
             <Edit2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </Button>
@@ -1140,7 +1188,7 @@ export default function MenuBuilderPage() {
               e.stopPropagation()
               setDeletingItem(item.id)
             }}
-            className="h-8 w-8 p-0 sm:h-9 sm:w-9 text-red-400 hover:text-red-500 hover:bg-red-500/10"
+            className="h-9 w-9 p-0 min-w-[36px] min-h-[36px] text-red-400 hover:text-red-500 hover:bg-red-500/10"
           >
             <Trash2 className="w-5 h-5 sm:w-6 sm:h-6" />
           </Button>
