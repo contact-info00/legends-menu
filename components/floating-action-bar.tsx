@@ -1,13 +1,19 @@
 'use client'
 
 import { Search, MessageSquare } from 'lucide-react'
+import { LanguageSwitcher } from './language-switcher'
+import { Language } from '@/lib/i18n'
 
 interface FloatingActionBarProps {
+  currentLang: Language
+  onLanguageChange: (lang: Language) => void
   onSearchClick: () => void
   onFeedbackClick: () => void
 }
 
 export function FloatingActionBar({
+  currentLang,
+  onLanguageChange,
   onSearchClick,
   onFeedbackClick,
 }: FloatingActionBarProps) {

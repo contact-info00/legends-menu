@@ -92,7 +92,11 @@ export function ItemCard({ item, currentLang, onItemClick, onAddToBasket, quanti
         }}>
           <h3 
             className="font-semibold text-white mb-1 line-clamp-1 drop-shadow-lg break-words"
-            style={{ fontSize: 'var(--menu-item-name-size)' }}
+            style={{ 
+              fontSize: 'var(--menu-item-name-size)',
+              letterSpacing: currentLang === 'ar' || currentLang === 'ku' ? '0.05em' : 'normal',
+              wordSpacing: currentLang === 'ar' || currentLang === 'ku' ? '0.1em' : 'normal'
+            }}
           >
             {getLocalizedText(item, currentLang)}
           </h3>

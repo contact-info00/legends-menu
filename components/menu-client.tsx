@@ -295,6 +295,8 @@ export function MenuClient() {
       />
 
       <FloatingActionBar
+        currentLang={currentLang}
+        onLanguageChange={handleLanguageChange}
         onSearchClick={() => setIsSearchOpen(true)}
         onFeedbackClick={() => router.push('/feedback')}
       />
