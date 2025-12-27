@@ -52,6 +52,9 @@ export default function MenuBuilderPage() {
   const [editingSection, setEditingSection] = useState<string | null>(null)
   const [editingCategory, setEditingCategory] = useState<string | null>(null)
   const [uploadingImage, setUploadingImage] = useState<string | null>(null)
+  const [deletingItem, setDeletingItem] = useState<string | null>(null)
+  const [deletingSection, setDeletingSection] = useState<string | null>(null)
+  const [deletingCategory, setDeletingCategory] = useState<string | null>(null)
   
   // Modal states
   const [showAddSection, setShowAddSection] = useState(false)
@@ -462,6 +465,69 @@ export default function MenuBuilderPage() {
     }
   }
 
+  const handleDeleteSection = async (sectionId: string) => {
+    try {
+      const response = await fetch(`/api/admin/sections/${sectionId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to delete section')
+      }
+
+      toast.success('Section deleted successfully')
+      setDeletingSection(null)
+      fetchMenuData()
+    } catch (error: any) {
+      console.error('Error deleting section:', error)
+      toast.error(error.message || 'Failed to delete section')
+      setDeletingSection(null)
+    }
+  }
+
+  const handleDeleteCategory = async (categoryId: string) => {
+    try {
+      const response = await fetch(`/api/admin/categories/${categoryId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to delete category')
+      }
+
+      toast.success('Category deleted successfully')
+      setDeletingCategory(null)
+      fetchMenuData()
+    } catch (error: any) {
+      console.error('Error deleting category:', error)
+      toast.error(error.message || 'Failed to delete category')
+      setDeletingCategory(null)
+    }
+  }
+
+  const handleDeleteItem = async (itemId: string) => {
+    try {
+      const response = await fetch(`/api/admin/items/${itemId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to delete item')
+      }
+
+      toast.success('Item deleted successfully')
+      setDeletingItem(null)
+      fetchMenuData()
+    } catch (error: any) {
+      console.error('Error deleting item:', error)
+      toast.error(error.message || 'Failed to delete item')
+      setDeletingItem(null)
+    }
+  }
+
   return (
     <div className="min-h-screen p-2 sm:p-4" style={{ backgroundColor: '#400810' }}>
       <div className="max-w-6xl mx-auto">
@@ -508,6 +574,14 @@ export default function MenuBuilderPage() {
                     className="h-8 w-8 p-0 sm:h-9 sm:w-9"
                   >
                     <Edit2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setDeletingSection(section.id)}
+                    className="h-8 w-8 p-0 sm:h-9 sm:w-9 text-red-400 hover:text-red-500 hover:bg-red-500/10"
+                  >
+                    <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                   </Button>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
@@ -557,6 +631,14 @@ export default function MenuBuilderPage() {
                             className="h-8 w-8 p-0 sm:h-9 sm:w-9"
                           >
                             <Edit2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setDeletingCategory(category.id)}
+                            className="h-8 w-8 p-0 sm:h-9 sm:w-9 text-red-400 hover:text-red-500 hover:bg-red-500/10"
+                          >
+                            <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                           </Button>
                           <label className="relative inline-flex items-center cursor-pointer">
                             <input
@@ -618,6 +700,14 @@ export default function MenuBuilderPage() {
                                       className="h-8 w-8 p-0 sm:h-9 sm:w-9"
                                     >
                                       <Edit2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => setDeletingItem(item.id)}
+                                      className="h-8 w-8 p-0 sm:h-9 sm:w-9 text-red-400 hover:text-red-500 hover:bg-red-500/10"
+                                    >
+                                      <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                                     </Button>
                                   </div>
                                 </div>
@@ -1263,6 +1353,87 @@ export default function MenuBuilderPage() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Section Confirmation Modal */}
+      {deletingSection && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="backdrop-blur-xl bg-[#400810]/95 rounded-3xl shadow-2xl border border-white/20 p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold text-white mb-4">Delete Section</h2>
+            <p className="text-white/80 mb-6">
+              Are you sure you want to delete this section? This will also delete all categories and items within it. This action cannot be undone.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => handleDeleteSection(deletingSection)}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              >
+                Delete
+              </Button>
+              <Button
+                onClick={() => setDeletingSection(null)}
+                variant="outline"
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Category Confirmation Modal */}
+      {deletingCategory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="backdrop-blur-xl bg-[#400810]/95 rounded-3xl shadow-2xl border border-white/20 p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold text-white mb-4">Delete Category</h2>
+            <p className="text-white/80 mb-6">
+              Are you sure you want to delete this category? This will also delete all items within it. This action cannot be undone.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => handleDeleteCategory(deletingCategory)}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              >
+                Delete
+              </Button>
+              <Button
+                onClick={() => setDeletingCategory(null)}
+                variant="outline"
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Item Confirmation Modal */}
+      {deletingItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="backdrop-blur-xl bg-[#400810]/95 rounded-3xl shadow-2xl border border-white/20 p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold text-white mb-4">Delete Item</h2>
+            <p className="text-white/80 mb-6">
+              Are you sure you want to delete this item? This action cannot be undone.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => handleDeleteItem(deletingItem)}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              >
+                Delete
+              </Button>
+              <Button
+                onClick={() => setDeletingItem(null)}
+                variant="outline"
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
         </div>
       )}
