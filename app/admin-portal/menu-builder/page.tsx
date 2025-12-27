@@ -699,27 +699,34 @@ export default function MenuBuilderPage() {
         style={style}
         className="border border-white/20 rounded-xl backdrop-blur-sm bg-white/5"
       >
-        {/* Section Header - Make whole header clickable except buttons */}
+        {/* Section Header - Make whole header draggable except buttons */}
         <div 
-          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 p-3 sm:p-4 cursor-pointer"
+          {...attributes}
+          {...listeners}
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 p-3 sm:p-4 cursor-grab active:cursor-grabbing"
           onClick={(e) => {
-            // Only toggle if not clicking on buttons or drag handle
             const target = e.target as HTMLElement
-            if (!target.closest('button') && !target.closest('[data-drag-handle]')) {
-              toggleSection(section.id)
+            // Prevent drag and toggle if clicking on buttons, inputs, or labels
+            if (target.closest('button') || target.closest('input') || target.closest('label')) {
+              e.stopPropagation()
+              return
+            }
+            toggleSection(section.id)
+          }}
+          onPointerDown={(e) => {
+            const target = e.target as HTMLElement
+            // Don't start drag if clicking on buttons, inputs, or labels
+            if (target.closest('button') || target.closest('input') || target.closest('label')) {
+              e.stopPropagation()
             }
           }}
         >
           <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 w-full sm:w-auto">
-            {/* Drag Handle */}
+            {/* Drag Handle Icon (visual indicator only) */}
             <div
-              {...attributes}
-              {...listeners}
-              data-drag-handle
-              className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
-              onClick={(e) => e.stopPropagation()}
+              className="flex-shrink-0 pointer-events-none"
             >
-              <GripVertical className="w-4 h-4 sm:w-5 sm:h-5 text-white/60 hover:text-white" />
+              <GripVertical className="w-4 h-4 sm:w-5 sm:h-5 text-white/60" />
             </div>
             <button
               onClick={(e) => {
@@ -833,26 +840,32 @@ export default function MenuBuilderPage() {
         style={style}
         className="border border-white/20 rounded-lg"
       >
-        {/* Category Header - Make whole header clickable except buttons */}
+        {/* Category Header - Make whole header draggable except buttons */}
         <div 
-          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 p-2 sm:p-3 cursor-pointer"
+          {...attributes}
+          {...listeners}
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 p-2 sm:p-3 cursor-grab active:cursor-grabbing"
           onClick={(e) => {
             const target = e.target as HTMLElement
-            if (!target.closest('button') && !target.closest('[data-drag-handle]')) {
-              toggleCategory(category.id)
+            // Prevent drag and toggle if clicking on buttons, inputs, or labels
+            if (target.closest('button') || target.closest('input') || target.closest('label')) {
+              e.stopPropagation()
+              return
+            }
+            toggleCategory(category.id)
+          }}
+          onPointerDown={(e) => {
+            const target = e.target as HTMLElement
+            // Don't start drag if clicking on buttons, inputs, or labels
+            if (target.closest('button') || target.closest('input') || target.closest('label')) {
+              e.stopPropagation()
             }
           }}
         >
           <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 w-full sm:w-auto">
-            {/* Drag Handle */}
-            <div
-              {...attributes}
-              {...listeners}
-              data-drag-handle
-              className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <GripVertical className="w-3 h-3 sm:w-4 sm:h-4 text-white/60 hover:text-white" />
+            {/* Drag Handle Icon (visual indicator only) */}
+            <div className="flex-shrink-0 pointer-events-none">
+              <GripVertical className="w-3 h-3 sm:w-4 sm:h-4 text-white/60" />
             </div>
             <button
               onClick={(e) => {
@@ -961,16 +974,20 @@ export default function MenuBuilderPage() {
       <div
         ref={setNodeRef}
         style={style}
-        className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 p-2 rounded border border-white/20"
+        {...attributes}
+        {...listeners}
+        className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 p-2 rounded border border-white/20 cursor-grab active:cursor-grabbing"
+        onPointerDown={(e) => {
+          const target = e.target as HTMLElement
+          // Don't start drag if clicking on buttons, inputs, or labels
+          if (target.closest('button') || target.closest('input') || target.closest('label')) {
+            e.stopPropagation()
+          }
+        }}
       >
-        {/* Drag Handle */}
-        <div
-          {...attributes}
-          {...listeners}
-          data-drag-handle
-          className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
-        >
-          <GripVertical className="w-3 h-3 sm:w-4 sm:h-4 text-white/60 hover:text-white" />
+        {/* Drag Handle Icon (visual indicator only) */}
+        <div className="flex-shrink-0 pointer-events-none">
+          <GripVertical className="w-3 h-3 sm:w-4 sm:h-4 text-white/60" />
         </div>
         <div className="w-12 h-12 sm:w-16 sm:h-16 rounded bg-gray-700 overflow-hidden flex-shrink-0">
           {item.imageMediaId ? (
