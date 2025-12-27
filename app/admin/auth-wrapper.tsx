@@ -13,7 +13,7 @@ export function AdminAuthWrapper({
 
   useEffect(() => {
     // Skip auth check for login page
-    if (pathname === '/admin-portal/login') {
+    if (pathname === '/admin/login') {
       return
     }
 
@@ -26,7 +26,7 @@ export function AdminAuthWrapper({
           if (response.status !== 401) {
             console.error('Auth check failed with status:', response.status)
           }
-          router.push('/admin-portal/login')
+          router.push('/admin/login')
         }
       } catch (error) {
         // Only log unexpected errors, not network issues
@@ -43,7 +43,7 @@ export function AdminAuthWrapper({
   }, [pathname, router])
 
   // Don't render children until we've checked auth (except for login page)
-  if (pathname !== '/admin-portal/login') {
+  if (pathname !== '/admin/login') {
     // Return null briefly while checking, then render children
     // In a real app, you might want a loading state here
     return <>{children}</>
