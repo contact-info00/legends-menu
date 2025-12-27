@@ -84,24 +84,39 @@ export function MenuClient() {
     bottomNavCategorySize: 15,
   })
 
-  // Function to fetch menu data with cache-busting
+  // Function to fetch menu data with aggressive cache-busting
   const fetchMenuData = async () => {
     try {
-      const response = await fetch(`/api/menu?t=${Date.now()}`, {
+      // Use multiple cache-busting parameters and headers
+      const timestamp = Date.now()
+      const random = Math.random()
+      const response = await fetch(`/api/menu?t=${timestamp}&r=${random}`, {
         cache: 'no-store',
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
       })
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch menu: ${response.status}`)
+      }
+      
       const data = await response.json()
-      setSections(data.sections)
-      if (data.sections.length > 0) {
+      setSections(data.sections || [])
+      if (data.sections && data.sections.length > 0) {
         setActiveSectionId(data.sections[0].id)
       }
       // Flatten all items for search
       const items: Item[] = []
-      data.sections.forEach((section: Section) => {
-        section.categories.forEach((category: Category) => {
-          items.push(...category.items.filter((item) => item.isActive))
+      if (data.sections) {
+        data.sections.forEach((section: Section) => {
+          section.categories.forEach((category: Category) => {
+            items.push(...category.items.filter((item) => item.isActive))
+          })
         })
-      })
+      }
       setAllItems(items)
     } catch (error) {
       console.error('Error fetching menu:', error)
@@ -150,10 +165,10 @@ export function MenuClient() {
         console.error('Error fetching UI settings:', error)
       })
 
-    // Auto-refresh menu data every 10 seconds to see updates quickly
+    // Auto-refresh menu data every 5 seconds to see updates immediately
     const refreshInterval = setInterval(() => {
       fetchMenuData()
-    }, 10000)
+    }, 5000)
 
     // Cleanup interval on unmount
     return () => {
