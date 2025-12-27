@@ -1,12 +1,31 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronDown, ChevronRight, Plus, Edit2, Trash2, Upload, X } from 'lucide-react'
+import { ChevronDown, ChevronRight, Plus, Edit2, Trash2, Upload, X, GripVertical } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import toast from 'react-hot-toast'
 import { formatPrice } from '@/lib/utils'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 interface Section {
   id: string
@@ -88,6 +107,24 @@ export default function MenuBuilderPage() {
     descriptionAr: '', 
     price: '' 
   })
+
+  // Drag & Drop state
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null)
+  const longPressDelay = 600 // 600ms for long press
+
+  // Configure sensors with long-press delay for mobile
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        delay: longPressDelay,
+        tolerance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
 
   useEffect(() => {
     fetchMenuData()
@@ -528,6 +565,465 @@ export default function MenuBuilderPage() {
     }
   }
 
+  // Drag & Drop handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string)
+  }
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    setActiveId(null)
+
+    if (!over || active.id === over.id) {
+      return
+    }
+
+    const activeId = active.id as string
+    const overId = over.id as string
+
+    // Determine which type of drag (section, category, or item)
+    const activeSection = sections.find(s => s.id === activeId)
+    if (activeSection) {
+      // Reordering sections
+      const oldIndex = sections.findIndex(s => s.id === activeId)
+      const newIndex = sections.findIndex(s => s.id === overId)
+      const newSections = arrayMove(sections, oldIndex, newIndex)
+      setSections(newSections)
+      
+      // Update sortOrder and save
+      const updates = newSections.map((section, index) => ({
+        id: section.id,
+        sortOrder: index + 1,
+      }))
+      
+      fetch('/api/admin/sections/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: updates }),
+      }).catch(console.error)
+      
+      return
+    }
+
+    // Check if it's a category
+    for (const section of sections) {
+      const activeCategory = section.categories.find(c => c.id === activeId)
+      if (activeCategory) {
+        const oldIndex = section.categories.findIndex(c => c.id === activeId)
+        const newIndex = section.categories.findIndex(c => c.id === overId)
+        const newCategories = arrayMove(section.categories, oldIndex, newIndex)
+        
+        const updatedSections = sections.map(s =>
+          s.id === section.id
+            ? { ...s, categories: newCategories }
+            : s
+        )
+        setSections(updatedSections)
+        
+        // Update sortOrder and save
+        const updates = newCategories.map((category, index) => ({
+          id: category.id,
+          sortOrder: index + 1,
+        }))
+        
+        fetch('/api/admin/categories/reorder', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: updates }),
+        }).catch(console.error)
+        
+        return
+      }
+
+      // Check if it's an item
+      for (const category of section.categories) {
+        const activeItem = category.items.find(i => i.id === activeId)
+        if (activeItem) {
+          const oldIndex = category.items.findIndex(i => i.id === activeId)
+          const overCategory = section.categories.find(c => c.items.some(i => i.id === overId))
+          if (overCategory && overCategory.id === category.id) {
+            const newIndex = category.items.findIndex(i => i.id === overId)
+            const newItems = arrayMove(category.items, oldIndex, newIndex)
+            
+            const updatedSections = sections.map(s =>
+              s.id === section.id
+                ? {
+                    ...s,
+                    categories: s.categories.map(c =>
+                      c.id === category.id ? { ...c, items: newItems } : c
+                    ),
+                  }
+                : s
+            )
+            setSections(updatedSections)
+            
+            // Update sortOrder and save
+            const updates = newItems.map((item, index) => ({
+              id: item.id,
+              sortOrder: index + 1,
+            }))
+            
+            fetch('/api/admin/items/reorder', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ items: updates }),
+            }).catch(console.error)
+            
+            return
+          }
+        }
+      }
+    }
+  }
+
+  // Sortable Section Component
+  function SortableSection({ section }: { section: Section }) {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: section.id })
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    }
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className="border border-white/20 rounded-xl backdrop-blur-sm bg-white/5"
+      >
+        {/* Section Header - Make whole header clickable except buttons */}
+        <div 
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 p-3 sm:p-4 cursor-pointer"
+          onClick={(e) => {
+            // Only toggle if not clicking on buttons or drag handle
+            const target = e.target as HTMLElement
+            if (!target.closest('button') && !target.closest('[data-drag-handle]')) {
+              toggleSection(section.id)
+            }
+          }}
+        >
+          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 w-full sm:w-auto">
+            {/* Drag Handle */}
+            <div
+              {...attributes}
+              {...listeners}
+              data-drag-handle
+              className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GripVertical className="w-4 h-4 sm:w-5 sm:h-5 text-white/60 hover:text-white" />
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                toggleSection(section.id)
+              }}
+              className="p-1 rounded transition-colors flex-shrink-0"
+            >
+              {expandedSections.has(section.id) ? (
+                <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              ) : (
+                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              )}
+            </button>
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
+                <span className="font-semibold text-white text-sm sm:text-base truncate">
+                  {section.nameEn}
+                </span>
+                <span className="text-white/70 text-xs sm:text-sm truncate">({section.nameKu} / {section.nameAr})</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-end sm:self-auto" onClick={(e) => e.stopPropagation()}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => handleEditSection(section)}
+              className="h-8 w-8 p-0 sm:h-9 sm:w-9"
+            >
+              <Edit2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setDeletingSection(section.id)}
+              className="h-8 w-8 p-0 sm:h-9 sm:w-9 text-red-400 hover:text-red-500 hover:bg-red-500/10"
+            >
+              <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+            </Button>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={section.isActive}
+                onChange={() => toggleActive('section', section.id, section.isActive)}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 sm:w-11 sm:h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all peer-checked:bg-[var(--button-bg)]"></div>
+            </label>
+          </div>
+        </div>
+
+        {/* Categories */}
+        {expandedSections.has(section.id) && (
+          <div className="pl-4 sm:pl-8 pr-2 sm:pr-4 pb-3 sm:pb-4">
+            <SortableContext
+              items={section.categories.map(c => c.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-2">
+                {section.categories && section.categories.length > 0 ? (
+                  section.categories.map((category) => (
+                    <SortableCategory
+                      key={category.id}
+                      category={category}
+                      sectionId={section.id}
+                    />
+                  ))
+                ) : (
+                  <div className="px-4 py-4 text-center text-white/70 text-sm">
+                    No categories in this section
+                  </div>
+                )}
+              </div>
+            </SortableContext>
+            {/* Add Category Button */}
+            <Button
+              onClick={() => setShowAddCategory(section.id)}
+              className="w-full mt-3 bg-gradient-to-r from-[#800020] to-[#5C0015] text-white hover:opacity-90 text-sm sm:text-base"
+              variant="default"
+            >
+              <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
+              Add Category
+            </Button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Sortable Category Component
+  function SortableCategory({ category, sectionId }: { category: Category; sectionId: string }) {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: category.id })
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    }
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className="border border-white/20 rounded-lg"
+      >
+        {/* Category Header - Make whole header clickable except buttons */}
+        <div 
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 p-2 sm:p-3 cursor-pointer"
+          onClick={(e) => {
+            const target = e.target as HTMLElement
+            if (!target.closest('button') && !target.closest('[data-drag-handle]')) {
+              toggleCategory(category.id)
+            }
+          }}
+        >
+          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 w-full sm:w-auto">
+            {/* Drag Handle */}
+            <div
+              {...attributes}
+              {...listeners}
+              data-drag-handle
+              className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GripVertical className="w-3 h-3 sm:w-4 sm:h-4 text-white/60 hover:text-white" />
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                toggleCategory(category.id)
+              }}
+              className="p-1 rounded transition-colors cursor-pointer flex-shrink-0"
+              type="button"
+            >
+              {expandedCategories.has(category.id) ? (
+                <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+              ) : (
+                <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+              )}
+            </button>
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
+                <span className="font-medium text-white text-sm sm:text-base truncate">
+                  {category.nameEn}
+                </span>
+                <span className="text-white/70 text-xs truncate">({category.nameKu} / {category.nameAr})</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-end sm:self-auto" onClick={(e) => e.stopPropagation()}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => handleEditCategory(category)}
+              className="h-8 w-8 p-0 sm:h-9 sm:w-9"
+            >
+              <Edit2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setDeletingCategory(category.id)}
+              className="h-8 w-8 p-0 sm:h-9 sm:w-9 text-red-400 hover:text-red-500 hover:bg-red-500/10"
+            >
+              <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+            </Button>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={category.isActive}
+                onChange={() => toggleActive('category', category.id, category.isActive)}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 sm:w-11 sm:h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all peer-checked:bg-[var(--button-bg)]"></div>
+            </label>
+          </div>
+        </div>
+
+        {/* Items */}
+        {expandedCategories.has(category.id) && (
+          <div className="pl-4 sm:pl-8 pr-2 sm:pr-3 pb-2 sm:pb-3">
+            <SortableContext
+              items={category.items.map(i => i.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-2">
+                {category.items && category.items.length > 0 ? (
+                  category.items.map((item) => (
+                    <SortableItem key={item.id} item={item} />
+                  ))
+                ) : (
+                  <div className="px-4 py-4 text-center text-white/70 text-sm">
+                    No items in this category
+                  </div>
+                )}
+              </div>
+            </SortableContext>
+            {/* Add Item Button */}
+            <Button
+              onClick={() => setShowAddItem(category.id)}
+              className="w-full mt-3 bg-gradient-to-r from-[#800020] to-[#5C0015] text-white hover:opacity-90 text-sm sm:text-base"
+              variant="default"
+            >
+              <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
+              Add Item
+            </Button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Sortable Item Component
+  function SortableItem({ item }: { item: Item }) {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: item.id })
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    }
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 p-2 rounded border border-white/20"
+      >
+        {/* Drag Handle */}
+        <div
+          {...attributes}
+          {...listeners}
+          data-drag-handle
+          className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
+        >
+          <GripVertical className="w-3 h-3 sm:w-4 sm:h-4 text-white/60 hover:text-white" />
+        </div>
+        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded bg-gray-700 overflow-hidden flex-shrink-0">
+          {item.imageMediaId ? (
+            <img
+              src={`/api/media/${item.imageMediaId}`}
+              alt={item.nameEn}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-white/70 text-xs">
+              No Img
+            </div>
+          )}
+        </div>
+        <div className="flex-1 min-w-0 w-full sm:w-auto">
+          <div className="font-medium text-white truncate text-sm sm:text-base">
+            {item.nameEn}
+          </div>
+          <div className="text-xs sm:text-sm text-[#FBBF24] font-bold">
+            {formatPrice(item.price)}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 self-end sm:self-auto">
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={item.isActive}
+              onChange={() => toggleActive('item', item.id, item.isActive)}
+              className="sr-only peer"
+            />
+            <div className="w-9 h-5 sm:w-11 sm:h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all peer-checked:bg-[var(--button-bg)]"></div>
+          </label>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleEditItem(item)}
+            className="h-8 w-8 p-0 sm:h-9 sm:w-9"
+          >
+            <Edit2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setDeletingItem(item.id)}
+            className="h-8 w-8 p-0 sm:h-9 sm:w-9 text-red-400 hover:text-red-500 hover:bg-red-500/10"
+          >
+            <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen p-2 sm:p-4" style={{ backgroundColor: '#400810' }}>
       <div className="max-w-6xl mx-auto">
@@ -541,236 +1037,42 @@ export default function MenuBuilderPage() {
           </Button>
         </div>
 
-        <div className="backdrop-blur-xl bg-[#400810]/95 rounded-2xl shadow-lg border border-white/20 p-3 sm:p-6 space-y-3 sm:space-y-4">
-          {sections.map((section) => (
-            <div key={section.id} className="border border-white/20 rounded-xl backdrop-blur-sm bg-white/5">
-              {/* Section Header */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 p-3 sm:p-4">
-                <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 w-full sm:w-auto">
-                  <button
-                    onClick={() => toggleSection(section.id)}
-                    className="p-1 rounded transition-colors flex-shrink-0"
-                  >
-                    {expandedSections.has(section.id) ? (
-                      <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                    )}
-                  </button>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
-                      <span className="font-semibold text-white text-sm sm:text-base truncate">
-                        {section.nameEn}
-                      </span>
-                      <span className="text-white/70 text-xs sm:text-sm truncate">({section.nameKu} / {section.nameAr})</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 self-end sm:self-auto">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleEditSection(section)}
-                    className="h-8 w-8 p-0 sm:h-9 sm:w-9"
-                  >
-                    <Edit2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setDeletingSection(section.id)}
-                    className="h-8 w-8 p-0 sm:h-9 sm:w-9 text-red-400 hover:text-red-500 hover:bg-red-500/10"
-                  >
-                    <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </Button>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={section.isActive}
-                      onChange={() => toggleActive('section', section.id, section.isActive)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 sm:w-11 sm:h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all peer-checked:bg-[var(--button-bg)]"></div>
-                  </label>
-                </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="backdrop-blur-xl bg-[#400810]/95 rounded-2xl shadow-lg border border-white/20 p-3 sm:p-6">
+            <SortableContext
+              items={sections.map(s => s.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-3 sm:space-y-4">
+                {sections.map((section) => (
+                  <SortableSection key={section.id} section={section} />
+                ))}
               </div>
-
-              {/* Categories */}
-              {expandedSections.has(section.id) && (
-                <div className="pl-4 sm:pl-8 pr-2 sm:pr-4 pb-3 sm:pb-4 space-y-2">
-                  {section.categories && section.categories.length > 0 ? (
-                    section.categories.map((category) => (
-                    <div key={category.id} className="border border-white/20 rounded-lg">
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 p-2 sm:p-3">
-                        <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 w-full sm:w-auto">
-                          <button
-                            onClick={(e) => toggleCategory(category.id, e)}
-                            className="p-1 rounded transition-colors cursor-pointer flex-shrink-0"
-                            type="button"
-                          >
-                            {expandedCategories.has(category.id) ? (
-                              <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
-                            ) : (
-                              <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
-                            )}
-                          </button>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
-                              <span className="font-medium text-white text-sm sm:text-base truncate">
-                                {category.nameEn}
-                              </span>
-                              <span className="text-white/70 text-xs truncate">({category.nameKu} / {category.nameAr})</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 self-end sm:self-auto">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleEditCategory(category)}
-                            className="h-8 w-8 p-0 sm:h-9 sm:w-9"
-                          >
-                            <Edit2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setDeletingCategory(category.id)}
-                            className="h-8 w-8 p-0 sm:h-9 sm:w-9 text-red-400 hover:text-red-500 hover:bg-red-500/10"
-                          >
-                            <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                          </Button>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={category.isActive}
-                              onChange={() => toggleActive('category', category.id, category.isActive)}
-                              className="sr-only peer"
-                            />
-                            <div className="w-9 h-5 sm:w-11 sm:h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all peer-checked:bg-[var(--button-bg)]"></div>
-                          </label>
-                        </div>
-                      </div>
-
-                      {/* Items */}
-                      {expandedCategories.has(category.id) && (
-                        <div className="pl-4 sm:pl-8 pr-2 sm:pr-3 pb-2 sm:pb-3 space-y-2">
-                          {category.items && category.items.length > 0 ? (
-                            <>
-                              {category.items.map((item) => (
-                                <div
-                                  key={item.id}
-                                  className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 p-2 rounded border border-white/20"
-                                >
-                                  <div className="w-12 h-12 sm:w-16 sm:h-16 rounded bg-gray-700 overflow-hidden flex-shrink-0">
-                                    {item.imageMediaId ? (
-                                      <img
-                                        src={`/api/media/${item.imageMediaId}`}
-                                        alt={item.nameEn}
-                                        className="w-full h-full object-cover"
-                                      />
-                                    ) : (
-                                      <div className="w-full h-full flex items-center justify-center text-white/70 text-xs">
-                                        No Img
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="flex-1 min-w-0 w-full sm:w-auto">
-                                    <div className="font-medium text-white truncate text-sm sm:text-base">
-                                      {item.nameEn}
-                                    </div>
-                                    <div className="text-xs sm:text-sm text-[#FBBF24] font-bold">
-                                      {formatPrice(item.price)}
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2 self-end sm:self-auto">
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                      <input
-                                        type="checkbox"
-                                        checked={item.isActive}
-                                        onChange={() => toggleActive('item', item.id, item.isActive)}
-                                        className="sr-only peer"
-                                      />
-                                      <div className="w-9 h-5 sm:w-11 sm:h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all peer-checked:bg-[var(--button-bg)]"></div>
-                                    </label>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleEditItem(item)}
-                                      className="h-8 w-8 p-0 sm:h-9 sm:w-9"
-                                    >
-                                      <Edit2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => setDeletingItem(item.id)}
-                                      className="h-8 w-8 p-0 sm:h-9 sm:w-9 text-red-400 hover:text-red-500 hover:bg-red-500/10"
-                                    >
-                                      <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              ))}
-                              {/* Add Item Button */}
-                              <Button
-                                onClick={() => setShowAddItem(category.id)}
-                                className="w-full mt-3 bg-gradient-to-r from-[#800020] to-[#5C0015] text-white hover:opacity-90 text-sm sm:text-base"
-                                variant="default"
-                              >
-                                <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
-                                Add Item
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <div className="px-4 py-4 text-center text-white/70 text-sm">
-                                No items in this category
-                              </div>
-                              {/* Add Item Button */}
-                              <Button
-                                onClick={() => setShowAddItem(category.id)}
-                                className="w-full mt-3 bg-gradient-to-r from-[#800020] to-[#5C0015] text-white hover:opacity-90 text-sm sm:text-base"
-                                variant="default"
-                              >
-                                <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
-                                Add Item
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    ))
-                  ) : (
-                    <div className="px-4 py-4 text-center text-white/70 text-sm">
-                      No categories in this section
-                    </div>
-                  )}
-                  {/* Add Category Button */}
-                  <Button
-                    onClick={() => setShowAddCategory(section.id)}
-                    className="w-full mt-3 bg-gradient-to-r from-[#800020] to-[#5C0015] text-white hover:opacity-90 text-sm sm:text-base"
-                    variant="default"
-                  >
-                    <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
-                    Add Category
-                  </Button>
-                </div>
-              )}
-            </div>
-          ))}
-          {/* Add Section Button */}
-          <Button
-            onClick={() => setShowAddSection(true)}
-            className="w-full mt-4 bg-gradient-to-r from-[#800020] to-[#5C0015] text-white hover:opacity-90 text-sm sm:text-base"
-            variant="default"
-            size="lg"
-          >
-            <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
-            Add Section
-          </Button>
-        </div>
+            </SortableContext>
+            {/* Add Section Button */}
+            <Button
+              onClick={() => setShowAddSection(true)}
+              className="w-full mt-4 bg-gradient-to-r from-[#800020] to-[#5C0015] text-white hover:opacity-90 text-sm sm:text-base"
+              variant="default"
+              size="lg"
+            >
+              <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
+              Add Section
+            </Button>
+          </div>
+          <DragOverlay>
+            {activeId ? (
+              <div className="opacity-50">
+                {/* Render preview of dragged item */}
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </div>
 
       {/* Add Section Modal */}

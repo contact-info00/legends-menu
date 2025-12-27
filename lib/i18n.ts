@@ -1,8 +1,8 @@
 export type Language = 'ku' | 'en' | 'ar'
 
 export const languages: { code: Language; name: string; nativeName: string }[] = [
-  { code: 'ku', name: 'Kurdish', nativeName: 'کوردی' },
   { code: 'en', name: 'English', nativeName: 'English' },
+  { code: 'ku', name: 'Kurdish', nativeName: 'کوردی' },
   { code: 'ar', name: 'Arabic', nativeName: 'العربية' },
 ]
 
