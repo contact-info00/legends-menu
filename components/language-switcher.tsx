@@ -21,6 +21,24 @@ export function LanguageSwitcher({ currentLang, onLanguageChange }: LanguageSwit
     setMounted(true)
   }, [])
 
+  // Recalculate position when dropdown opens
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      // Small delay to ensure DOM is ready
+      const timer = setTimeout(() => {
+        if (buttonRef.current) {
+          const buttonRect = buttonRef.current.getBoundingClientRect()
+          const newPosition = {
+            top: buttonRect.bottom + 8,
+            right: Math.max(8, window.innerWidth - buttonRect.right - 10)
+          }
+          setDropdownPosition(newPosition)
+        }
+      }, 0)
+      return () => clearTimeout(timer)
+    }
+  }, [isOpen])
+
   // Calculate position whenever dropdown opens
   useEffect(() => {
     if (isOpen && buttonRef.current) {
@@ -126,20 +144,7 @@ export function LanguageSwitcher({ currentLang, onLanguageChange }: LanguageSwit
       </div>
       {isOpen && mounted && typeof window !== 'undefined' && createPortal(
         <div
-          ref={(el) => {
-            dropdownRef.current = el
-            if (el && buttonRef.current) {
-              // Recalculate position when element is mounted
-              const buttonRect = buttonRef.current.getBoundingClientRect()
-              const newPosition = {
-                top: buttonRect.bottom + 8,
-                right: Math.max(8, window.innerWidth - buttonRect.right - 10)
-              }
-              if (dropdownPosition.top !== newPosition.top || dropdownPosition.right !== newPosition.right) {
-                setDropdownPosition(newPosition)
-              }
-            }
-          }}
+          ref={dropdownRef}
           className="fixed backdrop-blur-xl bg-[#400810]/95 rounded-xl shadow-2xl z-[99999] min-w-[120px] max-w-[calc(100vw-2rem)] border border-white/20 language-dropdown-animation"
           style={{
             top: dropdownPosition.top > 0 
