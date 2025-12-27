@@ -94,8 +94,8 @@ export function ItemCard({ item, currentLang, onItemClick, onAddToBasket, quanti
             className="font-semibold text-white mb-1 line-clamp-1 drop-shadow-lg break-words"
             style={{ 
               fontSize: 'var(--menu-item-name-size)',
-              letterSpacing: currentLang === 'ar' || currentLang === 'ku' ? '0.05em' : 'normal',
-              wordSpacing: currentLang === 'ar' || currentLang === 'ku' ? '0.1em' : 'normal'
+              letterSpacing: currentLang === 'ar' || currentLang === 'ku' ? '0.08em' : 'normal',
+              wordSpacing: currentLang === 'ar' || currentLang === 'ku' ? '0.15em' : 'normal'
             }}
           >
             {getLocalizedText(item, currentLang)}

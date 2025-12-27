@@ -19,13 +19,16 @@ export function LanguageSwitcher({ currentLang, onLanguageChange }: LanguageSwit
   useEffect(() => {
     if (isOpen && buttonRef.current) {
       const calculatePosition = () => {
-        const buttonRect = buttonRef.current!.getBoundingClientRect()
+        if (!buttonRef.current) return
+        
+        const buttonRect = buttonRef.current.getBoundingClientRect()
         const dropdownHeight = 120
         const spaceBelow = window.innerHeight - buttonRect.bottom
         const spaceAbove = buttonRect.top
         
         let top: number
-        const right = Math.max(8, window.innerWidth - buttonRect.right)
+        // Position dropdown to the left of the button
+        const right = Math.max(8, window.innerWidth - buttonRect.right - 10)
         
         if (spaceBelow >= dropdownHeight || spaceBelow > spaceAbove) {
           top = buttonRect.bottom + 8
@@ -38,8 +41,8 @@ export function LanguageSwitcher({ currentLang, onLanguageChange }: LanguageSwit
         setDropdownPosition({ top, right })
       }
       
-      // Calculate immediately
-      calculatePosition()
+      // Calculate immediately with a small delay to ensure button is rendered
+      setTimeout(calculatePosition, 0)
       
       // Recalculate on scroll/resize
       window.addEventListener('scroll', calculatePosition, true)
@@ -49,6 +52,9 @@ export function LanguageSwitcher({ currentLang, onLanguageChange }: LanguageSwit
         window.removeEventListener('scroll', calculatePosition, true)
         window.removeEventListener('resize', calculatePosition)
       }
+    } else {
+      // Reset position when closed
+      setDropdownPosition({ top: 0, right: 0 })
     }
   }, [isOpen])
 
@@ -98,7 +104,7 @@ export function LanguageSwitcher({ currentLang, onLanguageChange }: LanguageSwit
           <Globe className="w-6 h-6 text-white" />
         </button>
       </div>
-      {isOpen && (
+      {isOpen && dropdownPosition.top > 0 && (
         <div
           ref={dropdownRef}
           className="fixed backdrop-blur-xl bg-[#400810]/95 rounded-xl shadow-2xl z-[99999] min-w-[120px] max-w-[calc(100vw-2rem)] border border-white/20 language-dropdown-animation"
@@ -106,6 +112,8 @@ export function LanguageSwitcher({ currentLang, onLanguageChange }: LanguageSwit
             top: `${dropdownPosition.top}px`,
             right: `${dropdownPosition.right}px`,
             pointerEvents: 'auto',
+            visibility: 'visible',
+            opacity: 1,
           }}
           onClick={(e) => {
             e.stopPropagation()
