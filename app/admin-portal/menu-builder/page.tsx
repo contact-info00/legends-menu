@@ -1106,14 +1106,14 @@ export default function MenuBuilderPage() {
       <div
         ref={setNodeRef}
         style={style}
-        className={`flex items-center gap-2 sm:gap-3 w-full p-2 sm:p-3 rounded border transition-colors ${
+        className={`relative flex items-center gap-2 sm:gap-3 w-full p-2 sm:p-3 rounded border transition-colors ${
           isHolding 
             ? 'border-[#FBBF24] bg-[#FBBF24]/20' 
             : 'border-white/20'
         }`}
       >
         {/* Left Group: Grip + Photo + Name+Price */}
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 pr-20 sm:pr-24">
           {/* Drag Handle - Far left, vertically centered, large hit area */}
           <button
             ref={gripRef}
@@ -1162,8 +1162,8 @@ export default function MenuBuilderPage() {
           </div>
         </div>
         
-        {/* Right Group: Actions */}
-        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+        {/* Right Bottom Corner: Actions */}
+        <div className="absolute bottom-1 right-2 sm:bottom-1 sm:right-3 flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
           <label 
             className="relative inline-flex items-center cursor-pointer"
             onClick={(e) => e.stopPropagation()}
