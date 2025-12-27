@@ -834,7 +834,7 @@ export default function MenuBuilderPage() {
               onClick={() => handleEditSection(section)}
               className="h-8 w-8 p-0 sm:h-9 sm:w-9"
             >
-              <Edit2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+              <Edit2 className="w-9 h-9 sm:w-10 sm:h-10 text-white" />
             </Button>
             <Button
               size="sm"
@@ -842,7 +842,7 @@ export default function MenuBuilderPage() {
               onClick={() => setDeletingSection(section.id)}
               className="h-8 w-8 p-0 sm:h-9 sm:w-9 text-red-400 hover:text-red-500 hover:bg-red-500/10"
             >
-              <Trash2 className="w-5 h-5 sm:w-6 sm:h-6" />
+              <Trash2 className="w-9 h-9 sm:w-10 sm:h-10" />
             </Button>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -1006,7 +1006,7 @@ export default function MenuBuilderPage() {
               onClick={() => handleEditCategory(category)}
               className="h-8 w-8 p-0 sm:h-9 sm:w-9"
             >
-              <Edit2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+              <Edit2 className="w-9 h-9 sm:w-10 sm:h-10 text-white" />
             </Button>
             <Button
               size="sm"
@@ -1014,7 +1014,7 @@ export default function MenuBuilderPage() {
               onClick={() => setDeletingCategory(category.id)}
               className="h-8 w-8 p-0 sm:h-9 sm:w-9 text-red-400 hover:text-red-500 hover:bg-red-500/10"
             >
-              <Trash2 className="w-5 h-5 sm:w-6 sm:h-6" />
+              <Trash2 className="w-9 h-9 sm:w-10 sm:h-10" />
             </Button>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -1106,14 +1106,14 @@ export default function MenuBuilderPage() {
       <div
         ref={setNodeRef}
         style={style}
-        className={`relative flex items-center gap-2 sm:gap-3 w-full p-2 sm:p-3 rounded border transition-colors ${
+        className={`flex flex-col gap-2 sm:gap-3 w-full p-2 sm:p-3 rounded border transition-colors ${
           isHolding 
             ? 'border-[#FBBF24] bg-[#FBBF24]/20' 
             : 'border-white/20'
         }`}
       >
-        {/* Left Group: Grip + Photo + Name+Price */}
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 pr-20 sm:pr-24">
+        {/* Top Row: Grip + Photo + Name+Price */}
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           {/* Drag Handle - Far left, vertically centered, large hit area */}
           <button
             ref={gripRef}
@@ -1162,8 +1162,8 @@ export default function MenuBuilderPage() {
           </div>
         </div>
         
-        {/* Right Bottom Corner: Actions */}
-        <div className="absolute bottom-1 right-2 sm:bottom-1 sm:right-3 flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+        {/* Bottom Row: Actions - Centered under price */}
+        <div className="flex items-center justify-center gap-1.5 sm:gap-2 flex-shrink-0">
           <label 
             className="relative inline-flex items-center cursor-pointer"
             onClick={(e) => e.stopPropagation()}
@@ -1188,7 +1188,7 @@ export default function MenuBuilderPage() {
             }}
             className="h-8 w-8 sm:h-9 sm:w-9 p-0"
           >
-            <Edit2 className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
+            <Edit2 className="w-5 h-5 sm:w-8 sm:h-8 text-white" />
           </Button>
           <Button
             size="sm"
@@ -1199,7 +1199,7 @@ export default function MenuBuilderPage() {
             }}
             className="h-8 w-8 sm:h-9 sm:w-9 p-0 text-red-400 hover:text-red-500 hover:bg-red-500/10"
           >
-            <Trash2 className="w-4 h-4 sm:w-6 sm:h-6" />
+            <Trash2 className="w-5 h-5 sm:w-8 sm:h-8" />
           </Button>
         </div>
       </div>
