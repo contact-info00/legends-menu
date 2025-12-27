@@ -126,7 +126,7 @@ export default function MenuBuilderPage() {
     useSensor(TouchSensor, {
       activationConstraint: {
         delay: 2000, // 2 seconds delay for touch
-        tolerance: 5,
+        tolerance: 8,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -740,16 +740,21 @@ export default function MenuBuilderPage() {
               {...attributes}
               {...listeners}
               data-drag-handle
-              className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none flex items-center justify-center min-w-[40px] min-h-[40px] -ml-2"
-              onClick={(e) => e.stopPropagation()}
+              style={{ touchAction: 'none' }}
+              className="cursor-grab active:cursor-grabbing flex-shrink-0 flex items-center justify-center min-w-[40px] min-h-[40px]"
+              onPointerDown={(e) => {
+                e.stopPropagation()
+              }}
               onTouchStart={(e) => {
+                e.stopPropagation()
                 const touch = e.touches[0]
                 setTooltipPosition({ x: touch.clientX, y: touch.clientY })
                 tooltipTimerRef.current = setTimeout(() => {
                   setShowDragTooltip(true)
                 }, 2000)
               }}
-              onTouchEnd={() => {
+              onTouchEnd={(e) => {
+                e.stopPropagation()
                 if (tooltipTimerRef.current) {
                   clearTimeout(tooltipTimerRef.current)
                   tooltipTimerRef.current = null
@@ -758,8 +763,12 @@ export default function MenuBuilderPage() {
                   setShowDragTooltip(false)
                 }
               }}
+              onClick={(e) => {
+                e.stopPropagation()
+                e.preventDefault()
+              }}
             >
-              <GripVertical className="w-6 h-6 sm:w-7 sm:h-7 text-white transition-all" />
+              <GripVertical className="w-6 h-6 sm:w-7 sm:h-7 text-white transition-all pointer-events-none" />
             </div>
             <button
               onClick={(e) => {
@@ -891,16 +900,21 @@ export default function MenuBuilderPage() {
               {...attributes}
               {...listeners}
               data-drag-handle
-              className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none flex items-center justify-center min-w-[40px] min-h-[40px] -ml-2"
-              onClick={(e) => e.stopPropagation()}
+              style={{ touchAction: 'none' }}
+              className="cursor-grab active:cursor-grabbing flex-shrink-0 flex items-center justify-center min-w-[40px] min-h-[40px]"
+              onPointerDown={(e) => {
+                e.stopPropagation()
+              }}
               onTouchStart={(e) => {
+                e.stopPropagation()
                 const touch = e.touches[0]
                 setTooltipPosition({ x: touch.clientX, y: touch.clientY })
                 tooltipTimerRef.current = setTimeout(() => {
                   setShowDragTooltip(true)
                 }, 2000)
               }}
-              onTouchEnd={() => {
+              onTouchEnd={(e) => {
+                e.stopPropagation()
                 if (tooltipTimerRef.current) {
                   clearTimeout(tooltipTimerRef.current)
                   tooltipTimerRef.current = null
@@ -909,8 +923,12 @@ export default function MenuBuilderPage() {
                   setShowDragTooltip(false)
                 }
               }}
+              onClick={(e) => {
+                e.stopPropagation()
+                e.preventDefault()
+              }}
             >
-              <GripVertical className="w-6 h-6 sm:w-7 sm:h-7 text-white transition-all" />
+              <GripVertical className="w-6 h-6 sm:w-7 sm:h-7 text-white transition-all pointer-events-none" />
             </div>
             <button
               onClick={(e) => {
@@ -1021,61 +1039,85 @@ export default function MenuBuilderPage() {
       <div
         ref={setNodeRef}
         style={style}
-        className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 p-2 rounded border border-white/20"
+        className="flex items-center gap-3 p-2 rounded border border-white/20"
       >
-        {/* Drag Handle - Far left, vertically centered, large hit area */}
-        <div
-          {...attributes}
-          {...listeners}
-          data-drag-handle
-          className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none flex items-center justify-center min-w-[40px] min-h-[40px] -ml-2"
-          onTouchStart={(e) => {
-            const touch = e.touches[0]
-            setTooltipPosition({ x: touch.clientX, y: touch.clientY })
-            tooltipTimerRef.current = setTimeout(() => {
-              setShowDragTooltip(true)
-            }, 2000)
-          }}
-          onTouchEnd={() => {
-            if (tooltipTimerRef.current) {
-              clearTimeout(tooltipTimerRef.current)
-              tooltipTimerRef.current = null
-            }
-            if (!isDragging) {
-              setShowDragTooltip(false)
-            }
-          }}
-        >
-          <GripVertical className="w-6 h-6 sm:w-7 sm:h-7 text-white transition-all" />
-        </div>
-        {/* Photo */}
-        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded bg-gray-700 overflow-hidden flex-shrink-0">
-          {item.imageMediaId ? (
-            <img
-              src={`/api/media/${item.imageMediaId}`}
-              alt={item.nameEn}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-white/70 text-xs">
-              No Img
+        {/* Left Group: Grip + Photo + Name+Price */}
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          {/* Drag Handle - Far left, vertically centered, large hit area */}
+          <div
+            {...attributes}
+            {...listeners}
+            data-drag-handle
+            style={{ touchAction: 'none' }}
+            className="cursor-grab active:cursor-grabbing flex-shrink-0 flex items-center justify-center min-w-[40px] min-h-[40px]"
+            onPointerDown={(e) => {
+              e.stopPropagation()
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation()
+              const touch = e.touches[0]
+              setTooltipPosition({ x: touch.clientX, y: touch.clientY })
+              tooltipTimerRef.current = setTimeout(() => {
+                setShowDragTooltip(true)
+              }, 2000)
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation()
+              if (tooltipTimerRef.current) {
+                clearTimeout(tooltipTimerRef.current)
+                tooltipTimerRef.current = null
+              }
+              if (!isDragging) {
+                setShowDragTooltip(false)
+              }
+            }}
+            onClick={(e) => {
+              e.stopPropagation()
+              e.preventDefault()
+            }}
+          >
+            <GripVertical className="w-6 h-6 sm:w-7 sm:h-7 text-white transition-all pointer-events-none" />
+          </div>
+          
+          {/* Photo */}
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded bg-gray-700 overflow-hidden flex-shrink-0">
+            {item.imageMediaId ? (
+              <img
+                src={`/api/media/${item.imageMediaId}`}
+                alt={item.nameEn}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-white/70 text-xs">
+                No Img
+              </div>
+            )}
+          </div>
+          
+          {/* Name + Price */}
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-white truncate text-sm sm:text-base">
+              {item.nameEn}
             </div>
-          )}
-        </div>
-        <div className="flex-1 min-w-0 w-full sm:w-auto">
-          <div className="font-medium text-white truncate text-sm sm:text-base">
-            {item.nameEn}
-          </div>
-          <div className="text-xs sm:text-sm text-[#FBBF24] font-bold">
-            {formatPrice(item.price)}
+            <div className="text-xs sm:text-sm text-[#FBBF24] font-bold">
+              {formatPrice(item.price)}
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 self-end sm:self-auto">
-          <label className="relative inline-flex items-center cursor-pointer">
+        
+        {/* Right Group: Actions */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <label 
+            className="relative inline-flex items-center cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+          >
             <input
               type="checkbox"
               checked={item.isActive}
-              onChange={() => toggleActive('item', item.id, item.isActive)}
+              onChange={(e) => {
+                e.stopPropagation()
+                toggleActive('item', item.id, item.isActive)
+              }}
               className="sr-only peer"
             />
             <div className="w-9 h-5 sm:w-11 sm:h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all peer-checked:bg-[var(--button-bg)]"></div>
@@ -1083,7 +1125,10 @@ export default function MenuBuilderPage() {
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => handleEditItem(item)}
+            onClick={(e) => {
+              e.stopPropagation()
+              handleEditItem(item)
+            }}
             className="h-8 w-8 p-0 sm:h-9 sm:w-9"
           >
             <Edit2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
@@ -1091,7 +1136,10 @@ export default function MenuBuilderPage() {
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => setDeletingItem(item.id)}
+            onClick={(e) => {
+              e.stopPropagation()
+              setDeletingItem(item.id)
+            }}
             className="h-8 w-8 p-0 sm:h-9 sm:w-9 text-red-400 hover:text-red-500 hover:bg-red-500/10"
           >
             <Trash2 className="w-5 h-5 sm:w-6 sm:h-6" />
