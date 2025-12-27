@@ -82,6 +82,30 @@ export function MenuClient() {
     headerLogoSize: 32,
   })
 
+  // Function to fetch menu data with cache-busting
+  const fetchMenuData = async () => {
+    try {
+      const response = await fetch(`/api/menu?t=${Date.now()}`, {
+        cache: 'no-store',
+      })
+      const data = await response.json()
+      setSections(data.sections)
+      if (data.sections.length > 0) {
+        setActiveSectionId(data.sections[0].id)
+      }
+      // Flatten all items for search
+      const items: Item[] = []
+      data.sections.forEach((section: Section) => {
+        section.categories.forEach((category: Category) => {
+          items.push(...category.items.filter((item) => item.isActive))
+        })
+      })
+      setAllItems(items)
+    } catch (error) {
+      console.error('Error fetching menu:', error)
+    }
+  }
+
   useEffect(() => {
     // Load language from URL or localStorage
     const langParam = searchParams.get('lang')
@@ -93,25 +117,11 @@ export function MenuClient() {
     }
 
     // Fetch data
-    fetch('/api/menu')
-      .then((res) => res.json())
-      .then((data) => {
-        setSections(data.sections)
-        if (data.sections.length > 0) {
-          setActiveSectionId(data.sections[0].id)
-        }
-        // Flatten all items for search
-        const items: Item[] = []
-        data.sections.forEach((section: Section) => {
-          section.categories.forEach((category: Category) => {
-            items.push(...category.items.filter((item) => item.isActive))
-          })
-        })
-        setAllItems(items)
-      })
-      .catch(console.error)
+    fetchMenuData()
 
-    fetch('/api/restaurant')
+    fetch(`/api/restaurant?t=${Date.now()}`, {
+      cache: 'no-store',
+    })
       .then((res) => res.json())
       .then((data) => setRestaurant(data))
       .catch(console.error)
@@ -127,7 +137,9 @@ export function MenuClient() {
     }
 
     // Fetch UI settings
-    fetch('/api/ui-settings')
+    fetch(`/api/ui-settings?t=${Date.now()}`, {
+      cache: 'no-store',
+    })
       .then((res) => res.json())
       .then((data) => {
         setUiSettings(data)
@@ -135,6 +147,16 @@ export function MenuClient() {
       .catch((error) => {
         console.error('Error fetching UI settings:', error)
       })
+
+    // Auto-refresh menu data every 30 seconds
+    const refreshInterval = setInterval(() => {
+      fetchMenuData()
+    }, 30000)
+
+    // Cleanup interval on unmount
+    return () => {
+      clearInterval(refreshInterval)
+    }
 
     // Debug overflow in development
     if (process.env.NODE_ENV === 'development') {
