@@ -1,6 +1,10 @@
 import { Suspense } from 'react'
 import { MenuClient } from '@/components/menu-client'
 
+// Force dynamic rendering - no static generation
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 function MenuLoading() {
   return (
     <div 
