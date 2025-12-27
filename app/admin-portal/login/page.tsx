@@ -29,8 +29,6 @@ export default function AdminLoginPage() {
 
       if (response.ok) {
         toast.success('Login successful!')
-        // Clear any existing session before redirecting
-        // The session will be created but won't persist (duration = 0)
         router.push('/admin-portal')
       } else {
         toast.error(data.error || 'Invalid PIN')
