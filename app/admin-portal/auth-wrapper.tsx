@@ -18,24 +18,19 @@ export function AdminAuthWrapper({
     }
 
     // Check authentication for other admin pages
+    // Session expires in 5 seconds, so PIN is required every time
     const checkAuth = async () => {
       try {
-        const response = await fetch('/api/admin/check-session')
+        const response = await fetch('/api/admin/check-session', {
+          cache: 'no-store', // Don't cache the auth check
+        })
         if (!response.ok) {
-          // 401 is expected when not logged in, don't log as error
-          if (response.status !== 401) {
-            console.error('Auth check failed with status:', response.status)
-          }
+          // Session expired or not authenticated - redirect to login
           router.push('/admin-portal/login')
         }
       } catch (error) {
-        // Only log unexpected errors, not network issues
-        if (error instanceof TypeError && error.message.includes('fetch')) {
-          // Network error, might be offline
-          return
-        }
-        console.error('Auth check failed:', error)
-        router.push('/admin/login')
+        // Network error or other issue - redirect to login
+        router.push('/admin-portal/login')
       }
     }
 

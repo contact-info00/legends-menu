@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs'
 import { cookies } from 'next/headers'
 
 const ADMIN_SESSION_COOKIE = 'admin_session'
-const SESSION_DURATION = 24 * 60 * 60 * 1000 // 24 hours
+const SESSION_DURATION = 0 // No persistence - require PIN every time
 
 export async function hashPin(pin: string): Promise<string> {
   return bcrypt.hash(pin, 10)
@@ -14,11 +14,13 @@ export async function verifyPin(pin: string, hash: string): Promise<boolean> {
 
 export async function createAdminSession() {
   const cookieStore = await cookies()
+  // Set session with very short duration (5 seconds) - just enough for immediate redirect
+  // This ensures PIN is required every time the admin dashboard is accessed
   cookieStore.set(ADMIN_SESSION_COOKIE, 'authenticated', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: SESSION_DURATION / 1000,
+    maxAge: 5, // 5 seconds - expires almost immediately
   })
 }
 
