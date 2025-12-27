@@ -909,6 +909,7 @@ export default function MenuBuilderPage() {
       transition,
       isDragging,
     } = useSortable({ id: category.id })
+    const gripRef = useRef<HTMLButtonElement>(null)
 
     const style = {
       transform: CSS.Transform.toString(transform),
@@ -917,6 +918,55 @@ export default function MenuBuilderPage() {
       scale: isDragging ? 1.02 : 1,
       boxShadow: isDragging ? '0 10px 25px rgba(0, 0, 0, 0.3)' : 'none',
     }
+
+    // Add native event listeners with passive: false to prevent browser overlay
+    useEffect(() => {
+      const gripElement = gripRef.current
+      if (!gripElement) return
+
+      const handleTouchStart = (e: TouchEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        const touch = e.touches[0]
+        setTooltipPosition({ x: touch.clientX, y: touch.clientY })
+        tooltipTimerRef.current = setTimeout(() => {
+          setShowDragTooltip(true)
+        }, 2000)
+      }
+
+      const handleTouchEnd = (e: TouchEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        if (tooltipTimerRef.current) {
+          clearTimeout(tooltipTimerRef.current)
+          tooltipTimerRef.current = null
+        }
+        if (!isDragging) {
+          setShowDragTooltip(false)
+        }
+      }
+
+      const handleTouchMove = (e: TouchEvent) => {
+        e.preventDefault()
+      }
+
+      const handleContextMenu = (e: Event) => {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+
+      gripElement.addEventListener('touchstart', handleTouchStart, { passive: false })
+      gripElement.addEventListener('touchend', handleTouchEnd, { passive: false })
+      gripElement.addEventListener('touchmove', handleTouchMove, { passive: false })
+      gripElement.addEventListener('contextmenu', handleContextMenu)
+
+      return () => {
+        gripElement.removeEventListener('touchstart', handleTouchStart)
+        gripElement.removeEventListener('touchend', handleTouchEnd)
+        gripElement.removeEventListener('touchmove', handleTouchMove)
+        gripElement.removeEventListener('contextmenu', handleContextMenu)
+      }
+    }, [isDragging])
 
     return (
       <div
@@ -937,6 +987,7 @@ export default function MenuBuilderPage() {
           <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 w-full sm:w-auto">
             {/* Drag Handle - Far left, vertically centered, large hit area */}
             <button
+              ref={gripRef}
               type="button"
               {...attributes}
               {...listeners}
@@ -952,36 +1003,9 @@ export default function MenuBuilderPage() {
                 e.preventDefault()
                 e.stopPropagation()
               }}
-              onTouchStart={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                const touch = e.touches[0]
-                setTooltipPosition({ x: touch.clientX, y: touch.clientY })
-                tooltipTimerRef.current = setTimeout(() => {
-                  setShowDragTooltip(true)
-                }, 2000)
-              }}
-              onTouchEnd={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                if (tooltipTimerRef.current) {
-                  clearTimeout(tooltipTimerRef.current)
-                  tooltipTimerRef.current = null
-                }
-                if (!isDragging) {
-                  setShowDragTooltip(false)
-                }
-              }}
-              onTouchMove={(e) => {
-                e.preventDefault()
-              }}
               onClick={(e) => {
                 e.stopPropagation()
                 e.preventDefault()
-              }}
-              onContextMenu={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
               }}
             >
               <GripVertical className="w-6 h-6 sm:w-7 sm:h-7 text-white transition-all pointer-events-none select-none" />
