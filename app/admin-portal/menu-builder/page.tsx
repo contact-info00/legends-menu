@@ -114,9 +114,10 @@ export default function MenuBuilderPage() {
   const [isDragging, setIsDragging] = useState(false)
   const [showDragTooltip, setShowDragTooltip] = useState(false)
   const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null)
+  const [holdingId, setHoldingId] = useState<string | null>(null) // Track which item is being held
   const tooltipTimerRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Configure sensors: 2s delay for touch, immediate for mouse
+  // Configure sensors: 1s delay for touch, immediate for mouse
   const sensors = useSensors(
     useSensor(MouseSensor, {
       activationConstraint: {
@@ -125,7 +126,7 @@ export default function MenuBuilderPage() {
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 2000, // 2 seconds delay for touch
+        delay: 1000, // 1 second delay for touch
         tolerance: 8,
       },
     }),
@@ -137,6 +138,18 @@ export default function MenuBuilderPage() {
   useEffect(() => {
     fetchMenuData()
   }, [])
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (showAddItem || showAddSection || showAddCategory || editingSection || editingCategory || editingItem) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [showAddItem, showAddSection, showAddCategory, editingSection, editingCategory, editingItem])
 
   const fetchMenuData = async () => {
     try {
@@ -578,6 +591,7 @@ export default function MenuBuilderPage() {
     setActiveId(event.active.id as string)
     setIsDragging(true)
     setShowDragTooltip(false)
+    setHoldingId(null) // Clear holding state when drag starts
     if (tooltipTimerRef.current) {
       clearTimeout(tooltipTimerRef.current)
       tooltipTimerRef.current = null
@@ -586,12 +600,22 @@ export default function MenuBuilderPage() {
     if (navigator.vibrate) {
       navigator.vibrate(50)
     }
+    // Show tooltip when drag actually starts
+    const activeElement = document.querySelector(`[data-id="${event.active.id}"]`) || 
+                          document.querySelector(`[data-sortable-id="${event.active.id}"]`) ||
+                          document.querySelector(`[data-drag-handle]`)
+    if (activeElement) {
+      const rect = activeElement.getBoundingClientRect()
+      setTooltipPosition({ x: rect.left + rect.width / 2, y: rect.top - 20 })
+      setShowDragTooltip(true)
+    }
   }
 
   const handleDragEnd = (event: DragEndEvent) => {
     setIsDragging(false)
     setShowDragTooltip(false)
     setTooltipPosition(null)
+    setHoldingId(null) // Clear holding state
     if (tooltipTimerRef.current) {
       clearTimeout(tooltipTimerRef.current)
       tooltipTimerRef.current = null
@@ -715,64 +739,39 @@ export default function MenuBuilderPage() {
 
     const style = {
       transform: CSS.Transform.toString(transform),
-      transition,
+      transition: isDragging ? 'none' : transition, // No animation during drag
       opacity: isDragging ? 0.5 : 1,
     }
 
-    // Add native event listeners with passive: false to prevent browser overlay
+    const isHolding = holdingId === section.id
+
+    // Only prevent context menu - let dnd-kit handle all touch events
+    // CSS properties (touch-action: none, user-select: none, etc.) prevent browser overlays
     useEffect(() => {
       const gripElement = gripRef.current
       if (!gripElement) return
-
-      const handleTouchStart = (e: TouchEvent) => {
-        e.preventDefault()
-        e.stopPropagation()
-        const touch = e.touches[0]
-        setTooltipPosition({ x: touch.clientX, y: touch.clientY })
-        tooltipTimerRef.current = setTimeout(() => {
-          setShowDragTooltip(true)
-        }, 2000)
-      }
-
-      const handleTouchEnd = (e: TouchEvent) => {
-        e.preventDefault()
-        e.stopPropagation()
-        if (tooltipTimerRef.current) {
-          clearTimeout(tooltipTimerRef.current)
-          tooltipTimerRef.current = null
-        }
-        if (!isDragging) {
-          setShowDragTooltip(false)
-        }
-      }
-
-      const handleTouchMove = (e: TouchEvent) => {
-        e.preventDefault()
-      }
 
       const handleContextMenu = (e: Event) => {
         e.preventDefault()
         e.stopPropagation()
       }
 
-      gripElement.addEventListener('touchstart', handleTouchStart, { passive: false })
-      gripElement.addEventListener('touchend', handleTouchEnd, { passive: false })
-      gripElement.addEventListener('touchmove', handleTouchMove, { passive: false })
       gripElement.addEventListener('contextmenu', handleContextMenu)
 
       return () => {
-        gripElement.removeEventListener('touchstart', handleTouchStart)
-        gripElement.removeEventListener('touchend', handleTouchEnd)
-        gripElement.removeEventListener('touchmove', handleTouchMove)
         gripElement.removeEventListener('contextmenu', handleContextMenu)
       }
-    }, [isDragging])
+    }, [])
 
     return (
       <div
         ref={setNodeRef}
         style={style}
-        className="border border-white/20 rounded-xl backdrop-blur-sm bg-white/5"
+        className={`border rounded-xl backdrop-blur-sm transition-colors ${
+          isHolding 
+            ? 'border-[#FBBF24] bg-[#FBBF24]/20' 
+            : 'border-white/20 bg-white/5'
+        }`}
       >
         {/* Section Header */}
         <div 
@@ -798,15 +797,11 @@ export default function MenuBuilderPage() {
                 WebkitUserSelect: 'none',
                 WebkitTouchCallout: 'none',
               }}
-              className="cursor-grab active:cursor-grabbing flex-shrink-0 flex items-center justify-center min-w-[40px] min-h-[40px] bg-transparent border-0 p-0"
-              onPointerDown={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-              }}
-              onClick={(e) => {
-                e.stopPropagation()
-                e.preventDefault()
-              }}
+            className="cursor-grab active:cursor-grabbing flex-shrink-0 flex items-center justify-center min-w-[40px] min-h-[40px] bg-transparent border-0 p-0"
+            onClick={(e) => {
+              // Only prevent accordion toggle, don't prevent drag
+              e.stopPropagation()
+            }}
             >
               <GripVertical className="w-6 h-6 sm:w-7 sm:h-7 text-white transition-all pointer-events-none select-none" />
             </button>
@@ -913,66 +908,41 @@ export default function MenuBuilderPage() {
 
     const style = {
       transform: CSS.Transform.toString(transform),
-      transition,
+      transition: isDragging ? 'none' : transition, // No animation during drag
       opacity: isDragging ? 0.7 : 1,
       scale: isDragging ? 1.02 : 1,
       boxShadow: isDragging ? '0 10px 25px rgba(0, 0, 0, 0.3)' : 'none',
     }
 
-    // Add native event listeners with passive: false to prevent browser overlay
+    const isHolding = holdingId === category.id
+
+    // Only prevent context menu - let dnd-kit handle all touch events
+    // CSS properties (touch-action: none, user-select: none, etc.) prevent browser overlays
     useEffect(() => {
       const gripElement = gripRef.current
       if (!gripElement) return
-
-      const handleTouchStart = (e: TouchEvent) => {
-        e.preventDefault()
-        e.stopPropagation()
-        const touch = e.touches[0]
-        setTooltipPosition({ x: touch.clientX, y: touch.clientY })
-        tooltipTimerRef.current = setTimeout(() => {
-          setShowDragTooltip(true)
-        }, 2000)
-      }
-
-      const handleTouchEnd = (e: TouchEvent) => {
-        e.preventDefault()
-        e.stopPropagation()
-        if (tooltipTimerRef.current) {
-          clearTimeout(tooltipTimerRef.current)
-          tooltipTimerRef.current = null
-        }
-        if (!isDragging) {
-          setShowDragTooltip(false)
-        }
-      }
-
-      const handleTouchMove = (e: TouchEvent) => {
-        e.preventDefault()
-      }
 
       const handleContextMenu = (e: Event) => {
         e.preventDefault()
         e.stopPropagation()
       }
 
-      gripElement.addEventListener('touchstart', handleTouchStart, { passive: false })
-      gripElement.addEventListener('touchend', handleTouchEnd, { passive: false })
-      gripElement.addEventListener('touchmove', handleTouchMove, { passive: false })
       gripElement.addEventListener('contextmenu', handleContextMenu)
 
       return () => {
-        gripElement.removeEventListener('touchstart', handleTouchStart)
-        gripElement.removeEventListener('touchend', handleTouchEnd)
-        gripElement.removeEventListener('touchmove', handleTouchMove)
         gripElement.removeEventListener('contextmenu', handleContextMenu)
       }
-    }, [isDragging])
+    }, [])
 
     return (
       <div
         ref={setNodeRef}
         style={style}
-        className="border border-white/20 rounded-lg"
+        className={`border rounded-lg transition-colors ${
+          isHolding 
+            ? 'border-[#FBBF24] bg-[#FBBF24]/20' 
+            : 'border-white/20'
+        }`}
       >
         {/* Category Header */}
         <div 
@@ -999,13 +969,9 @@ export default function MenuBuilderPage() {
                 WebkitTouchCallout: 'none',
               }}
               className="cursor-grab active:cursor-grabbing flex-shrink-0 flex items-center justify-center min-w-[40px] min-h-[40px] bg-transparent border-0 p-0"
-              onPointerDown={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-              }}
               onClick={(e) => {
+                // Only prevent accordion toggle, don't prevent drag
                 e.stopPropagation()
-                e.preventDefault()
               }}
             >
               <GripVertical className="w-6 h-6 sm:w-7 sm:h-7 text-white transition-all pointer-events-none select-none" />
@@ -1110,69 +1076,44 @@ export default function MenuBuilderPage() {
 
     const style = {
       transform: CSS.Transform.toString(transform),
-      transition,
+      transition: isDragging ? 'none' : transition, // No animation during drag
       opacity: isDragging ? 0.7 : 1,
       scale: isDragging ? 1.02 : 1,
       boxShadow: isDragging ? '0 10px 25px rgba(0, 0, 0, 0.3)' : 'none',
     }
 
-    // Add native event listeners with passive: false to prevent browser overlay
+    const isHolding = holdingId === item.id
+
+    // Only prevent context menu - let dnd-kit handle all touch events
+    // CSS properties (touch-action: none, user-select: none, etc.) prevent browser overlays
     useEffect(() => {
       const gripElement = gripRef.current
       if (!gripElement) return
-
-      const handleTouchStart = (e: TouchEvent) => {
-        e.preventDefault()
-        e.stopPropagation()
-        const touch = e.touches[0]
-        setTooltipPosition({ x: touch.clientX, y: touch.clientY })
-        tooltipTimerRef.current = setTimeout(() => {
-          setShowDragTooltip(true)
-        }, 2000)
-      }
-
-      const handleTouchEnd = (e: TouchEvent) => {
-        e.preventDefault()
-        e.stopPropagation()
-        if (tooltipTimerRef.current) {
-          clearTimeout(tooltipTimerRef.current)
-          tooltipTimerRef.current = null
-        }
-        if (!isDragging) {
-          setShowDragTooltip(false)
-        }
-      }
-
-      const handleTouchMove = (e: TouchEvent) => {
-        e.preventDefault()
-      }
 
       const handleContextMenu = (e: Event) => {
         e.preventDefault()
         e.stopPropagation()
       }
 
-      gripElement.addEventListener('touchstart', handleTouchStart, { passive: false })
-      gripElement.addEventListener('touchend', handleTouchEnd, { passive: false })
-      gripElement.addEventListener('touchmove', handleTouchMove, { passive: false })
       gripElement.addEventListener('contextmenu', handleContextMenu)
 
       return () => {
-        gripElement.removeEventListener('touchstart', handleTouchStart)
-        gripElement.removeEventListener('touchend', handleTouchEnd)
-        gripElement.removeEventListener('touchmove', handleTouchMove)
         gripElement.removeEventListener('contextmenu', handleContextMenu)
       }
-    }, [isDragging])
+    }, [])
 
     return (
       <div
         ref={setNodeRef}
         style={style}
-        className="flex items-center justify-between gap-3 w-full p-2 rounded border border-white/20"
+        className={`flex items-center gap-2 sm:gap-3 w-full p-2 sm:p-3 rounded border transition-colors ${
+          isHolding 
+            ? 'border-[#FBBF24] bg-[#FBBF24]/20' 
+            : 'border-white/20'
+        }`}
       >
         {/* Left Group: Grip + Photo + Name+Price */}
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           {/* Drag Handle - Far left, vertically centered, large hit area */}
           <button
             ref={gripRef}
@@ -1187,20 +1128,16 @@ export default function MenuBuilderPage() {
               WebkitTouchCallout: 'none',
             }}
             className="cursor-grab active:cursor-grabbing flex-shrink-0 flex items-center justify-center min-w-[40px] min-h-[40px] bg-transparent border-0 p-0"
-            onPointerDown={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-            }}
             onClick={(e) => {
+              // Only prevent accordion toggle, don't prevent drag
               e.stopPropagation()
-              e.preventDefault()
             }}
           >
-            <GripVertical className="w-6 h-6 sm:w-7 sm:h-7 text-white transition-all pointer-events-none select-none" />
+            <GripVertical className="w-5 h-5 sm:w-6 sm:h-7 text-white transition-all pointer-events-none select-none" />
           </button>
           
           {/* Photo */}
-          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded bg-gray-700 overflow-hidden flex-shrink-0">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded bg-gray-700 overflow-hidden flex-shrink-0">
             {item.imageMediaId ? (
               <img
                 src={`/api/media/${item.imageMediaId}`}
@@ -1216,19 +1153,19 @@ export default function MenuBuilderPage() {
           
           {/* Name + Price */}
           <div className="flex flex-col min-w-0 flex-1">
-            <div className="font-semibold text-white truncate text-sm sm:text-base">
+            <div className="font-semibold text-white truncate text-xs sm:text-base">
               {item.nameEn}
             </div>
-            <div className="text-xs sm:text-sm text-[#FBBF24] font-bold">
+            <div className="text-xs text-[#FBBF24] font-bold">
               {formatPrice(item.price)}
             </div>
           </div>
         </div>
         
         {/* Right Group: Actions */}
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
           <label 
-            className="relative inline-flex items-center cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center"
+            className="relative inline-flex items-center cursor-pointer"
             onClick={(e) => e.stopPropagation()}
           >
             <input
@@ -1240,7 +1177,7 @@ export default function MenuBuilderPage() {
               }}
               className="sr-only peer"
             />
-            <div className="w-9 h-5 sm:w-11 sm:h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all peer-checked:bg-[var(--button-bg)]"></div>
+            <div className="w-8 h-4 sm:w-11 sm:h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:left-auto peer-checked:after:right-[2px] peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 sm:after:h-5 sm:after:w-5 after:transition-all peer-checked:bg-[var(--button-bg)]"></div>
           </label>
           <Button
             size="sm"
@@ -1249,9 +1186,9 @@ export default function MenuBuilderPage() {
               e.stopPropagation()
               handleEditItem(item)
             }}
-            className="h-9 w-9 p-0 min-w-[36px] min-h-[36px]"
+            className="h-8 w-8 sm:h-9 sm:w-9 p-0"
           >
-            <Edit2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+            <Edit2 className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
           </Button>
           <Button
             size="sm"
@@ -1260,9 +1197,9 @@ export default function MenuBuilderPage() {
               e.stopPropagation()
               setDeletingItem(item.id)
             }}
-            className="h-9 w-9 p-0 min-w-[36px] min-h-[36px] text-red-400 hover:text-red-500 hover:bg-red-500/10"
+            className="h-8 w-8 sm:h-9 sm:w-9 p-0 text-red-400 hover:text-red-500 hover:bg-red-500/10"
           >
-            <Trash2 className="w-5 h-5 sm:w-6 sm:h-6" />
+            <Trash2 className="w-4 h-4 sm:w-6 sm:h-6" />
           </Button>
         </div>
       </div>
@@ -1468,8 +1405,27 @@ export default function MenuBuilderPage() {
 
       {/* Add Item Modal */}
       {showAddItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
-          <div className="backdrop-blur-xl bg-[#400810]/95 rounded-2xl sm:rounded-3xl shadow-2xl border border-white/20 p-3 sm:p-6 w-full max-w-[95%] sm:max-w-md mx-2 sm:mx-auto my-4 sm:my-8 max-h-[95vh] overflow-y-auto">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowAddItem(null)
+            }
+          }}
+          onWheel={(e) => {
+            // Prevent page scroll when scrolling inside modal
+            e.stopPropagation()
+          }}
+          style={{ overflow: 'hidden' }}
+        >
+          <div 
+            className="backdrop-blur-xl bg-[#400810]/95 rounded-2xl sm:rounded-3xl shadow-2xl border border-white/20 p-3 sm:p-6 w-full max-w-[71.25%] sm:max-w-[21rem] mx-2 sm:mx-auto max-h-[71.25vh] overflow-y-auto scrollbar-hide"
+            onClick={(e) => e.stopPropagation()}
+            onWheel={(e) => {
+              // Allow scrolling inside modal, prevent page scroll
+              e.stopPropagation()
+            }}
+          >
             <div className="flex items-center justify-between mb-3 sm:mb-4">
               <h2 className="text-lg sm:text-xl font-bold text-white">Add Item</h2>
               <button
@@ -1762,8 +1718,27 @@ export default function MenuBuilderPage() {
 
       {/* Edit Item Modal */}
       {editingItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
-          <div className="backdrop-blur-xl bg-[#400810]/95 rounded-2xl sm:rounded-3xl shadow-2xl border border-white/20 p-3 sm:p-6 w-full max-w-[95%] sm:max-w-md mx-2 sm:mx-auto my-4 sm:my-8 max-h-[95vh] overflow-y-auto">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setEditingItem(null)
+            }
+          }}
+          onWheel={(e) => {
+            // Prevent page scroll when scrolling inside modal
+            e.stopPropagation()
+          }}
+          style={{ overflow: 'hidden' }}
+        >
+          <div 
+            className="backdrop-blur-xl bg-[#400810]/95 rounded-2xl sm:rounded-3xl shadow-2xl border border-white/20 p-3 sm:p-6 w-full max-w-[76%] sm:max-w-[22.4rem] mx-2 sm:mx-auto max-h-[76vh] overflow-y-auto scrollbar-hide"
+            onClick={(e) => e.stopPropagation()}
+            onWheel={(e) => {
+              // Allow scrolling inside modal, prevent page scroll
+              e.stopPropagation()
+            }}
+          >
             <div className="flex items-center justify-between mb-3 sm:mb-4">
               <h2 className="text-lg sm:text-xl font-bold text-white">Edit Item</h2>
               <button
