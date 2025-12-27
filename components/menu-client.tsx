@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { MenuHeader } from '@/components/menu-header'
 import { FloatingActionBar } from '@/components/floating-action-bar'
@@ -64,6 +64,12 @@ export function MenuClient() {
   const [currentLang, setCurrentLang] = useState<Language>('en')
   const [sections, setSections] = useState<Section[]>([])
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null)
+  const activeSectionIdRef = useRef<string | null>(null)
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    activeSectionIdRef.current = activeSectionId
+  }, [activeSectionId])
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
   const [isItemModalOpen, setIsItemModalOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -104,14 +110,24 @@ export function MenuClient() {
       }
       
       const data = await response.json()
-      setSections(data.sections || [])
-      if (data.sections && data.sections.length > 0) {
-        setActiveSectionId(data.sections[0].id)
+      const newSections = data.sections || []
+      setSections(newSections)
+      
+      // Preserve the currently selected section if it still exists
+      // Only set to first section if no section is selected or current section doesn't exist
+      if (newSections.length > 0) {
+        const currentActiveId = activeSectionIdRef.current
+        const currentSectionExists = currentActiveId && newSections.some((s: Section) => s.id === currentActiveId)
+        if (!currentActiveId || !currentSectionExists) {
+          setActiveSectionId(newSections[0].id)
+        }
+        // activeSectionId is preserved if it still exists in the new data
       }
+      
       // Flatten all items for search
       const items: Item[] = []
-      if (data.sections) {
-        data.sections.forEach((section: Section) => {
+      if (newSections) {
+        newSections.forEach((section: Section) => {
           section.categories.forEach((category: Category) => {
             items.push(...category.items.filter((item) => item.isActive))
           })
