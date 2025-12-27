@@ -110,15 +110,15 @@ export default function MenuBuilderPage() {
 
   // Drag & Drop state
   const [activeId, setActiveId] = useState<string | null>(null)
-  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null)
-  const longPressDelay = 600 // 600ms for long press
+  const [isDragging, setIsDragging] = useState(false)
+  const [clickStartTime, setClickStartTime] = useState<number | null>(null)
+  const [clickStartPos, setClickStartPos] = useState<{ x: number; y: number } | null>(null)
 
-  // Configure sensors with long-press delay for mobile
+  // Configure sensors - reduced delay for better responsiveness
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        delay: longPressDelay,
-        tolerance: 5,
+        distance: 8, // Start drag after 8px of movement
       },
     }),
     useSensor(KeyboardSensor, {
@@ -568,9 +568,13 @@ export default function MenuBuilderPage() {
   // Drag & Drop handlers
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string)
+    setIsDragging(true)
   }
 
   const handleDragEnd = (event: DragEndEvent) => {
+    setIsDragging(false)
+    setClickStartTime(null)
+    setClickStartPos(null)
     const { active, over } = event
     setActiveId(null)
 
@@ -704,15 +708,6 @@ export default function MenuBuilderPage() {
           {...attributes}
           {...listeners}
           className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 p-3 sm:p-4 cursor-grab active:cursor-grabbing"
-          onClick={(e) => {
-            const target = e.target as HTMLElement
-            // Prevent drag and toggle if clicking on buttons, inputs, or labels
-            if (target.closest('button') || target.closest('input') || target.closest('label')) {
-              e.stopPropagation()
-              return
-            }
-            toggleSection(section.id)
-          }}
           onPointerDown={(e) => {
             const target = e.target as HTMLElement
             // Don't start drag if clicking on buttons, inputs, or labels
@@ -845,15 +840,6 @@ export default function MenuBuilderPage() {
           {...attributes}
           {...listeners}
           className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 p-2 sm:p-3 cursor-grab active:cursor-grabbing"
-          onClick={(e) => {
-            const target = e.target as HTMLElement
-            // Prevent drag and toggle if clicking on buttons, inputs, or labels
-            if (target.closest('button') || target.closest('input') || target.closest('label')) {
-              e.stopPropagation()
-              return
-            }
-            toggleCategory(category.id)
-          }}
           onPointerDown={(e) => {
             const target = e.target as HTMLElement
             // Don't start drag if clicking on buttons, inputs, or labels
