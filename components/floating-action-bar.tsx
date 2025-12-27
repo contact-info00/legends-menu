@@ -65,6 +65,12 @@ export function FloatingActionBar({
                 >
                   <MessageSquare className="w-6 h-6 text-white" />
                 </button>
+                <div className="w-10 h-10">
+                  <LanguageSwitcher
+                    currentLang={currentLang}
+                    onLanguageChange={onLanguageChange}
+                  />
+                </div>
               </div>
             </div>
           </div>
