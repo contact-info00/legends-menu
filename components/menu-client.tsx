@@ -357,12 +357,12 @@ export function MenuClient() {
                   <button
                     key={section.id}
                     onClick={() => setActiveSectionId(section.id)}
-                    className={`flex-shrink-0 px-2 sm:px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-colors duration-300 backdrop-blur-sm border text-xs sm:text-sm ${
+                    className={`flex-shrink-0 px-2 sm:px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-colors duration-300 backdrop-blur-sm border text-xs sm:text-sm flex items-center justify-center ${
                       activeSectionId === section.id
                         ? 'bg-gradient-to-r from-[#800020] to-[#5C0015] text-white shadow-lg border-[#A00028]'
                         : 'bg-white/10 text-white/80 hover:bg-white/20 border-white/20 hover:border-white/30'
                     }`}
-                    style={{ fontSize: 'var(--menu-section-size)' }}
+                    style={{ fontSize: 'var(--menu-section-size)', lineHeight: '1.2' }}
                   >
                     {getLocalizedText(section, currentLang)}
                   </button>
