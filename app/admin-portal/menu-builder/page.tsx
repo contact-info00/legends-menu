@@ -11,7 +11,8 @@ import {
   DndContext,
   closestCenter,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
@@ -111,12 +112,20 @@ export default function MenuBuilderPage() {
   // Drag & Drop state
   const [activeId, setActiveId] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [showDragTooltip, setShowDragTooltip] = useState(false)
+  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null)
+  const tooltipTimerRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Configure sensors with 3 second delay for long-press
+  // Configure sensors: 2s delay for touch, immediate for mouse
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
       activationConstraint: {
-        delay: 3000, // 3 seconds delay
+        distance: 5, // Small movement threshold for mouse
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 2000, // 2 seconds delay for touch
         tolerance: 5,
       },
     }),
@@ -568,6 +577,11 @@ export default function MenuBuilderPage() {
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string)
     setIsDragging(true)
+    setShowDragTooltip(false)
+    if (tooltipTimerRef.current) {
+      clearTimeout(tooltipTimerRef.current)
+      tooltipTimerRef.current = null
+    }
     // Haptic feedback (vibration) if supported
     if (navigator.vibrate) {
       navigator.vibrate(50)
@@ -576,6 +590,12 @@ export default function MenuBuilderPage() {
 
   const handleDragEnd = (event: DragEndEvent) => {
     setIsDragging(false)
+    setShowDragTooltip(false)
+    setTooltipPosition(null)
+    if (tooltipTimerRef.current) {
+      clearTimeout(tooltipTimerRef.current)
+      tooltipTimerRef.current = null
+    }
     const { active, over } = event
     setActiveId(null)
 
@@ -715,13 +735,29 @@ export default function MenuBuilderPage() {
           }}
         >
           <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 w-full sm:w-auto">
-            {/* Drag Handle - Only this icon is draggable */}
+            {/* Drag Handle - Far left, vertically centered, large hit area */}
             <div
               {...attributes}
               {...listeners}
               data-drag-handle
-              className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
+              className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none flex items-center justify-center min-w-[40px] min-h-[40px] -ml-2"
               onClick={(e) => e.stopPropagation()}
+              onTouchStart={(e) => {
+                const touch = e.touches[0]
+                setTooltipPosition({ x: touch.clientX, y: touch.clientY })
+                tooltipTimerRef.current = setTimeout(() => {
+                  setShowDragTooltip(true)
+                }, 2000)
+              }}
+              onTouchEnd={() => {
+                if (tooltipTimerRef.current) {
+                  clearTimeout(tooltipTimerRef.current)
+                  tooltipTimerRef.current = null
+                }
+                if (!isDragging) {
+                  setShowDragTooltip(false)
+                }
+              }}
             >
               <GripVertical className="w-6 h-6 sm:w-7 sm:h-7 text-white transition-all" />
             </div>
@@ -828,7 +864,9 @@ export default function MenuBuilderPage() {
     const style = {
       transform: CSS.Transform.toString(transform),
       transition,
-      opacity: isDragging ? 0.5 : 1,
+      opacity: isDragging ? 0.7 : 1,
+      scale: isDragging ? 1.02 : 1,
+      boxShadow: isDragging ? '0 10px 25px rgba(0, 0, 0, 0.3)' : 'none',
     }
 
     return (
@@ -848,13 +886,29 @@ export default function MenuBuilderPage() {
           }}
         >
           <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 w-full sm:w-auto">
-            {/* Drag Handle - Only this icon is draggable */}
+            {/* Drag Handle - Far left, vertically centered, large hit area */}
             <div
               {...attributes}
               {...listeners}
               data-drag-handle
-              className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
+              className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none flex items-center justify-center min-w-[40px] min-h-[40px] -ml-2"
               onClick={(e) => e.stopPropagation()}
+              onTouchStart={(e) => {
+                const touch = e.touches[0]
+                setTooltipPosition({ x: touch.clientX, y: touch.clientY })
+                tooltipTimerRef.current = setTimeout(() => {
+                  setShowDragTooltip(true)
+                }, 2000)
+              }}
+              onTouchEnd={() => {
+                if (tooltipTimerRef.current) {
+                  clearTimeout(tooltipTimerRef.current)
+                  tooltipTimerRef.current = null
+                }
+                if (!isDragging) {
+                  setShowDragTooltip(false)
+                }
+              }}
             >
               <GripVertical className="w-6 h-6 sm:w-7 sm:h-7 text-white transition-all" />
             </div>
@@ -958,24 +1012,43 @@ export default function MenuBuilderPage() {
     const style = {
       transform: CSS.Transform.toString(transform),
       transition,
-      opacity: isDragging ? 0.5 : 1,
+      opacity: isDragging ? 0.7 : 1,
+      scale: isDragging ? 1.02 : 1,
+      boxShadow: isDragging ? '0 10px 25px rgba(0, 0, 0, 0.3)' : 'none',
     }
 
     return (
       <div
         ref={setNodeRef}
         style={style}
-        className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 p-2 rounded border border-white/20"
+        className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 p-2 rounded border border-white/20"
       >
-        {/* Drag Handle - Only this icon is draggable */}
+        {/* Drag Handle - Far left, vertically centered, large hit area */}
         <div
           {...attributes}
           {...listeners}
           data-drag-handle
-          className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
+          className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none flex items-center justify-center min-w-[40px] min-h-[40px] -ml-2"
+          onTouchStart={(e) => {
+            const touch = e.touches[0]
+            setTooltipPosition({ x: touch.clientX, y: touch.clientY })
+            tooltipTimerRef.current = setTimeout(() => {
+              setShowDragTooltip(true)
+            }, 2000)
+          }}
+          onTouchEnd={() => {
+            if (tooltipTimerRef.current) {
+              clearTimeout(tooltipTimerRef.current)
+              tooltipTimerRef.current = null
+            }
+            if (!isDragging) {
+              setShowDragTooltip(false)
+            }
+          }}
         >
-          <GripVertical className="w-3 h-3 sm:w-4 sm:h-4 text-white/60 hover:text-white transition-all" />
+          <GripVertical className="w-6 h-6 sm:w-7 sm:h-7 text-white transition-all" />
         </div>
+        {/* Photo */}
         <div className="w-12 h-12 sm:w-16 sm:h-16 rounded bg-gray-700 overflow-hidden flex-shrink-0">
           {item.imageMediaId ? (
             <img
@@ -1076,6 +1149,22 @@ export default function MenuBuilderPage() {
               </div>
             ) : null}
           </DragOverlay>
+          {/* Drag Tooltip */}
+          {showDragTooltip && tooltipPosition && (
+            <div
+              className="fixed z-[9999] pointer-events-none"
+              style={{
+                left: `${tooltipPosition.x + 20}px`,
+                top: `${tooltipPosition.y - 40}px`,
+                transform: 'translateX(-50%)',
+              }}
+            >
+              <div className="bg-black/90 text-white px-3 py-2 rounded-lg text-sm font-medium shadow-lg backdrop-blur-sm border border-white/20 whitespace-nowrap">
+                Drag to reorder
+                <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-black/90 rotate-45 border-r border-b border-white/20"></div>
+              </div>
+            </div>
+          )}
         </DndContext>
       </div>
 
