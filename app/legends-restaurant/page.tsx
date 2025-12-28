@@ -184,24 +184,64 @@ export default function WelcomePage() {
     const handleUserInteraction = async () => {
       if (videoRef.current && !videoPlayAttempted) {
         try {
+          // Ensure video is visible
+          videoRef.current.style.opacity = '1'
+          videoRef.current.style.zIndex = '2'
+          
           await videoRef.current.play()
           console.log('Video started on user interaction')
           setVideoPlayAttempted(true)
+          
+          // Hide poster after video starts
+          const poster = document.querySelector('img[alt="Welcome Background Poster"]') as HTMLImageElement
+          if (poster) {
+            poster.style.opacity = '0'
+            poster.style.zIndex = '1'
+          }
         } catch (error) {
           console.log('Video play failed on interaction', error)
         }
       }
     }
     
-    // Try to play on first user interaction
-    const events = ['touchstart', 'touchend', 'click', 'scroll']
+    // Try to play on first user interaction - use capture phase for better reliability
+    const events = ['touchstart', 'touchend', 'click', 'scroll', 'pointerdown']
     events.forEach(event => {
-      document.addEventListener(event, handleUserInteraction, { once: true, passive: true })
+      document.addEventListener(event, handleUserInteraction, { once: true, passive: true, capture: true })
     })
+    
+    // Also try on the video element itself
+    if (videoRef.current) {
+      const video = videoRef.current
+      const handleVideoInteraction = async () => {
+        if (!videoPlayAttempted) {
+          try {
+            video.style.opacity = '1'
+            video.style.zIndex = '2'
+            await video.play()
+            console.log('Video started on direct interaction')
+            setVideoPlayAttempted(true)
+          } catch (error) {
+            console.log('Video play failed on direct interaction', error)
+          }
+        }
+      }
+      
+      events.forEach(event => {
+        video.addEventListener(event, handleVideoInteraction, { once: true, passive: true })
+      })
+      
+      return () => {
+        events.forEach(event => {
+          document.removeEventListener(event, handleUserInteraction, { capture: true })
+          video.removeEventListener(event, handleVideoInteraction)
+        })
+      }
+    }
     
     return () => {
       events.forEach(event => {
-        document.removeEventListener(event, handleUserInteraction)
+        document.removeEventListener(event, handleUserInteraction, { capture: true })
       })
     }
   }, [isMobile, shouldLoadVideo, prefersReducedMotion, videoPlayAttempted])
@@ -223,25 +263,71 @@ export default function WelcomePage() {
     <div className="relative min-h-dvh w-full overflow-x-hidden">
       {/* Background Image/Video */}
       {restaurant?.welcomeBackgroundMediaId ? (
-        <div className={`absolute inset-0 background-fade-in ${isLoaded ? 'animate-in' : ''}`}>
+        <div 
+          className={`absolute inset-0 background-fade-in ${isLoaded ? 'animate-in' : ''}`}
+          onTouchStart={async (e) => {
+            // Make entire background area tappable on mobile to start video
+            if (isMobile && shouldLoadVideo && !prefersReducedMotion && videoRef.current && !videoPlayAttempted) {
+              e.stopPropagation()
+              try {
+                const video = videoRef.current
+                video.style.opacity = '1'
+                video.style.zIndex = '2'
+                await video.play()
+                console.log('Video started on background touch')
+                setVideoPlayAttempted(true)
+                // Hide poster
+                const poster = document.querySelector('img[alt="Welcome Background Poster"]') as HTMLImageElement
+                if (poster) {
+                  poster.style.opacity = '0'
+                }
+              } catch (error) {
+                console.log('Video play failed on background touch', error)
+              }
+            }
+          }}
+          onClick={async (e) => {
+            // Make entire background area clickable on mobile to start video
+            if (isMobile && shouldLoadVideo && !prefersReducedMotion && videoRef.current && !videoPlayAttempted) {
+              e.stopPropagation()
+              try {
+                const video = videoRef.current
+                video.style.opacity = '1'
+                video.style.zIndex = '2'
+                await video.play()
+                console.log('Video started on background click')
+                setVideoPlayAttempted(true)
+                // Hide poster
+                const poster = document.querySelector('img[alt="Welcome Background Poster"]') as HTMLImageElement
+                if (poster) {
+                  poster.style.opacity = '0'
+                }
+              } catch (error) {
+                console.log('Video play failed on background click', error)
+              }
+            }
+          }}
+          style={{ cursor: isMobile && shouldLoadVideo && !videoPlayAttempted ? 'pointer' : 'default' }}
+        >
           {/* Try video first if we detected it's a video, or if backgroundMimeType is null (still detecting) */}
           {(backgroundMimeType === null || backgroundMimeType?.startsWith('video/')) ? (
             <>
               {/* Poster/Placeholder - shows immediately, hidden when video is playing */}
-              {posterImage && shouldLoadVideo && !prefersReducedMotion && (
+              {posterImage && shouldLoadVideo && !prefersReducedMotion && !videoPlayAttempted && (
                 <img
                   src={posterImage}
                   alt="Welcome Background Poster"
                   className="absolute inset-0 w-full h-full object-cover"
                   style={{ 
-                    zIndex: 1,
+                    zIndex: 3,
                     position: 'absolute',
                     inset: 0,
                     width: '100%',
                     height: '100%',
                     objectFit: 'cover',
-                    opacity: 0,
-                    transition: 'opacity 0.5s ease-out'
+                    opacity: isMobile ? 1 : 0,
+                    transition: 'opacity 0.5s ease-out',
+                    pointerEvents: isMobile ? 'none' : 'auto'
                   }}
                   loading="eager"
                   decoding="async"
@@ -309,16 +395,32 @@ export default function WelcomePage() {
                     // Video is playing, ensure it's visible
                     const target = e.currentTarget
                     target.style.opacity = '1'
+                    target.style.zIndex = '2'
                     console.log('Video is playing')
                     setVideoPlayAttempted(true)
+                    // Hide poster when video starts playing
+                    const poster = document.querySelector('img[alt="Welcome Background Poster"]') as HTMLImageElement
+                    if (poster) {
+                      poster.style.opacity = '0'
+                      poster.style.zIndex = '1'
+                    }
                   }}
                   onTouchStart={async (e) => {
                     // On mobile, try to play on touch
+                    e.stopPropagation()
                     if (isMobile && videoRef.current && !videoPlayAttempted) {
                       try {
-                        await videoRef.current.play()
+                        const video = videoRef.current
+                        video.style.opacity = '1'
+                        video.style.zIndex = '2'
+                        await video.play()
                         console.log('Video started on touch')
                         setVideoPlayAttempted(true)
+                        // Hide poster
+                        const poster = document.querySelector('img[alt="Welcome Background Poster"]') as HTMLImageElement
+                        if (poster) {
+                          poster.style.opacity = '0'
+                        }
                       } catch (error) {
                         console.log('Video play failed on touch', error)
                       }
@@ -326,15 +428,31 @@ export default function WelcomePage() {
                   }}
                   onClick={async (e) => {
                     // On mobile, try to play on click
+                    e.stopPropagation()
                     if (isMobile && videoRef.current && !videoPlayAttempted) {
                       try {
-                        await videoRef.current.play()
+                        const video = videoRef.current
+                        video.style.opacity = '1'
+                        video.style.zIndex = '2'
+                        await video.play()
                         console.log('Video started on click')
                         setVideoPlayAttempted(true)
+                        // Hide poster
+                        const poster = document.querySelector('img[alt="Welcome Background Poster"]') as HTMLImageElement
+                        if (poster) {
+                          poster.style.opacity = '0'
+                        }
                       } catch (error) {
                         console.log('Video play failed on click', error)
                       }
                     }
+                  }}
+                  onLoadedMetadata={(e) => {
+                    // Ensure video is visible when metadata loads
+                    const target = e.currentTarget
+                    target.style.opacity = '1'
+                    target.style.zIndex = '2'
+                    console.log('Video metadata loaded')
                   }}
                   onError={(e) => {
                     // If video fails to load, fall back to image
