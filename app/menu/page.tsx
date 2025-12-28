@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { MenuHeader } from '@/components/menu-header'
 import { FloatingActionBar } from '@/components/floating-action-bar'
@@ -58,7 +58,7 @@ interface BasketItem {
   quantity: number
 }
 
-export default function MenuPage() {
+function MenuPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [currentLang, setCurrentLang] = useState<Language>('en')
@@ -620,6 +620,18 @@ export default function MenuPage() {
         onQuantityChange={handleQuantityChange}
       />
     </div>
+  )
+}
+
+export default function MenuPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-dvh w-full flex items-center justify-center" style={{ backgroundColor: 'var(--app-bg, #400810)' }}>
+        <div className="text-white">Loading...</div>
+      </div>
+    }>
+      <MenuPageContent />
+    </Suspense>
   )
 }
 
