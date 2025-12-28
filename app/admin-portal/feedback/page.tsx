@@ -58,9 +58,16 @@ export default function FeedbackPage() {
   }
 
   return (
-    <div className="min-h-screen p-2 sm:p-4" style={{ backgroundColor: '#400810' }}>
+    <div className="min-h-screen p-2 sm:p-4" style={{ backgroundColor: 'var(--app-bg, #400810)' }}>
       <div className="max-w-6xl mx-auto">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6 backdrop-blur-xl bg-white/10 rounded-2xl p-3 sm:p-4 border border-white/20 shadow-lg">
+        <div 
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6 backdrop-blur-xl rounded-2xl p-3 sm:p-4 border"
+          style={{
+            backgroundColor: 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))',
+            borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
+            boxShadow: `0 10px 25px -5px var(--auto-shadow-color, rgba(0, 0, 0, 0.3)), 0 4px 6px -2px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`,
+          }}
+        >
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">Customer Feedback</h1>
           <Button 
             onClick={() => router.push('/admin-portal')} 
@@ -73,7 +80,15 @@ export default function FeedbackPage() {
         {isLoading ? (
           <div className="text-center text-white py-12">Loading feedback...</div>
         ) : feedbacks.length === 0 ? (
-          <div className="backdrop-blur-xl bg-[#400810]/95 rounded-2xl p-12 text-center text-white/70 border border-white/20 shadow-lg">
+          <div 
+            className="backdrop-blur-xl rounded-2xl p-12 text-center border"
+            style={{
+              backgroundColor: 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))',
+              borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
+              color: 'var(--auto-text-secondary, rgba(255, 255, 255, 0.9))',
+              boxShadow: `0 10px 25px -5px var(--auto-shadow-color, rgba(0, 0, 0, 0.3)), 0 4px 6px -2px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`,
+            }}
+          >
             No feedback received yet
           </div>
         ) : (

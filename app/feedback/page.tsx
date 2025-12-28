@@ -74,11 +74,11 @@ export default function FeedbackPage() {
             className="focus:outline-none"
           >
             <Star
-              className={`w-6 h-6 sm:w-8 sm:h-8 ${
-                star <= rating
-                  ? 'fill-[#FBBF24] text-[#FBBF24]'
-                  : 'text-white/30'
-              } transition-colors`}
+              className="w-6 h-6 sm:w-8 sm:h-8 transition-colors"
+              style={{
+                fill: star <= rating ? 'var(--auto-accent, #FBBF24)' : 'transparent',
+                color: star <= rating ? 'var(--auto-accent, #FBBF24)' : 'var(--auto-muted, rgba(255, 255, 255, 0.5))',
+              }}
             />
           </button>
         ))}
@@ -87,38 +87,75 @@ export default function FeedbackPage() {
   }
 
   return (
-    <div className="min-h-screen p-4" style={{ backgroundColor: '#400810' }}>
+    <div className="min-h-screen p-4" style={{ backgroundColor: 'var(--app-bg, #400810)' }}>
       <div className="max-w-2xl mx-auto">
-        <div className="mb-6 backdrop-blur-xl bg-white/10 rounded-2xl p-4 border border-white/20 shadow-lg">
+        <div 
+          className="mb-6 backdrop-blur-xl rounded-2xl p-4 border"
+          style={{
+            backgroundColor: 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))',
+            borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
+            boxShadow: `0 10px 25px -5px var(--auto-shadow-color, rgba(0, 0, 0, 0.3)), 0 4px 6px -2px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`,
+          }}
+        >
           <button
             onClick={() => router.push('/menu')}
-            className="text-white/70 hover:text-white transition-colors mb-4 text-sm sm:text-base"
+            className="mb-4 text-sm sm:text-base transition-colors"
+            style={{ color: 'var(--auto-text-secondary, rgba(255, 255, 255, 0.9))' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--auto-text-primary, #FFFFFF)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--auto-text-secondary, rgba(255, 255, 255, 0.9))'
+            }}
           >
             ← Back to Menu
           </button>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Feedback</h1>
-          <p className="text-white/70">We value your opinion</p>
+          <h1 
+            className="text-2xl sm:text-3xl font-bold mb-2"
+            style={{ color: 'var(--auto-text-primary, #FFFFFF)' }}
+          >
+            Feedback
+          </h1>
+          <p style={{ color: 'var(--auto-text-secondary, rgba(255, 255, 255, 0.9))' }}>
+            We value your opinion
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           {/* Star Ratings */}
-          <div className="bg-white/[0.08] backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-lg border border-white/30 space-y-4 sm:space-y-6">
+          <div 
+            className="backdrop-blur-xl rounded-2xl p-4 sm:p-6 space-y-4 sm:space-y-6"
+            style={{
+              backgroundColor: 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))',
+              borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
+              boxShadow: `0 10px 25px -5px var(--auto-shadow-color, rgba(0, 0, 0, 0.3)), 0 4px 6px -2px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`,
+            }}
+          >
             <div>
-              <label className="block text-white font-semibold mb-2 text-sm sm:text-base">
+              <label 
+                className="block font-semibold mb-2 text-sm sm:text-base"
+                style={{ color: 'var(--auto-text-primary, #FFFFFF)' }}
+              >
                 Staff Rating
               </label>
               {renderStars(staffRating, setStaffRating)}
             </div>
 
             <div>
-              <label className="block text-white font-semibold mb-2 text-sm sm:text-base">
+              <label 
+                className="block font-semibold mb-2 text-sm sm:text-base"
+                style={{ color: 'var(--auto-text-primary, #FFFFFF)' }}
+              >
                 Service Rating
               </label>
               {renderStars(serviceRating, setServiceRating)}
             </div>
 
             <div>
-              <label className="block text-white font-semibold mb-2 text-sm sm:text-base">
+              <label 
+                className="block font-semibold mb-2 text-sm sm:text-base"
+                style={{ color: 'var(--auto-text-primary, #FFFFFF)' }}
+              >
                 Hygiene Rating
               </label>
               {renderStars(hygieneRating, setHygieneRating)}
@@ -126,8 +163,18 @@ export default function FeedbackPage() {
           </div>
 
           {/* Emoji Satisfaction */}
-          <div className="bg-white/[0.08] backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-lg border border-white/30">
-            <label className="block text-white font-semibold mb-4 text-sm sm:text-base">
+          <div 
+            className="backdrop-blur-xl rounded-2xl p-4 sm:p-6"
+            style={{
+              backgroundColor: 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))',
+              borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
+              boxShadow: `0 10px 25px -5px var(--auto-shadow-color, rgba(0, 0, 0, 0.3)), 0 4px 6px -2px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`,
+            }}
+          >
+            <label 
+              className="block font-semibold mb-4 text-sm sm:text-base"
+              style={{ color: 'var(--auto-text-primary, #FFFFFF)' }}
+            >
               Overall Satisfaction
             </label>
             <div className="flex gap-2 sm:gap-4">
@@ -138,9 +185,24 @@ export default function FeedbackPage() {
                   onClick={() => setSatisfactionEmoji(emoji)}
                   className={`text-3xl sm:text-4xl p-2 rounded-lg transition-all ${
                     satisfactionEmoji === emoji
-                      ? 'bg-white/20 scale-110'
-                      : 'hover:bg-white/10'
+                      ? 'scale-110'
+                      : ''
                   }`}
+                  style={{
+                    backgroundColor: satisfactionEmoji === emoji
+                      ? 'var(--auto-surface-bg-2, rgba(255, 255, 255, 0.15))'
+                      : 'transparent',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (satisfactionEmoji !== emoji) {
+                      e.currentTarget.style.backgroundColor = 'var(--auto-surface-bg-2, rgba(255, 255, 255, 0.05))'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (satisfactionEmoji !== emoji) {
+                      e.currentTarget.style.backgroundColor = 'transparent'
+                    }
+                  }}
                 >
                   {emoji}
                 </button>
@@ -149,9 +211,19 @@ export default function FeedbackPage() {
           </div>
 
           {/* Optional Fields */}
-          <div className="bg-white/[0.08] backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-lg border border-white/30 space-y-4">
+          <div 
+            className="backdrop-blur-xl rounded-2xl p-4 sm:p-6 space-y-4"
+            style={{
+              backgroundColor: 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))',
+              borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
+              boxShadow: `0 10px 25px -5px var(--auto-shadow-color, rgba(0, 0, 0, 0.3)), 0 4px 6px -2px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`,
+            }}
+          >
             <div>
-              <label className="block text-white font-semibold mb-2 text-sm sm:text-base">
+              <label 
+                className="block font-semibold mb-2 text-sm sm:text-base"
+                style={{ color: 'var(--auto-text-primary, #FFFFFF)' }}
+              >
                 Phone Number (Optional)
               </label>
               <Input
@@ -163,7 +235,10 @@ export default function FeedbackPage() {
             </div>
 
             <div>
-              <label className="block text-white font-semibold mb-2 text-sm sm:text-base">
+              <label 
+                className="block font-semibold mb-2 text-sm sm:text-base"
+                style={{ color: 'var(--auto-text-primary, #FFFFFF)' }}
+              >
                 Table Number (Optional)
               </label>
               <Input
@@ -175,13 +250,21 @@ export default function FeedbackPage() {
             </div>
 
             <div>
-              <label className="block text-white font-semibold mb-2 text-sm sm:text-base">
+              <label 
+                className="block font-semibold mb-2 text-sm sm:text-base"
+                style={{ color: 'var(--auto-text-primary, #FFFFFF)' }}
+              >
                 Comment (Optional)
               </label>
               <textarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                className="w-full h-32 rounded-xl border border-white/20 backdrop-blur-sm bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+                className="w-full h-32 rounded-xl border backdrop-blur-sm px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2"
+                style={{
+                  backgroundColor: 'var(--auto-surface-bg-2, rgba(255, 255, 255, 0.05))',
+                  borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
+                  color: 'var(--auto-text-primary, #FFFFFF)',
+                }}
                 placeholder="Tell us more about your experience..."
               />
             </div>
@@ -191,7 +274,19 @@ export default function FeedbackPage() {
           <Button
             type="submit"
             disabled={isSubmitting || staffRating === 0 || serviceRating === 0 || hygieneRating === 0}
-            className="w-full bg-gradient-to-r from-[#800020] to-[#5C0015] text-white hover:opacity-90 text-sm sm:text-base"
+            className="w-full text-sm sm:text-base"
+            style={{
+              backgroundColor: 'var(--auto-primary, #800020)',
+              color: 'var(--auto-primary-text, #FFFFFF)',
+            }}
+            onMouseEnter={(e) => {
+              if (!e.currentTarget.disabled) {
+                e.currentTarget.style.backgroundColor = 'var(--auto-primary-hover, #A00028)'
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--auto-primary, #800020)'
+            }}
             size="lg"
           >
             {isSubmitting ? 'Submitting...' : 'Submit Feedback'}

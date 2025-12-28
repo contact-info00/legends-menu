@@ -75,7 +75,7 @@ pnpm dev
 ## Step 7: Access the Application
 
 - **Public Menu**: http://localhost:3000
-- **Admin Login**: http://localhost:3000/admin-portal/login
+- **Admin Login**: http://localhost:3000/admin/login
   - PIN: `1234` (change after login!)
 
 ## Next Steps

@@ -57,7 +57,7 @@ export function OptimizedImage({
   }, [priority])
 
   const containerClass = aspectRatio === 'square' ? 'aspect-square' : ''
-  const skeletonClass = `bg-gradient-to-br from-[#5C0015]/30 to-[#800020]/30 animate-pulse ${containerClass}`
+  const skeletonClass = `${containerClass} animate-pulse`
   
   // For auto aspect ratio, don't constrain container
   const imageContainerClass = aspectRatio === 'auto' ? '' : containerClass
@@ -66,16 +66,33 @@ export function OptimizedImage({
     <div className={`relative ${imageContainerClass}`} ref={imgRef} style={aspectRatio === 'auto' ? style : undefined}>
       {/* Skeleton loader */}
       {!isLoaded && !hasError && (
-        <div className={`absolute inset-0 ${skeletonClass}`}>
+        <div 
+          className={`absolute inset-0 ${containerClass} animate-pulse`}
+          style={{
+            backgroundColor: 'var(--auto-surface-bg-2, rgba(255, 255, 255, 0.05))',
+          }}
+        >
           <div className="w-full h-full flex items-center justify-center">
-            <div className="w-8 h-8 border-2 border-white/20 border-t-white/40 rounded-full animate-spin" />
+            <div 
+              className="w-8 h-8 border-2 rounded-full animate-spin"
+              style={{
+                borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
+                borderTopColor: 'var(--auto-text-primary, #FFFFFF)',
+              }}
+            />
           </div>
         </div>
       )}
 
       {/* Error placeholder */}
       {hasError && (
-        <div className={`absolute inset-0 ${skeletonClass} flex items-center justify-center text-white/60 text-sm`}>
+        <div 
+          className={`absolute inset-0 ${containerClass} flex items-center justify-center text-sm`}
+          style={{
+            backgroundColor: 'var(--auto-surface-bg-2, rgba(255, 255, 255, 0.05))',
+            color: 'var(--auto-text-secondary, rgba(255, 255, 255, 0.9))',
+          }}
+        >
           No Image
         </div>
       )}

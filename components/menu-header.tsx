@@ -9,7 +9,12 @@ interface MenuHeaderProps {
 export function MenuHeader({ logoUrl }: MenuHeaderProps) {
   return (
     <header 
-      className="relative z-10 px-2 sm:px-4 py-4 backdrop-blur-xl bg-white/10 shadow-sm transition-all duration-300 ease-in-out border-b border-white/10 w-full overflow-x-hidden" 
+      className="relative z-10 px-2 sm:px-4 py-4 backdrop-blur-xl transition-all duration-300 ease-in-out border-b w-full overflow-x-hidden"
+      style={{
+        backgroundColor: 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))',
+        borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
+        boxShadow: `0 2px 4px -1px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`,
+      }} 
     >
       <div className="flex items-center justify-center max-w-7xl mx-auto w-full">
         {/* Centered Logo */}

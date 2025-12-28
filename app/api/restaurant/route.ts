@@ -31,8 +31,7 @@ export async function GET() {
       },
       {
         headers: {
-          // Reduced cache time to 10 seconds so updates show quickly
-          'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=30',
+          'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=240',
         },
       }
     )

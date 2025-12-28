@@ -69,7 +69,7 @@ A production-ready, view-only QR restaurant menu web application built with Next
 
 6. **Open your browser**
    - Public menu: http://localhost:3000
-   - Admin login: http://localhost:3000/admin-portal/login
+   - Admin login: http://localhost:3000/admin/login
    - Default PIN: `1234`
 
 ## Project Structure
@@ -81,7 +81,7 @@ A production-ready, view-only QR restaurant menu web application built with Next
 │   │   ├── media/        # Image serving endpoint
 │   │   ├── menu/         # Public menu API
 │   │   └── restaurant/   # Restaurant data API
-│   ├── admin-portal/     # Admin dashboard pages
+│   ├── admin/            # Admin dashboard pages
 │   ├── feedback/        # Customer feedback page
 │   ├── menu/            # Public menu page
 │   └── page.tsx         # Welcome/language selection page
@@ -105,24 +105,24 @@ A production-ready, view-only QR restaurant menu web application built with Next
 
 ## Admin Features
 
-### Menu Builder (`/admin-portal/menu-builder`)
+### Menu Builder (`/admin/menu-builder`)
 - Unified accordion interface
 - Add/edit sections, categories, and items
 - Upload images (stored in database)
 - Toggle active/inactive status
 - Drag-and-drop sorting (optional)
 
-### Branding (`/admin-portal/branding`)
+### Branding (`/admin/branding`)
 - Customize all UI colors
 - Preview changes in real-time
 - Reset to defaults
 
-### Settings (`/admin-portal/settings`)
+### Settings (`/admin/settings`)
 - Restaurant name (3 languages)
 - Contact information
 - Welcome page overlay settings
 
-### Feedback (`/admin-portal/feedback`)
+### Feedback (`/admin/feedback`)
 - View all customer feedback
 - Filter by ratings
 - Export data (future)

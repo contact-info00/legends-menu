@@ -4,7 +4,7 @@ import { getAdminSession } from '@/lib/auth'
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const isAuthenticated = await getAdminSession()
@@ -12,11 +12,10 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id } = await params
     const body = await request.json()
 
     const section = await prisma.section.update({
-      where: { id },
+      where: { id: params.id },
       data: body,
     })
 
@@ -29,7 +28,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const isAuthenticated = await getAdminSession()
@@ -37,11 +36,37 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id } = await params
+    // Delete all categories and items in this section first
+    const section = await prisma.section.findUnique({
+      where: { id: params.id },
+      include: {
+        categories: {
+          include: {
+            items: true,
+          },
+        },
+      },
+    })
 
-    // Delete section (cascade will delete categories and items)
+    if (!section) {
+      return NextResponse.json({ error: 'Section not found' }, { status: 404 })
+    }
+
+    // Delete all items in all categories
+    for (const category of section.categories) {
+      await prisma.item.deleteMany({
+        where: { categoryId: category.id },
+      })
+    }
+
+    // Delete all categories
+    await prisma.category.deleteMany({
+      where: { sectionId: params.id },
+    })
+
+    // Delete the section
     await prisma.section.delete({
-      where: { id },
+      where: { id: params.id },
     })
 
     return NextResponse.json({ success: true })

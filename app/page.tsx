@@ -14,12 +14,18 @@ export default function WelcomePage() {
   const [shouldLoadVideo, setShouldLoadVideo] = useState(false)
   const [posterImage, setPosterImage] = useState<string | null>(null)
 
-  const fetchRestaurantData = () => {
+  useEffect(() => {
+    // Load language from localStorage
+    const savedLang = localStorage.getItem('language') as Language
+    if (savedLang && languages.some((l) => l.code === savedLang)) {
+      setSelectedLang(savedLang)
+    }
+
+    // Show UI immediately - don't block render
+    setIsLoaded(true)
+
     // Fetch restaurant data (non-blocking)
-    // Add cache-busting timestamp to ensure fresh data
-    fetch(`/api/restaurant?t=${Date.now()}`, {
-      cache: 'no-store',
-    })
+    fetch('/api/restaurant')
       .then((res) => {
         if (!res.ok) throw new Error('Failed to fetch')
         return res.json()
@@ -31,55 +37,31 @@ export default function WelcomePage() {
           // Try to detect video type via HEAD request
           fetch(`/api/media/${data.welcomeBackgroundMediaId}`, { method: 'HEAD' })
             .then((res) => {
-              if (!res.ok) {
-                throw new Error(`HEAD request failed: ${res.status}`)
-              }
               const contentType = res.headers.get('content-type')
-              console.log('Detected content type:', contentType)
               setBackgroundMimeType(contentType)
               
               // If it's a video, start loading it
               if (contentType?.startsWith('video/')) {
                 setPosterImage(null)
-                // Start loading video immediately
-                setShouldLoadVideo(true)
-              } else {
-                // It's an image, don't try to load as video
-                setShouldLoadVideo(false)
+                // Start loading video after a short delay
+                setTimeout(() => {
+                  setShouldLoadVideo(true)
+                }, 300)
               }
             })
-            .catch((error) => {
-              console.error('Error detecting media type:', error)
-              // If HEAD fails, try loading as video anyway (browser will handle it)
+            .catch(() => {
+              // If HEAD fails, try to load anyway and detect from file extension or let browser handle it
+              // Assume it might be a video and try loading
               setBackgroundMimeType('video/mp4') // Default assumption
-              setShouldLoadVideo(true)
+              setTimeout(() => {
+                setShouldLoadVideo(true)
+              }, 300)
             })
         }
       })
       .catch((error) => {
         console.error('Error fetching restaurant:', error)
       })
-  }
-
-  useEffect(() => {
-    // Load language from localStorage
-    const savedLang = localStorage.getItem('language') as Language
-    if (savedLang && languages.some((l) => l.code === savedLang)) {
-      setSelectedLang(savedLang)
-    }
-
-    // Show UI immediately - don't block render
-    setIsLoaded(true)
-
-    // Fetch restaurant data
-    fetchRestaurantData()
-
-    // Refresh restaurant data every 30 seconds to catch updates
-    const refreshInterval = setInterval(() => {
-      fetchRestaurantData()
-    }, 30000)
-
-    return () => clearInterval(refreshInterval)
   }, [])
 
   const handleLanguageSelect = (lang: Language) => {
@@ -105,10 +87,13 @@ export default function WelcomePage() {
             <>
               {/* Poster/Placeholder - shows immediately */}
               <div 
-                className="absolute inset-0 bg-gradient-to-b from-[#400810] via-[#5C0015] to-[#800020] background-media-fade"
-                style={{ zIndex: 1 }}
+                className="absolute inset-0 background-media-fade"
+                style={{ 
+                  zIndex: 1,
+                  backgroundColor: 'var(--app-bg, #400810)',
+                }}
               />
-              {/* Video - loads when shouldLoadVideo is true */}
+              {/* Video - loads lazily */}
               {shouldLoadVideo && (
                 <video
                   key={restaurant.welcomeBackgroundMediaId}
@@ -117,90 +102,19 @@ export default function WelcomePage() {
                   loop
                   muted
                   playsInline
-                  preload="auto"
+                  preload="metadata"
                   className="w-full h-full object-cover background-media-fade absolute inset-0"
                   style={{ zIndex: 2, opacity: 0, transition: 'opacity 1s ease-in' }}
-                  ref={(video) => {
-                    // Set mobile-specific attributes
-                    if (video) {
-                      video.setAttribute('webkit-playsinline', 'true')
-                      video.setAttribute('playsinline', 'true')
-                      video.setAttribute('x5-playsinline', 'true')
-                      video.setAttribute('x5-video-player-type', 'h5')
-                      video.setAttribute('x5-video-player-fullscreen', 'false')
-                      
-                      // Explicitly play video on mobile devices
-                      const playPromise = video.play()
-                      if (playPromise !== undefined) {
-                        playPromise
-                          .then(() => {
-                            console.log('Video autoplay started')
-                            video.style.opacity = '1'
-                          })
-                          .catch((error) => {
-                            console.log('Autoplay prevented, trying to play:', error)
-                            // Try to play after user interaction
-                            const tryPlay = () => {
-                              video.play()
-                                .then(() => {
-                                  console.log('Video play started after interaction')
-                                  video.style.opacity = '1'
-                                })
-                                .catch((err) => {
-                                  console.error('Video play failed:', err)
-                                })
-                            }
-                            // Try on first user interaction
-                            document.addEventListener('touchstart', tryPlay, { once: true })
-                            document.addEventListener('click', tryPlay, { once: true })
-                          })
-                      }
-                    }
-                  }}
                   onLoadedData={(e) => {
                     // Fade in video once loaded
-                    console.log('Video loaded successfully')
                     const target = e.currentTarget
-                    const playPromise = target.play()
-                    if (playPromise !== undefined) {
-                      playPromise
-                        .then(() => {
-                          setTimeout(() => {
-                            target.style.opacity = '1'
-                          }, 100)
-                        })
-                        .catch(() => {
-                          // Autoplay blocked, but video is loaded
-                          target.style.opacity = '1'
-                        })
-                    }
-                  }}
-                  onCanPlay={(e) => {
-                    // Video is ready to play
-                    console.log('Video can play')
-                    const target = e.currentTarget
-                    const playPromise = target.play()
-                    if (playPromise !== undefined) {
-                      playPromise
-                        .then(() => {
-                          target.style.opacity = '1'
-                        })
-                        .catch(() => {
-                          // Autoplay might be blocked, but show video anyway
-                          target.style.opacity = '1'
-                        })
-                    } else {
+                    setTimeout(() => {
                       target.style.opacity = '1'
-                    }
-                  }}
-                  onPlaying={(e) => {
-                    // Video is actually playing
-                    console.log('Video is playing')
-                    e.currentTarget.style.opacity = '1'
+                    }, 100)
                   }}
                   onError={(e) => {
                     // If video fails to load, fall back to image
-                    console.error('Video failed to load, falling back to image', e)
+                    console.error('Video failed to load, falling back to image')
                     setBackgroundMimeType('image/jpeg')
                     setShouldLoadVideo(false)
                   }}
@@ -229,7 +143,10 @@ export default function WelcomePage() {
           )}
         </div>
       ) : (
-        <div className={`absolute inset-0 bg-gradient-to-b from-[#400810] via-[#5C0015] to-[#800020] background-fade-in ${isLoaded ? 'animate-in' : ''}`} />
+        <div 
+          className={`absolute inset-0 background-fade-in ${isLoaded ? 'animate-in' : ''}`}
+          style={{ backgroundColor: 'var(--app-bg, #400810)' }}
+        />
       )}
 
       {/* Overlay */}
@@ -272,7 +189,7 @@ export default function WelcomePage() {
             <button
               key={lang.code}
               onClick={() => handleLanguageSelect(lang.code)}
-              className={`w-full p-3 bg-white/10 backdrop-blur-sm rounded-xl shadow-lg hover:shadow-xl hover:bg-white/15 transition-all text-center group border border-white/20 welcome-fade-in ${isLoaded ? 'animate-in' : ''}`}
+              className={`w-full p-3 bg-white/10 backdrop-blur-sm rounded-xl shadow-lg hover:shadow-xl hover:bg-white/15 transition-all text-center group border border-white/20 welcome-fade-in welcome-box-glow ${isLoaded ? 'animate-in' : ''}`}
             >
               <div className="flex items-center justify-center">
                 <h3 className="text-base font-semibold text-white group-hover:scale-105 transition-transform duration-300">
@@ -290,7 +207,7 @@ export default function WelcomePage() {
               href={restaurant.googleMapsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-1.5 p-1 bg-white/10 backdrop-blur-sm rounded-lg hover:bg-white/20 transition-all shadow-lg border border-white/20 hover:scale-105 transform duration-300"
+              className="flex-1 flex items-center justify-center gap-1.5 p-1 bg-white/10 backdrop-blur-sm rounded-lg hover:bg-white/20 transition-all shadow-lg border border-white/20 hover:scale-105 transform duration-300 welcome-box-glow"
               aria-label="Google Maps"
             >
               <MapPin className="w-4 h-4 text-white flex-shrink-0" />
@@ -300,7 +217,7 @@ export default function WelcomePage() {
           {restaurant?.phoneNumber && (
             <a
               href={`tel:${restaurant.phoneNumber}`}
-              className="flex-1 flex items-center justify-center gap-1.5 p-1 bg-white/10 backdrop-blur-sm rounded-lg hover:bg-white/20 transition-all shadow-lg border border-white/20 hover:scale-105 transform duration-300"
+              className="flex-1 flex items-center justify-center gap-1.5 p-1 bg-white/10 backdrop-blur-sm rounded-lg hover:bg-white/20 transition-all shadow-lg border border-white/20 hover:scale-105 transform duration-300 welcome-box-glow"
               aria-label="Phone"
             >
               <Phone className="w-4 h-4 text-white flex-shrink-0" />

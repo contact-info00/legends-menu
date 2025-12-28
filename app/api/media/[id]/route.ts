@@ -3,69 +3,25 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await params
     const media = await prisma.media.findUnique({
-      where: { id },
+      where: { id: params.id },
     })
 
     if (!media) {
       return new NextResponse('Media not found', { status: 404 })
     }
 
-    // Handle HEAD requests (for content-type detection)
-    if (request.method === 'HEAD') {
-      return new NextResponse(null, {
-        status: 200,
-        headers: {
-          'Content-Type': media.mimeType,
-          'Content-Length': media.size.toString(),
-          'Cache-Control': 'public, max-age=31536000, immutable',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, HEAD',
-        },
-      })
-    }
-
-    // Convert bytes to Buffer for response
-    // Prisma returns bytes as Buffer in Node.js
-    const buffer = Buffer.isBuffer(media.bytes) 
-      ? media.bytes 
-      : Buffer.from(media.bytes as any)
-
-    // Support range requests for better mobile video streaming
-    const range = request.headers.get('range')
-    if (range && media.mimeType.startsWith('video/')) {
-      const parts = range.replace(/bytes=/, '').split('-')
-      const start = parseInt(parts[0], 10)
-      const end = parts[1] ? parseInt(parts[1], 10) : media.size - 1
-      const chunksize = end - start + 1
-      const chunk = buffer.slice(start, end + 1)
-
-      return new NextResponse(chunk, {
-        status: 206,
-        headers: {
-          'Content-Range': `bytes ${start}-${end}/${media.size}`,
-          'Accept-Ranges': 'bytes',
-          'Content-Length': chunksize.toString(),
-          'Content-Type': media.mimeType,
-          'Cache-Control': 'public, max-age=31536000, immutable',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, HEAD',
-        },
-      })
-    }
+    // Convert Buffer to ArrayBuffer for response
+    const buffer = Buffer.from(media.bytes)
 
     return new NextResponse(buffer, {
       headers: {
         'Content-Type': media.mimeType,
         'Content-Length': media.size.toString(),
         'Cache-Control': 'public, max-age=31536000, immutable',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, HEAD',
-        'Accept-Ranges': 'bytes',
       },
     })
   } catch (error) {

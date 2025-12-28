@@ -18,11 +18,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { items } = reorderSchema.parse(body)
+    const validation = reorderSchema.safeParse(body)
 
-    // Update all categories in a transaction
-    await prisma.$transaction(
-      items.map((item) =>
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: validation.error.errors[0].message },
+        { status: 400 }
+      )
+    }
+
+    // Update all categories with new sortOrder
+    await Promise.all(
+      validation.data.items.map((item) =>
         prisma.category.update({
           where: { id: item.id },
           data: { sortOrder: item.sortOrder },
@@ -32,9 +39,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Invalid request data', details: error.errors }, { status: 400 })
-    }
     console.error('Error reordering categories:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

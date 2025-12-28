@@ -3,10 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { getAdminSession } from '@/lib/auth'
 import { z } from 'zod'
 
-// Vercel serverless functions have a 4.5MB body size limit
-// We'll use 4MB to be safe
-const MAX_IMAGE_SIZE = 4 * 1024 * 1024 // 4MB
-const MAX_VIDEO_SIZE = 4 * 1024 * 1024 // 4MB (Vercel limit)
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5MB
+const MAX_VIDEO_SIZE = 20 * 1024 * 1024 // 20MB
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const ALLOWED_VIDEO_TYPES = ['video/mp4']
 const ALLOWED_MIME_TYPES = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES]
@@ -20,7 +18,7 @@ const uploadSchema = z.object({
       if (isVideo) return file.size <= MAX_VIDEO_SIZE
       return false
     },
-    'File size must be less than 4MB (Vercel serverless function limit)'
+    'File size must be less than 5MB for images or 20MB for videos'
   ).refine(
     (file) => ALLOWED_MIME_TYPES.includes(file.type),
     'Only JPEG, PNG, WebP images and MP4 videos are allowed'
@@ -45,10 +43,8 @@ export async function POST(request: NextRequest) {
     // Validate file
     const validation = uploadSchema.safeParse({ file })
     if (!validation.success) {
-      const errorMessage = validation.error.errors[0].message
-      console.error('Validation error:', errorMessage, 'File type:', file.type, 'File size:', file.size)
       return NextResponse.json(
-        { error: errorMessage },
+        { error: validation.error.errors[0].message },
         { status: 400 }
       )
     }
@@ -66,15 +62,10 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    console.log('Media uploaded successfully:', { id: media.id, mimeType: media.mimeType, size: media.size })
     return NextResponse.json({ id: media.id, mimeType: media.mimeType, size: media.size })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error uploading media:', error)
-    const errorMessage = error?.message || 'Internal server error'
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    )
+    return new NextResponse('Internal server error', { status: 500 })
   }
 }
 

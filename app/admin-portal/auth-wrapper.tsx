@@ -35,7 +35,7 @@ export function AdminAuthWrapper({
           return
         }
         console.error('Auth check failed:', error)
-        router.push('/admin-portal/login')
+        router.push('/admin/login')
       }
     }
 

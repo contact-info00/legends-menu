@@ -137,9 +137,16 @@ export default function TypographyPage() {
   }
 
   return (
-    <div className="min-h-screen p-2 sm:p-4" style={{ backgroundColor: '#400810' }}>
+    <div className="min-h-screen p-2 sm:p-4" style={{ backgroundColor: 'var(--app-bg, #400810)' }}>
       <div className="max-w-6xl mx-auto">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6 backdrop-blur-xl bg-white/10 rounded-2xl p-3 sm:p-4 border border-white/20 shadow-lg">
+        <div 
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6 backdrop-blur-xl rounded-2xl p-3 sm:p-4 border"
+          style={{
+            backgroundColor: 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))',
+            borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
+            boxShadow: `0 10px 25px -5px var(--auto-shadow-color, rgba(0, 0, 0, 0.3)), 0 4px 6px -2px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`,
+          }}
+        >
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">Typography Settings</h1>
           <Button 
             onClick={() => router.push('/admin-portal')} 
@@ -149,7 +156,14 @@ export default function TypographyPage() {
           </Button>
         </div>
 
-        <div className="backdrop-blur-xl bg-[#400810]/95 rounded-2xl shadow-lg border border-white/20 p-4 sm:p-6 space-y-6">
+        <div 
+          className="backdrop-blur-xl rounded-2xl border p-4 sm:p-6 space-y-6"
+          style={{
+            backgroundColor: 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))',
+            borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
+            boxShadow: `0 10px 25px -5px var(--auto-shadow-color, rgba(0, 0, 0, 0.3)), 0 4px 6px -2px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`,
+          }}
+        >
           {/* Font Size Controls */}
           <div>
             <h2 className="text-xl font-semibold text-white mb-4">Font Sizes (px)</h2>

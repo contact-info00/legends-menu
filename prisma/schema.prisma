@@ -109,6 +109,7 @@ model Media {
   welcomeBackgrounds Restaurant[] @relation("WelcomeBackground")
   categoryImages Category[] @relation("CategoryImage")
   itemImages  Item[]   @relation("ItemImage")
+  themeBackgroundImages Theme[] @relation("ThemeBackgroundImage")
 }
 
 model UiSettings {
@@ -119,8 +120,15 @@ model UiSettings {
   itemDescriptionSize Int      @default(14)
   itemPriceSize       Int      @default(16)
   headerLogoSize      Int      @default(32)
-  bottomNavSectionSize Int     @default(18)
-  bottomNavCategorySize Int    @default(15)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model Theme {
+  id                  String   @id @default("theme-1")
+  appBg               String   @default("#400810")
+  backgroundImageMediaId String?
+  backgroundImage      Media?   @relation("ThemeBackgroundImage", fields: [backgroundImageMediaId], references: [id])
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }

@@ -289,6 +289,18 @@ async function main() {
   })
 
   console.log('✅ UI settings created')
+
+  // Create theme with defaults
+  await prisma.theme.upsert({
+    where: { id: 'theme-1' },
+    update: {},
+    create: {
+      id: 'theme-1',
+      appBg: '#400810',
+    },
+  })
+
+  console.log('✅ Theme created')
   console.log('🎉 Seeding completed!')
 }
 

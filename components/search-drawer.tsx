@@ -57,9 +57,22 @@ export function SearchDrawer({
       />
 
       {/* Drawer */}
-      <div className="absolute right-0 top-0 h-full w-full max-w-md backdrop-blur-xl bg-[#400810]/95 shadow-2xl overflow-y-auto border-l border-white/20">
+      <div 
+        className="absolute right-0 top-0 h-full w-full max-w-md backdrop-blur-xl shadow-2xl overflow-y-auto border-l"
+        style={{
+          backgroundColor: 'var(--app-bg, #400810)',
+          borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
+          boxShadow: `0 10px 25px -5px var(--auto-shadow-color, rgba(0, 0, 0, 0.3)), 0 4px 6px -2px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`,
+        }}
+      >
         {/* Header */}
-        <div className="sticky top-0 backdrop-blur-xl bg-[#400810]/95 border-b border-white/20 p-4 z-10">
+        <div 
+          className="sticky top-0 backdrop-blur-xl border-b p-4 z-10"
+          style={{
+            backgroundColor: 'var(--app-bg, #400810)',
+            borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
+          }}
+        >
           <div className="flex items-center gap-3">
             <div className="relative flex-1">
               <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/60" />

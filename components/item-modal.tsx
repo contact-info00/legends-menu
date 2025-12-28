@@ -38,7 +38,12 @@ export function ItemModal({ item, currentLang, isOpen, onClose }: ItemModalProps
 
       {/* Modal */}
       <div
-        className="relative backdrop-blur-xl bg-[#400810]/95 rounded-3xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-white/20"
+        className="relative backdrop-blur-xl rounded-3xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border"
+        style={{
+          backgroundColor: 'var(--app-bg, #400810)',
+          borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
+          boxShadow: `0 10px 25px -5px var(--auto-shadow-color, rgba(0, 0, 0, 0.3)), 0 4px 6px -2px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`,
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close button */}
@@ -62,7 +67,13 @@ export function ItemModal({ item, currentLang, isOpen, onClose }: ItemModalProps
               sizes="(max-width: 768px) 100vw, 400px"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-white/60 bg-gradient-to-br from-[#5C0015]/30 to-[#800020]/30">
+            <div 
+              className="w-full h-full flex items-center justify-center"
+              style={{
+                backgroundColor: 'var(--auto-surface-bg-2, rgba(255, 255, 255, 0.05))',
+                color: 'var(--auto-text-secondary, rgba(255, 255, 255, 0.9))',
+              }}
+            >
               No Image
             </div>
           )}

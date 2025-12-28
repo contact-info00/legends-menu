@@ -153,9 +153,16 @@ export default function BrandingPage() {
   }, [colorPickerOpen])
 
   return (
-    <div className="min-h-screen p-2 sm:p-4" style={{ backgroundColor: '#400810' }}>
+    <div className="min-h-screen p-2 sm:p-4" style={{ backgroundColor: 'var(--app-bg, #400810)' }}>
       <div className="max-w-6xl mx-auto">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6 backdrop-blur-xl bg-white/10 rounded-2xl p-3 sm:p-4 border border-white/20 shadow-lg">
+        <div 
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6 backdrop-blur-xl rounded-2xl p-3 sm:p-4 border"
+          style={{
+            backgroundColor: 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))',
+            borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
+            boxShadow: `0 10px 25px -5px var(--auto-shadow-color, rgba(0, 0, 0, 0.3)), 0 4px 6px -2px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`,
+          }}
+        >
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">Branding & Colors</h1>
           <Button 
             onClick={() => router.push('/admin-portal')} 
@@ -165,7 +172,14 @@ export default function BrandingPage() {
           </Button>
         </div>
 
-        <div className="backdrop-blur-xl bg-[#400810]/95 rounded-2xl shadow-lg border border-white/20 p-6 space-y-6">
+        <div 
+          className="backdrop-blur-xl rounded-2xl border p-6 space-y-6"
+          style={{
+            backgroundColor: 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))',
+            borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
+            boxShadow: `0 10px 25px -5px var(--auto-shadow-color, rgba(0, 0, 0, 0.3)), 0 4px 6px -2px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`,
+          }}
+        >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {Object.entries(colors).map(([key, value]) => (
               <div key={key} className="space-y-2">
@@ -221,7 +235,12 @@ export default function BrandingPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div
             ref={colorPickerRef}
-            className="backdrop-blur-xl bg-[#400810]/95 rounded-3xl shadow-2xl border border-white/20 p-6 w-full max-w-sm"
+            className="backdrop-blur-xl rounded-3xl border p-6 w-full max-w-sm"
+            style={{
+              backgroundColor: 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))',
+              borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
+              boxShadow: `0 20px 50px -12px var(--auto-shadow-color, rgba(0, 0, 0, 0.3)), 0 8px 16px -4px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`,
+            }}
           >
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-white">

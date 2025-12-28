@@ -4,7 +4,7 @@ import { getAdminSession } from '@/lib/auth'
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const isAuthenticated = await getAdminSession()
@@ -12,11 +12,10 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id } = await params
     const body = await request.json()
 
     const category = await prisma.category.update({
-      where: { id },
+      where: { id: params.id },
       data: body,
     })
 
@@ -29,7 +28,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const isAuthenticated = await getAdminSession()
@@ -37,11 +36,14 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id } = await params
+    // Delete all items in this category first
+    await prisma.item.deleteMany({
+      where: { categoryId: params.id },
+    })
 
-    // Delete category (cascade will delete items)
+    // Delete the category
     await prisma.category.delete({
-      where: { id },
+      where: { id: params.id },
     })
 
     return NextResponse.json({ success: true })

@@ -42,10 +42,22 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: '#400810' }}>
-      <div className="backdrop-blur-xl bg-[#400810]/95 rounded-3xl shadow-2xl border border-white/20 p-8 w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: 'var(--app-bg, #400810)' }}>
+      <div 
+        className="backdrop-blur-xl rounded-3xl border p-8 w-full max-w-md"
+        style={{
+          backgroundColor: 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))',
+          borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
+          boxShadow: `0 20px 50px -12px var(--auto-shadow-color, rgba(0, 0, 0, 0.3)), 0 8px 16px -4px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`,
+        }}
+      >
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r from-[#800020] to-[#5C0015] mb-4 shadow-lg border border-white/20">
+          <div 
+            className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 shadow-lg border border-white/20"
+            style={{
+              backgroundColor: 'var(--app-bg, #400810)',
+            }}
+          >
             <Lock className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white mb-2">
@@ -74,9 +86,14 @@ export default function AdminLoginPage() {
 
           <Button
             type="submit"
+            variant="ghost"
             disabled={isLoading || pin.length !== 4}
             className="w-full"
             size="lg"
+            style={{
+              backgroundColor: 'var(--app-bg, #400810)',
+              color: 'var(--auto-text-primary, #FFFFFF)',
+            }}
           >
             {isLoading ? 'Logging in...' : 'Login'}
           </Button>

@@ -18,54 +18,72 @@ export function FloatingActionBar({
   onFeedbackClick,
 }: FloatingActionBarProps) {
   return (
-    <div className="relative z-20 px-2 sm:px-4 py-4 w-full overflow-x-hidden">
+    <div className="relative px-2 sm:px-4 py-4 w-full overflow-x-hidden" style={{ zIndex: 10 }}>
       <div className="max-w-7xl mx-auto w-full">
         <div className="relative inline-block w-full max-w-full">
-          {/* Triangular background shape with rounded edges */}
-          <div className="relative px-3 sm:px-6 py-3 bg-gradient-to-r from-[#800020]/30 to-[#5C0015]/30 backdrop-blur-sm rounded-xl border border-white/20 shadow-lg w-full overflow-hidden">
-            {/* Left triangular accent */}
-            <div 
-              className="absolute left-0 top-0 bottom-0"
-              style={{
-                width: '1.125rem',
-                background: 'linear-gradient(to right, rgba(128, 0, 32, 0.4), transparent)',
-                clipPath: 'polygon(0 0, 100% 0, 0 100%)',
-                borderRadius: '0.75rem 0 0 0.75rem'
-              }}
-            ></div>
-            {/* Right triangular accent */}
-            <div 
-              className="absolute right-0 top-0 bottom-0"
-              style={{
-                width: '1.125rem',
-                background: 'linear-gradient(to left, rgba(92, 0, 21, 0.4), transparent)',
-                clipPath: 'polygon(100% 0, 100% 100%, 0 100%)',
-                borderRadius: '0 0.75rem 0.75rem 0'
-              }}
-            ></div>
-            
+          {/* Box container for icons */}
+          <div 
+            className="relative px-3 sm:px-6 py-3 backdrop-blur-sm rounded-xl border w-full"
+            style={{
+              backgroundColor: 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))',
+              borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
+              boxShadow: `0 0 20px var(--auto-primary-glow, rgba(128, 0, 32, 0.35)), 0 10px 25px -5px var(--auto-shadow-color, rgba(0, 0, 0, 0.3)), 0 4px 6px -2px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`,
+              overflow: 'visible',
+            }}
+          >
             {/* Buttons - Horizontal layout */}
-            <div className="flex gap-1.5 sm:gap-2 items-center relative justify-between w-full">
+            <div className="flex gap-1.5 sm:gap-2 items-center relative justify-between w-full" style={{ overflow: 'visible' }}>
               {/* Search icon - larger box, icon on left with text */}
               <button
                 onClick={onSearchClick}
-                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-all backdrop-blur-sm border border-white/20 hover:border-white/30 shadow-sm h-8 flex items-center justify-start pl-1.5 gap-1.5 sm:gap-2 px-2 sm:px-3 flex-1 min-w-0"
+                className="p-1.5 rounded-lg transition-all backdrop-blur-sm border h-8 flex items-center justify-start pl-1.5 gap-1.5 sm:gap-2 px-2 sm:px-3 flex-1 min-w-0"
+                style={{
+                  backgroundColor: 'var(--auto-surface-bg-2, rgba(255, 255, 255, 0.05))',
+                  borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
+                  color: 'var(--auto-text-primary, #FFFFFF)',
+                  boxShadow: `0 2px 4px -1px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))'
+                  e.currentTarget.style.borderColor = 'var(--auto-border, rgba(255, 255, 255, 0.3))'
+                  e.currentTarget.style.boxShadow = `0 4px 6px -1px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--auto-surface-bg-2, rgba(255, 255, 255, 0.05))'
+                  e.currentTarget.style.borderColor = 'var(--auto-border, rgba(255, 255, 255, 0.2))'
+                  e.currentTarget.style.boxShadow = `0 2px 4px -1px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`
+                }}
                 aria-label="Search"
               >
-                <Search className="w-4 h-4 text-white flex-shrink-0" />
-                <span className="text-white text-xs sm:text-sm font-medium truncate">Search</span>
+                <Search className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--auto-text-primary, #FFFFFF)' }} />
+                <span className="text-xs sm:text-sm font-medium truncate" style={{ color: 'var(--auto-text-primary, #FFFFFF)' }}>Search</span>
               </button>
               
               {/* Other icons on the right */}
-              <div className="flex gap-1.5 sm:gap-2 items-center flex-shrink-0">
+              <div className="flex gap-1.5 sm:gap-2 items-center flex-shrink-0" style={{ overflow: 'visible' }}>
                 <button
                   onClick={onFeedbackClick}
-                  className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-all backdrop-blur-sm border border-white/20 hover:border-white/30 shadow-sm w-10 h-10 flex items-center justify-center"
+                  className="p-1.5 rounded-lg transition-all backdrop-blur-sm border w-10 h-10 flex items-center justify-center"
+                  style={{
+                    backgroundColor: 'var(--auto-surface-bg-2, rgba(255, 255, 255, 0.05))',
+                    borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
+                    boxShadow: `0 2px 4px -1px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))'
+                    e.currentTarget.style.borderColor = 'var(--auto-border, rgba(255, 255, 255, 0.3))'
+                    e.currentTarget.style.boxShadow = `0 4px 6px -1px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--auto-surface-bg-2, rgba(255, 255, 255, 0.05))'
+                    e.currentTarget.style.borderColor = 'var(--auto-border, rgba(255, 255, 255, 0.2))'
+                    e.currentTarget.style.boxShadow = `0 2px 4px -1px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`
+                  }}
                   aria-label="Feedback"
                 >
-                  <MessageSquare className="w-6 h-6 text-white" />
+                  <MessageSquare className="w-6 h-6" style={{ color: 'var(--auto-text-primary, #FFFFFF)' }} />
                 </button>
-                <div className="w-10 h-10" style={{ pointerEvents: 'auto', position: 'relative', zIndex: 10 }}>
+                <div className="w-10 h-10" style={{ overflow: 'visible' }}>
                   <LanguageSwitcher
                     currentLang={currentLang}
                     onLanguageChange={onLanguageChange}
