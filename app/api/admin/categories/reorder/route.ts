@@ -92,24 +92,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Check if any updates failed
-    const failures = updateResults.filter((result) => result.status === 'rejected')
-    if (failures.length > 0) {
-      console.error('Some category updates failed:', failures)
-      const errorMessages = failures.map((f) => 
-        f.status === 'rejected' ? f.reason?.message || 'Unknown error' : ''
-      )
-      return NextResponse.json(
-        { 
-          error: 'Some categories failed to update',
-          details: errorMessages,
-          failedCount: failures.length,
-          totalCount: validation.data.items.length
-        },
-        { status: 500 }
-      )
-    }
-
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error reordering categories:', error)
