@@ -13,7 +13,11 @@ export async function GET() {
       include: {
         categories: {
           include: {
-            items: true,
+            items: {
+              orderBy: {
+                sortOrder: 'asc',
+              },
+            },
           },
           orderBy: {
             sortOrder: 'asc',
@@ -25,10 +29,37 @@ export async function GET() {
       },
     })
 
-    return NextResponse.json({ sections })
+    // Ensure we always return a valid structure
+    const normalizedSections = (sections || []).map((section) => ({
+      ...section,
+      categories: (section.categories || []).map((category) => ({
+        ...category,
+        items: category.items || [],
+      })),
+    }))
+
+    return NextResponse.json({ sections: normalizedSections })
   } catch (error) {
-    console.error('Error fetching menu:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('Error fetching admin menu:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorStack = error instanceof Error ? error.stack : undefined
+    
+    // Log detailed error for debugging
+    console.error('Error details:', {
+      message: errorMessage,
+      stack: errorStack,
+      name: error instanceof Error ? error.name : 'Unknown',
+    })
+    
+    // Return empty sections instead of 500 to prevent crashes
+    return NextResponse.json(
+      { 
+        sections: [],
+        error: 'Failed to load menu data',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+      },
+      { status: 200 } // Return 200 with empty data instead of 500
+    )
   }
 }
 
