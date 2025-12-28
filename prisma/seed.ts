@@ -33,31 +33,35 @@ async function main() {
   console.log('🔐 Default PIN: 1234')
   console.log('⚠️  Please change the PIN after first login!')
 
-  // Create restaurant
-  const restaurantNameEn = 'Sample Restaurant' // Change this to match your production restaurant name
+  // Ensure "Legends Restaurant" exists with slug "legends-restaurant"
+  const legendsSlug = 'legends-restaurant'
+  const legendsNameEn = 'Legends Restaurant'
   
-  // Check if restaurant already exists to get its current name
-  const existingRestaurant = await prisma.restaurant.findUnique({
-    where: { id: 'restaurant-1' },
+  // Check if restaurant with slug "legends-restaurant" already exists
+  const existingLegendsRestaurant = await prisma.restaurant.findUnique({
+    where: { slug: legendsSlug },
   })
   
-  // Use existing name if available, otherwise use default
-  const actualNameEn = existingRestaurant?.nameEn || restaurantNameEn
-  const restaurantSlug = generateSlug(actualNameEn)
-  
-  const restaurant = await prisma.restaurant.upsert({
-    where: { id: 'restaurant-1' },
-    update: {
-      // Ensure slug exists and is correct for existing restaurants
-      slug: restaurantSlug,
-    },
-    create: {
-      id: 'restaurant-1',
-      slug: restaurantSlug,
-      nameKu: 'رێستۆرانتی نموونە',
-      nameEn: restaurantNameEn,
-      nameAr: 'مطعم نموذجي',
-      googleMapsUrl: 'https://maps.google.com',
+  let restaurant
+  if (existingLegendsRestaurant) {
+    // Restaurant already exists, use it
+    console.log(`✅ Restaurant "${legendsNameEn}" already exists with slug "${legendsSlug}"`)
+    restaurant = existingLegendsRestaurant
+  } else {
+    // Create "Legends Restaurant" if it doesn't exist
+    restaurant = await prisma.restaurant.upsert({
+      where: { slug: legendsSlug },
+      update: {
+        // Ensure name and slug are correct
+        nameEn: legendsNameEn,
+        slug: legendsSlug,
+      },
+      create: {
+        slug: legendsSlug,
+        nameKu: 'رێستۆرانتی لێجەندز',
+        nameEn: legendsNameEn,
+        nameAr: 'مطعم الأساطير',
+        googleMapsUrl: 'https://maps.google.com',
       phoneNumber: '+9647501234567',
       brandColors: {
         menuGradientStart: '#5C0015',
@@ -82,23 +86,34 @@ async function main() {
         welcomeOverlayOpacity: 0.5,
       },
     },
+    })
+  }
+
+  console.log(`✅ Restaurant "${restaurant.nameEn}" ensured (slug: ${restaurant.slug})`)
+
+  // Only create sections if restaurant was just created (has no sections yet)
+  const existingSections = await prisma.section.findMany({
+    where: { restaurantId: restaurant.id },
   })
 
-  console.log('✅ Restaurant created')
+  let menuSection, shishaSection, drinksSection
 
-  // Create sections
-  const menuSection = await prisma.section.create({
-    data: {
-      restaurantId: restaurant.id,
-      nameKu: 'مێنوو',
-      nameEn: 'Menu',
-      nameAr: 'قائمة الطعام',
-      sortOrder: 1,
-      isActive: true,
-    },
-  })
+  if (existingSections.length === 0) {
+    // Create sections only if restaurant is new
+    console.log('📋 Creating sections for new restaurant...')
+    
+    menuSection = await prisma.section.create({
+      data: {
+        restaurantId: restaurant.id,
+        nameKu: 'مێنوو',
+        nameEn: 'Menu',
+        nameAr: 'قائمة الطعام',
+        sortOrder: 1,
+        isActive: true,
+      },
+    })
 
-  const shishaSection = await prisma.section.create({
+    shishaSection = await prisma.section.create({
     data: {
       restaurantId: restaurant.id,
       nameKu: 'شیشە',
@@ -109,82 +124,82 @@ async function main() {
     },
   })
 
-  const drinksSection = await prisma.section.create({
-    data: {
-      restaurantId: restaurant.id,
-      nameKu: 'خواردنەوەکان',
-      nameEn: 'Drinks',
-      nameAr: 'المشروبات',
-      sortOrder: 3,
-      isActive: true,
-    },
-  })
+    drinksSection = await prisma.section.create({
+      data: {
+        restaurantId: restaurant.id,
+        nameKu: 'خواردنەوەکان',
+        nameEn: 'Drinks',
+        nameAr: 'المشروبات',
+        sortOrder: 3,
+        isActive: true,
+      },
+    })
 
-  console.log('✅ Sections created')
+    console.log('✅ Sections created')
 
-  // Create categories for Menu section
-  const appetizersCategory = await prisma.category.create({
-    data: {
-      sectionId: menuSection.id,
-      nameKu: 'پێشخوارد',
-      nameEn: 'Appetizers',
-      nameAr: 'المقبلات',
-      sortOrder: 1,
-      isActive: true,
-    },
-  })
+    // Create categories for Menu section
+    const appetizersCategory = await prisma.category.create({
+      data: {
+        sectionId: menuSection.id,
+        nameKu: 'پێشخوارد',
+        nameEn: 'Appetizers',
+        nameAr: 'المقبلات',
+        sortOrder: 1,
+        isActive: true,
+      },
+    })
 
-  const mainDishesCategory = await prisma.category.create({
-    data: {
-      sectionId: menuSection.id,
-      nameKu: 'خواردنی سەرەکی',
-      nameEn: 'Main Dishes',
-      nameAr: 'الأطباق الرئيسية',
-      sortOrder: 2,
-      isActive: true,
-    },
-  })
+    const mainDishesCategory = await prisma.category.create({
+      data: {
+        sectionId: menuSection.id,
+        nameKu: 'خواردنی سەرەکی',
+        nameEn: 'Main Dishes',
+        nameAr: 'الأطباق الرئيسية',
+        sortOrder: 2,
+        isActive: true,
+      },
+    })
 
-  // Create categories for Shisha section
-  const classicShishaCategory = await prisma.category.create({
-    data: {
-      sectionId: shishaSection.id,
-      nameKu: 'کلاسیک',
-      nameEn: 'Classic',
-      nameAr: 'كلاسيكي',
-      sortOrder: 1,
-      isActive: true,
-    },
-  })
+    // Create categories for Shisha section
+    const classicShishaCategory = await prisma.category.create({
+      data: {
+        sectionId: shishaSection.id,
+        nameKu: 'کلاسیک',
+        nameEn: 'Classic',
+        nameAr: 'كلاسيكي',
+        sortOrder: 1,
+        isActive: true,
+      },
+    })
 
-  // Create categories for Drinks section
-  const hotDrinksCategory = await prisma.category.create({
-    data: {
-      sectionId: drinksSection.id,
-      nameKu: 'خواردنەوەی گەرم',
-      nameEn: 'Hot Drinks',
-      nameAr: 'مشروبات ساخنة',
-      sortOrder: 1,
-      isActive: true,
-    },
-  })
+    // Create categories for Drinks section
+    const hotDrinksCategory = await prisma.category.create({
+      data: {
+        sectionId: drinksSection.id,
+        nameKu: 'خواردنەوەی گەرم',
+        nameEn: 'Hot Drinks',
+        nameAr: 'مشروبات ساخنة',
+        sortOrder: 1,
+        isActive: true,
+      },
+    })
 
-  const coldDrinksCategory = await prisma.category.create({
-    data: {
-      sectionId: drinksSection.id,
-      nameKu: 'خواردنەوەی سارد',
-      nameEn: 'Cold Drinks',
-      nameAr: 'مشروبات باردة',
-      sortOrder: 2,
-      isActive: true,
-    },
-  })
+    const coldDrinksCategory = await prisma.category.create({
+      data: {
+        sectionId: drinksSection.id,
+        nameKu: 'خواردنەوەی سارد',
+        nameEn: 'Cold Drinks',
+        nameAr: 'مشروبات باردة',
+        sortOrder: 2,
+        isActive: true,
+      },
+    })
 
-  console.log('✅ Categories created')
+    console.log('✅ Categories created')
 
-  // Create sample items
-  await prisma.item.createMany({
-    data: [
+    // Create sample items
+    await prisma.item.createMany({
+      data: [
       {
         categoryId: appetizersCategory.id,
         nameKu: 'هوموس',
@@ -293,10 +308,14 @@ async function main() {
         sortOrder: 2,
         isActive: true,
       },
-    ],
-  })
+      ],
+    })
 
-  console.log('✅ Sample items created')
+    console.log('✅ Sample items created')
+  } else {
+    // Restaurant already has sections, find them
+    console.log(`✅ Restaurant already has ${existingSections.length} section(s), skipping section/category/item creation`)
+  }
 
   // Create UI settings with defaults
   await prisma.uiSettings.upsert({
