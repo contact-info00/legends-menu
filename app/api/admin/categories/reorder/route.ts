@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAdminSession } from '@/lib/auth'
+import { revalidateTag } from 'next/cache'
 import { z } from 'zod'
 
 const reorderSchema = z.object({
@@ -52,12 +53,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Update all categories with new sortOrder using a transaction
+    let updatedCategories
     try {
-      await prisma.$transaction(
+      updatedCategories = await prisma.$transaction(
         validation.data.items.map((item) =>
           prisma.category.update({
             where: { id: item.id },
             data: { sortOrder: item.sortOrder },
+            select: {
+              id: true,
+              sortOrder: true,
+              nameEn: true,
+              sectionId: true,
+            },
           })
         )
       )
@@ -69,6 +77,12 @@ export async function POST(request: NextRequest) {
           prisma.category.update({
             where: { id: item.id },
             data: { sortOrder: item.sortOrder },
+            select: {
+              id: true,
+              sortOrder: true,
+              nameEn: true,
+              sectionId: true,
+            },
           })
         )
       )
@@ -90,9 +104,21 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         )
       }
+
+      // Extract successful updates
+      updatedCategories = updateResults
+        .filter((result) => result.status === 'fulfilled')
+        .map((result) => result.status === 'fulfilled' ? result.value : null)
+        .filter(Boolean) as typeof updatedCategories
     }
 
-    return NextResponse.json({ success: true })
+    // Invalidate cache so menu page reflects changes immediately
+    revalidateTag('menu')
+
+    return NextResponse.json({ 
+      success: true,
+      updated: updatedCategories,
+    })
   } catch (error) {
     console.error('Error reordering categories:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'

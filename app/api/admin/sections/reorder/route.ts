@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAdminSession } from '@/lib/auth'
+import { revalidateTag } from 'next/cache'
 import { z } from 'zod'
 
 const reorderSchema = z.object({
@@ -27,35 +28,71 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Update all sections with new sortOrder
-    const updateResults = await Promise.allSettled(
-      validation.data.items.map((item) =>
-        prisma.section.update({
-          where: { id: item.id },
-          data: { sortOrder: item.sortOrder },
-        })
+    // Update all sections with new sortOrder using a transaction
+    let updatedSections
+    try {
+      updatedSections = await prisma.$transaction(
+        validation.data.items.map((item) =>
+          prisma.section.update({
+            where: { id: item.id },
+            data: { sortOrder: item.sortOrder },
+            select: {
+              id: true,
+              sortOrder: true,
+              nameEn: true,
+            },
+          })
+        )
       )
-    )
+    } catch (transactionError) {
+      console.error('Transaction failed:', transactionError)
+      // Fall back to individual updates
+      const updateResults = await Promise.allSettled(
+        validation.data.items.map((item) =>
+          prisma.section.update({
+            where: { id: item.id },
+            data: { sortOrder: item.sortOrder },
+            select: {
+              id: true,
+              sortOrder: true,
+              nameEn: true,
+            },
+          })
+        )
+      )
 
-    // Check if any updates failed
-    const failures = updateResults.filter((result) => result.status === 'rejected')
-    if (failures.length > 0) {
-      console.error('Some section updates failed:', failures)
-      const errorMessages = failures.map((f) => 
-        f.status === 'rejected' ? f.reason?.message || 'Unknown error' : ''
-      )
-      return NextResponse.json(
-        { 
-          error: 'Some sections failed to update',
-          details: errorMessages,
-          failedCount: failures.length,
-          totalCount: validation.data.items.length
-        },
-        { status: 500 }
-      )
+      // Check if any updates failed
+      const failures = updateResults.filter((result) => result.status === 'rejected')
+      if (failures.length > 0) {
+        console.error('Some section updates failed:', failures)
+        const errorMessages = failures.map((f) => 
+          f.status === 'rejected' ? f.reason?.message || 'Unknown error' : ''
+        )
+        return NextResponse.json(
+          { 
+            error: 'Some sections failed to update',
+            details: errorMessages,
+            failedCount: failures.length,
+            totalCount: validation.data.items.length
+          },
+          { status: 500 }
+        )
+      }
+
+      // Extract successful updates
+      updatedSections = updateResults
+        .filter((result) => result.status === 'fulfilled')
+        .map((result) => result.status === 'fulfilled' ? result.value : null)
+        .filter(Boolean) as typeof updatedSections
     }
 
-    return NextResponse.json({ success: true })
+    // Invalidate cache so menu page reflects changes immediately
+    revalidateTag('menu')
+
+    return NextResponse.json({ 
+      success: true,
+      updated: updatedSections,
+    })
   } catch (error) {
     console.error('Error reordering sections:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'

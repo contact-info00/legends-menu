@@ -1,36 +1,51 @@
 import { NextResponse } from 'next/server'
+import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
+
+async function getMenuSections() {
+  return await prisma.section.findMany({
+    where: {
+      isActive: true,
+    },
+    include: {
+      categories: {
+        where: {
+          isActive: true,
+        },
+        include: {
+          items: {
+            where: {
+              isActive: true,
+            },
+            orderBy: {
+              sortOrder: 'asc',
+            },
+          },
+        },
+        orderBy: {
+          sortOrder: 'asc',
+        },
+      },
+    },
+    orderBy: {
+      sortOrder: 'asc',
+    },
+  })
+}
+
+// Cache the menu data with tag for invalidation
+const getCachedMenuSections = unstable_cache(
+  getMenuSections,
+  ['menu-sections'],
+  {
+    tags: ['menu'],
+    revalidate: 5, // Revalidate every 5 seconds as fallback
+  }
+)
 
 export async function GET() {
   try {
-    const sections = await prisma.section.findMany({
-      where: {
-        isActive: true,
-      },
-      include: {
-        categories: {
-          where: {
-            isActive: true,
-          },
-          include: {
-            items: {
-              where: {
-                isActive: true,
-              },
-              orderBy: {
-                sortOrder: 'asc',
-              },
-            },
-          },
-          orderBy: {
-            sortOrder: 'asc',
-          },
-        },
-      },
-      orderBy: {
-        sortOrder: 'asc',
-      },
-    })
+    const sections = await getCachedMenuSections()
 
     return NextResponse.json(
       { sections: sections || [] },
