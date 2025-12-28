@@ -10,13 +10,11 @@ async function verifyDatabase() {
     console.log('📋 Checking Theme table...')
     const theme = await prisma.theme.findUnique({
       where: { id: 'theme-1' },
-      include: { backgroundImage: true },
     })
     if (theme) {
       console.log('✅ Theme table exists')
       console.log(`   - id: ${theme.id}`)
       console.log(`   - appBg: ${theme.appBg}`)
-      console.log(`   - backgroundImageMediaId: ${theme.backgroundImageMediaId || 'null'}`)
       console.log(`   - createdAt: ${theme.createdAt}`)
       console.log(`   - updatedAt: ${theme.updatedAt}`)
     } else {
@@ -109,7 +107,7 @@ async function verifyDatabase() {
 
     console.log('\n✅ Database verification complete!')
     console.log('\n📊 Summary:')
-    console.log(`   - Theme: ✅ (with backgroundImageMediaId field)`)
+    console.log(`   - Theme: ✅`)
     console.log(`   - Media: ✅ (${mediaCount} records)`)
     console.log(`   - Section: ✅ (${sectionCount} records, with sortOrder)`)
     console.log(`   - Category: ✅ (${categoryCount} records, with sortOrder)`)
