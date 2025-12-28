@@ -20,22 +20,32 @@ export function AdminAuthWrapper({
     // Check authentication for other admin pages
     const checkAuth = async () => {
       try {
-        const response = await fetch('/api/admin/check-session')
+        const response = await fetch('/api/admin/check-session', {
+          method: 'GET',
+          credentials: 'include', // Include cookies for authentication
+        })
+        
         if (!response.ok) {
-          // 401 is expected when not logged in, don't log as error
-          if (response.status !== 401) {
-            console.error('Auth check failed with status:', response.status)
+          // 401 is expected when not logged in, silently redirect
+          if (response.status === 401) {
+            router.push('/admin-portal/login')
+            return
           }
+          // Only log unexpected errors
+          console.error('Auth check failed with status:', response.status)
           router.push('/admin-portal/login')
         }
       } catch (error) {
         // Only log unexpected errors, not network issues
         if (error instanceof TypeError && error.message.includes('fetch')) {
-          // Network error, might be offline
+          // Network error, might be offline - don't redirect
           return
         }
-        console.error('Auth check failed:', error)
-        router.push('/admin/login')
+        // Don't log 401 errors as they're expected
+        if (!(error instanceof Error && error.message.includes('401'))) {
+          console.error('Auth check failed:', error)
+        }
+        router.push('/admin-portal/login')
       }
     }
 
