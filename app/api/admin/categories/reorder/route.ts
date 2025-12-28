@@ -27,8 +27,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Update all categories with new sortOrder
-    await Promise.all(
+    // Update all categories with new sortOrder using a transaction for atomicity
+    await prisma.$transaction(
       validation.data.items.map((item) =>
         prisma.category.update({
           where: { id: item.id },
