@@ -14,6 +14,7 @@ export function middleware(request: NextRequest) {
     '/favicon.ico',
     '/robots.txt',
     '/sitemap.xml',
+    '/legends-restaurant', // Use static route instead of dynamic welcome page
   ]
 
   // Check if path starts with any excluded prefix
