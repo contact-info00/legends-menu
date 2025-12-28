@@ -27,8 +27,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Update all categories with new sortOrder using a transaction for atomicity
-    await prisma.$transaction(
+    // Update all categories with new sortOrder
+    const updateResults = await Promise.allSettled(
       validation.data.items.map((item) =>
         prisma.category.update({
           where: { id: item.id },
@@ -37,10 +37,44 @@ export async function POST(request: NextRequest) {
       )
     )
 
+    // Check if any updates failed
+    const failures = updateResults.filter((result) => result.status === 'rejected')
+    if (failures.length > 0) {
+      console.error('Some category updates failed:', failures)
+      const errorMessages = failures.map((f) => 
+        f.status === 'rejected' ? f.reason?.message || 'Unknown error' : ''
+      )
+      return NextResponse.json(
+        { 
+          error: 'Some categories failed to update',
+          details: errorMessages,
+          failedCount: failures.length,
+          totalCount: validation.data.items.length
+        },
+        { status: 500 }
+      )
+    }
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error reordering categories:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorStack = error instanceof Error ? error.stack : undefined
+    
+    // Log detailed error for debugging
+    console.error('Error details:', {
+      message: errorMessage,
+      stack: errorStack,
+      name: error instanceof Error ? error.name : 'Unknown',
+    })
+    
+    return NextResponse.json(
+      { 
+        error: 'Internal server error',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      },
+      { status: 500 }
+    )
   }
 }
 
