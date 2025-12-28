@@ -95,7 +95,12 @@ function MenuPageContent() {
 
     // Fetch data
     fetch('/api/menu')
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`Failed to fetch menu: ${res.status} ${res.statusText}`)
+        }
+        return res.json()
+      })
       .then((data) => {
         // Ensure sections is always an array
         const sectionsData = Array.isArray(data?.sections) ? data.sections : []
@@ -124,6 +129,7 @@ function MenuPageContent() {
         // Ensure sections is always an array even on error
         setSections([])
         setAllItems([])
+        // Don't show error to user - page will just show empty state
       })
 
     fetch('/api/restaurant')

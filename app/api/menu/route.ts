@@ -30,7 +30,7 @@ export async function GET() {
     })
 
     return NextResponse.json(
-      { sections },
+      { sections: sections || [] },
       {
         headers: {
           'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
@@ -39,7 +39,17 @@ export async function GET() {
     )
   } catch (error) {
     console.error('Error fetching menu:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    // Return empty sections array instead of error to prevent page crashes
+    return NextResponse.json(
+      { sections: [], error: 'Failed to load menu data' },
+      {
+        status: 200, // Return 200 with empty data instead of 500
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      }
+    )
   }
 }
 
