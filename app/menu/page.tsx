@@ -314,9 +314,11 @@ function MenuPageContent() {
         .sort((a, b) => (a?.sortOrder || 0) - (b?.sortOrder || 0))
         .map((category) => ({
           category,
-          items: Array.isArray(category.items) ? category.items
-            .filter((i) => i?.isActive)
-            .sort((a, b) => (a?.sortOrder || 0) - (b?.sortOrder || 0)),
+          items: Array.isArray(category.items) 
+            ? category.items
+                .filter((i) => i?.isActive)
+                .sort((a, b) => (a?.sortOrder || 0) - (b?.sortOrder || 0))
+            : [],
         }))
         .filter((group) => group.items.length > 0)
     : []
