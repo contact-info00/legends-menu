@@ -3,6 +3,16 @@ import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
+// Helper function to generate slug from restaurant name
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '') // Remove special characters
+    .replace(/[\s_-]+/g, '-') // Replace spaces and underscores with hyphens
+    .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
+}
+
 async function main() {
   console.log('🌱 Seeding database...')
 
@@ -26,9 +36,13 @@ async function main() {
   // Create restaurant
   const restaurant = await prisma.restaurant.upsert({
     where: { id: 'restaurant-1' },
-    update: {},
+    update: {
+      // Ensure slug exists for existing restaurants
+      slug: generateSlug('Sample Restaurant'),
+    },
     create: {
       id: 'restaurant-1',
+      slug: generateSlug('Sample Restaurant'),
       nameKu: 'رێستۆرانتی نموونە',
       nameEn: 'Sample Restaurant',
       nameAr: 'مطعم نموذجي',

@@ -18,6 +18,7 @@ export async function GET() {
       nameKu: restaurant.nameKu,
       nameEn: restaurant.nameEn,
       nameAr: restaurant.nameAr,
+      slug: restaurant.slug,
       googleMapsUrl: restaurant.googleMapsUrl || '',
       phoneNumber: restaurant.phoneNumber || '',
       welcomeOverlayColor: restaurant.welcomeOverlayColor,
@@ -51,6 +52,16 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 })
     }
 
+    // Helper function to generate slug from restaurant name
+    function generateSlug(name: string): string {
+      return name
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '') // Remove special characters
+        .replace(/[\s_-]+/g, '-') // Replace spaces and underscores with hyphens
+        .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
+    }
+
     // Prepare update data with proper fallbacks
     const updateData: any = {
       nameKu: body.nameKu !== undefined ? body.nameKu : restaurant.nameKu,
@@ -60,6 +71,22 @@ export async function PUT(request: NextRequest) {
       phoneNumber: body.phoneNumber !== undefined ? (body.phoneNumber || null) : restaurant.phoneNumber,
       welcomeOverlayColor: body.welcomeOverlayColor !== undefined ? body.welcomeOverlayColor : restaurant.welcomeOverlayColor,
       welcomeOverlayOpacity: body.welcomeOverlayOpacity !== undefined ? parseFloat(body.welcomeOverlayOpacity) : restaurant.welcomeOverlayOpacity,
+    }
+
+    // Generate slug if nameEn changes
+    if (body.nameEn !== undefined && body.nameEn !== restaurant.nameEn) {
+      const newSlug = generateSlug(body.nameEn)
+      // Check if slug already exists (excluding current restaurant)
+      const existing = await prisma.restaurant.findUnique({
+        where: { slug: newSlug },
+      })
+      
+      if (existing && existing.id !== restaurant.id) {
+        // If slug exists, append restaurant ID to make it unique
+        updateData.slug = `${newSlug}-${restaurant.id.slice(-6)}`
+      } else {
+        updateData.slug = newSlug
+      }
     }
 
     // Handle welcomeTextEn - save text as-is, convert empty strings to null
@@ -93,6 +120,7 @@ export async function PUT(request: NextRequest) {
       nameKu: updated.nameKu,
       nameEn: updated.nameEn,
       nameAr: updated.nameAr,
+      slug: updated.slug,
       googleMapsUrl: updated.googleMapsUrl || '',
       phoneNumber: updated.phoneNumber || '',
       welcomeOverlayColor: updated.welcomeOverlayColor,

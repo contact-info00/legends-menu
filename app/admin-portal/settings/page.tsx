@@ -11,6 +11,7 @@ interface RestaurantSettings {
   nameKu: string
   nameEn: string
   nameAr: string
+  slug?: string
   googleMapsUrl: string
   phoneNumber: string
   welcomeOverlayColor: string
@@ -342,6 +343,35 @@ export default function SettingsPage() {
                   placeholder="+964 750 123 4567"
                 />
               </div>
+              {settings.slug && (
+                <div>
+                  <label className="block text-sm font-medium text-white mb-2">
+                    QR Code URL
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="text"
+                      value={`https://menuzin.com/${settings.slug}`}
+                      readOnly
+                      className="bg-white/5 text-white/70 cursor-not-allowed"
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`https://menuzin.com/${settings.slug}`)
+                        toast.success('URL copied to clipboard!')
+                      }}
+                      size="sm"
+                      variant="outline"
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                  <p className="text-xs text-white/50 mt-1">
+                    Use this URL for your QR code
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

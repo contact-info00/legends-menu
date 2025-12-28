@@ -12,6 +12,7 @@ datasource db {
 
 model Restaurant {
   id                       String    @id @default(cuid())
+  slug                     String    @unique
   nameKu                   String
   nameEn                   String
   nameAr                   String
