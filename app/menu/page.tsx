@@ -93,10 +93,8 @@ function MenuPageContent() {
       localStorage.setItem('language', lang)
     }
 
-    // Fetch data with cache-busting to ensure fresh data
-    fetch(`/api/menu?t=${Date.now()}`, {
-      cache: 'no-store',
-    })
+    // Fetch data
+    fetch('/api/menu')
       .then((res) => {
         if (!res.ok) {
           throw new Error(`Failed to fetch menu: ${res.status} ${res.statusText}`)
@@ -323,12 +321,7 @@ function MenuPageContent() {
     })
   }
 
-  // Ensure sections are sorted by sortOrder (API should already sort, but ensure client-side too)
-  const sortedSections = Array.isArray(sections) 
-    ? [...sections].sort((a, b) => (a?.sortOrder || 0) - (b?.sortOrder || 0))
-    : []
-
-  const activeSection = sortedSections.find((s) => s?.id === activeSectionId) || null
+  const activeSection = Array.isArray(sections) ? sections.find((s) => s?.id === activeSectionId) : null
   const activeCategories = activeSection && Array.isArray(activeSection.categories)
     ? activeSection.categories
         .filter((c) => c?.isActive)
