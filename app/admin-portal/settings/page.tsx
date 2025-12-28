@@ -42,10 +42,26 @@ export default function SettingsPage() {
   const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null)
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [uploadingBackground, setUploadingBackground] = useState(false)
+  const [appBgColor, setAppBgColor] = useState<string>('#400810')
 
   useEffect(() => {
     fetchSettings()
+    fetchTheme()
   }, [])
+
+  const fetchTheme = async () => {
+    try {
+      const response = await fetch('/api/theme')
+      if (response.ok) {
+        const data = await response.json()
+        if (data.theme?.appBg) {
+          setAppBgColor(data.theme.appBg)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching theme:', error)
+    }
+  }
 
   const fetchSettings = async () => {
     try {
@@ -483,7 +499,13 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <Button onClick={handleSave} disabled={isLoading} className="w-full" size="lg">
+          <Button 
+            onClick={handleSave} 
+            disabled={isLoading} 
+            className="w-full" 
+            size="lg"
+            style={{ backgroundColor: appBgColor }}
+          >
             {isLoading ? 'Saving...' : 'Save Settings'}
           </Button>
         </div>
