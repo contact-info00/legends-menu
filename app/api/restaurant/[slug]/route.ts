@@ -29,7 +29,15 @@ export async function GET(
     })
 
     if (!restaurant) {
-      return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 })
+      return NextResponse.json(
+        { error: 'Restaurant not found', slug },
+        { 
+          status: 404,
+          headers: {
+            'Cache-Control': 'no-store',
+          },
+        }
+      )
     }
 
     return NextResponse.json(
@@ -52,7 +60,7 @@ export async function GET(
       },
       {
         headers: {
-          'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=240',
+          'Cache-Control': 'no-store',
         },
       }
     )
