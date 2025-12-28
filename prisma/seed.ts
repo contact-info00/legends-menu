@@ -34,17 +34,28 @@ async function main() {
   console.log('⚠️  Please change the PIN after first login!')
 
   // Create restaurant
+  const restaurantNameEn = 'Sample Restaurant' // Change this to match your production restaurant name
+  
+  // Check if restaurant already exists to get its current name
+  const existingRestaurant = await prisma.restaurant.findUnique({
+    where: { id: 'restaurant-1' },
+  })
+  
+  // Use existing name if available, otherwise use default
+  const actualNameEn = existingRestaurant?.nameEn || restaurantNameEn
+  const restaurantSlug = generateSlug(actualNameEn)
+  
   const restaurant = await prisma.restaurant.upsert({
     where: { id: 'restaurant-1' },
     update: {
-      // Ensure slug exists for existing restaurants
-      slug: generateSlug('Sample Restaurant'),
+      // Ensure slug exists and is correct for existing restaurants
+      slug: restaurantSlug,
     },
     create: {
       id: 'restaurant-1',
-      slug: generateSlug('Sample Restaurant'),
+      slug: restaurantSlug,
       nameKu: 'رێستۆرانتی نموونە',
-      nameEn: 'Sample Restaurant',
+      nameEn: restaurantNameEn,
       nameAr: 'مطعم نموذجي',
       googleMapsUrl: 'https://maps.google.com',
       phoneNumber: '+9647501234567',
