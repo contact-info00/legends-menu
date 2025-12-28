@@ -316,11 +316,21 @@ export default function MenuBuilderPage() {
             sortOrder: index,
           }))
           
-          await fetch('/api/admin/sections/reorder', {
+          const response = await fetch('/api/admin/sections/reorder', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ items: reorderData }),
           })
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            throw new Error(errorData.error || `Failed to reorder sections: ${response.status}`)
+          }
+          
+          const result = await response.json()
+          if (!result.success) {
+            throw new Error('Reorder request failed')
+          }
           
           toast.success('Sections reordered')
         }
@@ -345,11 +355,21 @@ export default function MenuBuilderPage() {
               sortOrder: index,
             }))
             
-            await fetch('/api/admin/categories/reorder', {
+            const response = await fetch('/api/admin/categories/reorder', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ items: reorderData }),
             })
+            
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({}))
+              throw new Error(errorData.error || `Failed to reorder categories: ${response.status}`)
+            }
+            
+            const result = await response.json()
+            if (!result.success) {
+              throw new Error('Reorder request failed')
+            }
             
             toast.success('Categories reordered')
           }
@@ -386,11 +406,21 @@ export default function MenuBuilderPage() {
               sortOrder: index,
             }))
             
-            await fetch('/api/admin/items/reorder', {
+            const response = await fetch('/api/admin/items/reorder', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ items: reorderData }),
             })
+            
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({}))
+              throw new Error(errorData.error || `Failed to reorder items: ${response.status}`)
+            }
+            
+            const result = await response.json()
+            if (!result.success) {
+              throw new Error('Reorder request failed')
+            }
             
             toast.success('Items reordered')
           }
