@@ -17,6 +17,9 @@ export async function GET() {
               where: {
                 isActive: true,
               },
+              orderBy: {
+                sortOrder: 'asc',
+              },
             },
           },
           orderBy: {

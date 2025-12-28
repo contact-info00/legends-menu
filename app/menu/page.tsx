@@ -104,6 +104,19 @@ function MenuPageContent() {
       .then((data) => {
         // Ensure sections is always an array
         const sectionsData = Array.isArray(data?.sections) ? data.sections : []
+        console.log('Menu data loaded:', { 
+          sectionsCount: sectionsData.length,
+          sections: sectionsData.map(s => ({
+            id: s.id,
+            name: s.nameEn,
+            categoriesCount: s.categories?.length || 0,
+            categories: s.categories?.map(c => ({
+              id: c.id,
+              name: c.nameEn,
+              itemsCount: c.items?.length || 0
+            }))
+          }))
+        })
         setSections(sectionsData)
         
         if (sectionsData.length > 0) {
@@ -316,18 +329,30 @@ function MenuPageContent() {
   // Group items by category
   const itemsByCategory = activeSection && Array.isArray(activeSection.categories)
     ? activeSection.categories
-        .filter((c) => c?.isActive)
+        .filter((c) => c?.isActive !== false) // Show all categories, not just active ones
         .sort((a, b) => (a?.sortOrder || 0) - (b?.sortOrder || 0))
         .map((category) => ({
           category,
           items: Array.isArray(category.items) 
             ? category.items
-                .filter((i) => i?.isActive)
+                .filter((i) => i?.isActive !== false) // Show all items, not just active ones
                 .sort((a, b) => (a?.sortOrder || 0) - (b?.sortOrder || 0))
             : [],
         }))
         .filter((group) => group.items.length > 0)
     : []
+
+  // Debug logging
+  useEffect(() => {
+    if (activeSection) {
+      console.log('Active section:', {
+        id: activeSection.id,
+        name: activeSection.nameEn,
+        categoriesCount: activeSection.categories?.length || 0,
+        itemsByCategoryCount: itemsByCategory.length
+      })
+    }
+  }, [activeSection, itemsByCategory])
 
   const handleCategoryClick = (categoryId: string) => {
     setActiveCategoryId(categoryId)
@@ -540,7 +565,15 @@ function MenuPageContent() {
 
       <div className="pb-20 relative z-10 w-full overflow-x-hidden" style={{ paddingBottom: '180px' }}>
         {/* Items Grid - Grouped by Category */}
-        {itemsByCategory.length > 0 ? (
+        {!activeSection ? (
+          <div className="flex items-center justify-center min-h-[50vh] px-4">
+            <p className="text-white/70 text-center">No section selected. Please select a section from the navigation below.</p>
+          </div>
+        ) : itemsByCategory.length === 0 ? (
+          <div className="flex items-center justify-center min-h-[50vh] px-4">
+            <p className="text-white/70 text-center">No items found in this section.</p>
+          </div>
+        ) : (
           <div className="px-2 sm:px-4 space-y-8 pt-4 w-full max-w-full">
             {itemsByCategory.map(({ category, items }, index) => {
               return (
@@ -612,7 +645,7 @@ function MenuPageContent() {
               )
             })}
           </div>
-        ) : (
+        )}
           <div 
             className="px-4 py-12 text-center"
             style={{ color: 'var(--auto-text-secondary, rgba(255, 255, 255, 0.9))' }}
