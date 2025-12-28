@@ -230,7 +230,8 @@ export default function ThemePage() {
   const openColorPicker = (key: keyof ThemeColors) => {
     setSelectedColor(key)
     // Convert rgba to hex for the color picker
-    const hexColor = rgbaToHex(previewTheme[key])
+    const colorValue = previewTheme[key] || defaultTheme[key] || '#000000'
+    const hexColor = rgbaToHex(colorValue)
     setTempColor(hexColor)
   }
 
