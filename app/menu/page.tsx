@@ -104,19 +104,21 @@ function MenuPageContent() {
       .then((data) => {
         // Ensure sections is always an array
         const sectionsData = Array.isArray(data?.sections) ? data.sections : []
-        console.log('Menu data loaded:', { 
-          sectionsCount: sectionsData.length,
-          sections: sectionsData.map(s => ({
-            id: s.id,
-            name: s.nameEn,
-            categoriesCount: s.categories?.length || 0,
-            categories: s.categories?.map(c => ({
-              id: c.id,
-              name: c.nameEn,
-              itemsCount: c.items?.length || 0
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Menu data loaded:', { 
+            sectionsCount: sectionsData.length,
+            sections: sectionsData.map((s: Section) => ({
+              id: s.id,
+              name: s.nameEn,
+              categoriesCount: s.categories?.length || 0,
+              categories: s.categories?.map((c: Category) => ({
+                id: c.id,
+                name: c.nameEn,
+                itemsCount: c.items?.length || 0
+              }))
             }))
-          }))
-        })
+          })
+        }
         setSections(sectionsData)
         
         if (sectionsData.length > 0) {
@@ -344,7 +346,7 @@ function MenuPageContent() {
 
   // Debug logging
   useEffect(() => {
-    if (activeSection) {
+    if (activeSection && process.env.NODE_ENV === 'development') {
       console.log('Active section:', {
         id: activeSection.id,
         name: activeSection.nameEn,
@@ -644,13 +646,6 @@ function MenuPageContent() {
                 </div>
               )
             })}
-          </div>
-        )}
-          <div 
-            className="px-4 py-12 text-center"
-            style={{ color: 'var(--auto-text-secondary, rgba(255, 255, 255, 0.9))' }}
-          >
-            No items available in this section
           </div>
         )}
       </div>
