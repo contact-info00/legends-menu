@@ -84,7 +84,17 @@ export default function ThemePage() {
 
   const fetchTheme = async () => {
     try {
-      const response = await fetch('/api/admin/theme')
+      const response = await fetch('/api/admin/theme', {
+        method: 'GET',
+        credentials: 'include', // Include cookies for authentication
+      })
+      
+      if (response.status === 401) {
+        // Unauthorized - redirect to login
+        router.push('/admin-portal/login')
+        return
+      }
+      
       if (response.ok) {
         const data = await response.json()
         if (data.theme) {
@@ -94,9 +104,13 @@ export default function ThemePage() {
           // Apply immediately on load
           applyThemeToDocument(themeData)
         }
+      } else {
+        console.error('Error fetching theme:', response.status, response.statusText)
+        toast.error('Failed to load theme settings')
       }
     } catch (error) {
       console.error('Error fetching theme:', error)
+      toast.error('Failed to load theme settings')
     }
   }
 
@@ -203,10 +217,25 @@ export default function ThemePage() {
       const response = await fetch('/api/admin/theme', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Include cookies for authentication
         body: JSON.stringify(previewTheme),
       })
 
+      if (response.status === 401) {
+        // Unauthorized - redirect to login
+        toast.error('Session expired. Please login again.')
+        router.push('/admin-portal/login')
+        return
+      }
+
+      if (response.status === 405) {
+        // Method not allowed
+        toast.error('Invalid request method. Please refresh and try again.')
+        return
+      }
+
       if (response.ok) {
+        const data = await response.json()
         setTheme(previewTheme)
         applyThemeToDocument(previewTheme)
         // Cache in localStorage for immediate application on next page load
@@ -217,11 +246,13 @@ export default function ThemePage() {
         }
         toast.success('Background color saved successfully!')
       } else {
-        toast.error('Failed to save background color')
+        const errorData = await response.json().catch(() => ({}))
+        const errorMessage = errorData.error || 'Failed to save background color'
+        toast.error(errorMessage)
       }
     } catch (error) {
       console.error('Error saving theme:', error)
-      toast.error('Failed to save background color')
+      toast.error('Failed to save background color. Please check your connection.')
     } finally {
       setIsLoading(false)
     }

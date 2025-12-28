@@ -10,6 +10,11 @@ const themeSchema = z.object({
 
 export async function GET() {
   try {
+    const isAuthenticated = await getAdminSession()
+    if (!isAuthenticated) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     let theme = await prisma.theme.findUnique({
       where: { id: 'theme-1' },
       include: {
@@ -46,15 +51,10 @@ export async function GET() {
   } catch (error) {
     console.error('Error fetching theme:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    // Return a default theme if there's an error
-    return NextResponse.json({
-      theme: {
-        id: 'theme-1',
-        appBg: '#400810',
-        backgroundImageMediaId: null,
-        backgroundImage: null,
-      },
-    })
+    return NextResponse.json(
+      { error: 'Internal server error', details: errorMessage },
+      { status: 500 }
+    )
   }
 }
 
