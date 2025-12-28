@@ -11,12 +11,10 @@ import { generateColorScheme, normalizeToHex } from '@/lib/color-utils'
 
 interface ThemeColors {
   appBg: string
-  backgroundImageMediaId?: string | null
 }
 
 const defaultTheme: ThemeColors = {
   appBg: '#400810',
-  backgroundImageMediaId: null,
 }
 
 // Helper function to convert rgba/rgb to hex (for color picker)
@@ -67,8 +65,6 @@ export default function ThemePage() {
   const [tempColor, setTempColor] = useState<string>('#000000')
   const [copied, setCopied] = useState<string | null>(null)
   const colorPickerRef = useRef<HTMLDivElement>(null)
-  const [uploadingImage, setUploadingImage] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Apply theme immediately before paint to prevent flash
   useLayoutEffect(() => {
@@ -129,45 +125,9 @@ export default function ThemePage() {
     // Dispatch event to notify ThemeProvider to update
     window.dispatchEvent(new CustomEvent('theme-updated'))
     
-    // Apply CSS variable for background color (used for components even if image is set)
+    // Apply CSS variable for background color
     if (document.documentElement) {
       document.documentElement.style.setProperty('--app-bg', themeData.appBg)
-      
-      // Set background image if available (apply to both html and body)
-      if (themeData.backgroundImageMediaId) {
-        const imageUrl = `url(/api/media/${themeData.backgroundImageMediaId})`
-        document.documentElement.style.setProperty('--app-bg-image', imageUrl)
-        document.documentElement.style.setProperty('background-image', imageUrl)
-        document.documentElement.style.setProperty('background-size', 'cover')
-        document.documentElement.style.setProperty('background-position', 'center')
-        document.documentElement.style.setProperty('background-repeat', 'no-repeat')
-        document.documentElement.style.setProperty('background-attachment', 'fixed')
-        
-        // Also apply to body
-        if (document.body) {
-          document.body.style.backgroundImage = imageUrl
-          document.body.style.backgroundSize = 'cover'
-          document.body.style.backgroundPosition = 'center'
-          document.body.style.backgroundRepeat = 'no-repeat'
-          document.body.style.backgroundAttachment = 'fixed'
-        }
-      } else {
-        document.documentElement.style.removeProperty('--app-bg-image')
-        document.documentElement.style.removeProperty('background-image')
-        document.documentElement.style.removeProperty('background-size')
-        document.documentElement.style.removeProperty('background-position')
-        document.documentElement.style.removeProperty('background-repeat')
-        document.documentElement.style.removeProperty('background-attachment')
-        
-        // Remove from body
-        if (document.body) {
-          document.body.style.removeProperty('background-image')
-          document.body.style.removeProperty('background-size')
-          document.body.style.removeProperty('background-position')
-          document.body.style.removeProperty('background-repeat')
-          document.body.style.removeProperty('background-attachment')
-        }
-      }
     }
     
     // Generate and apply complementary color scheme
@@ -190,25 +150,23 @@ export default function ThemePage() {
       })
     }
     
-    // Apply background color to body/html only if no image is set
-    if (!themeData.backgroundImageMediaId && document.body) {
+    // Apply background color to body/html
+    if (document.body) {
       document.body.style.backgroundColor = themeData.appBg
     }
     
-    // Apply to all pages that have hardcoded backgrounds (only if no image)
-    if (!themeData.backgroundImageMediaId) {
-      const adminPages = document.querySelectorAll('[style*="backgroundColor"]')
-      adminPages.forEach((el) => {
-        const style = (el as HTMLElement)?.style
-        if (style && style.backgroundColor && (
-          style.backgroundColor.includes('400810') || 
-          style.backgroundColor.includes('rgb(64, 8, 16)') ||
-          style.backgroundColor === 'var(--app-bg, #400810)'
-        )) {
-          style.backgroundColor = themeData.appBg
-        }
-      })
-    }
+    // Apply to all pages that have hardcoded backgrounds
+    const adminPages = document.querySelectorAll('[style*="backgroundColor"]')
+    adminPages.forEach((el) => {
+      const style = (el as HTMLElement)?.style
+      if (style && style.backgroundColor && (
+        style.backgroundColor.includes('400810') || 
+        style.backgroundColor.includes('rgb(64, 8, 16)') ||
+        style.backgroundColor === 'var(--app-bg, #400810)'
+      )) {
+        style.backgroundColor = themeData.appBg
+      }
+    })
   }
 
   const handleSave = async () => {
@@ -284,59 +242,6 @@ export default function ThemePage() {
     setTimeout(() => setCopied(null), 2000)
   }
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please upload an image file')
-      return
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image size must be less than 5MB')
-      return
-    }
-
-    setUploadingImage(true)
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-
-      const uploadResponse = await fetch('/api/media/upload', {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (!uploadResponse.ok) {
-        throw new Error('Failed to upload image')
-      }
-
-      const { id } = await uploadResponse.json()
-      
-      // Update preview theme with new image
-      const newTheme = { ...previewTheme, backgroundImageMediaId: id }
-      setPreviewTheme(newTheme)
-      
-      toast.success('Background image uploaded! Click Save to apply.')
-    } catch (error) {
-      console.error('Error uploading image:', error)
-      toast.error('Failed to upload image')
-    } finally {
-      setUploadingImage(false)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
-    }
-  }
-
-  const handleRemoveImage = () => {
-    const newTheme = { ...previewTheme, backgroundImageMediaId: null }
-    setPreviewTheme(newTheme)
-    toast.success('Background image removed! Click Save to apply.')
-  }
 
   const isValidHex = (color: string): boolean => {
     // Check if it's a valid hex color or rgba/rgb
@@ -449,60 +354,8 @@ export default function ThemePage() {
                   </button>
                 </div>
                 <p className="text-xs text-white/70">
-                  This color will be used for all components (text, boxes, frames). If a background image is uploaded, it will replace the background color.
+                  This color will be used for all components (text, boxes, frames).
                 </p>
-              </div>
-
-              {/* Background Image Upload */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-white">
-                  Background Image (Optional)
-                </label>
-                <div className="space-y-3">
-                  {previewTheme.backgroundImageMediaId ? (
-                    <div className="relative">
-                      <img
-                        src={`/api/media/${previewTheme.backgroundImageMediaId}`}
-                        alt="Background preview"
-                        className="w-full h-32 object-cover rounded-lg border-2 border-white/20"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleRemoveImage}
-                        className="absolute top-2 right-2 p-1 bg-red-500/80 hover:bg-red-600 text-white rounded-full"
-                        aria-label="Remove image"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="border-2 border-dashed border-white/20 rounded-lg p-6 text-center">
-                      <p className="text-sm text-white/70 mb-3">No background image</p>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="hidden"
-                        id="background-image-upload"
-                      />
-                      <Button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploadingImage}
-                        variant="outline"
-                        className="border-white/20 text-white hover:bg-white/10"
-                      >
-                        {uploadingImage ? 'Uploading...' : 'Upload Background Image'}
-                      </Button>
-                    </div>
-                  )}
-                  {!previewTheme.backgroundImageMediaId && (
-                    <p className="text-xs text-white/70">
-                      Upload an image to use as the background. The background color will still be used for all other components.
-                    </p>
-                  )}
-                </div>
               </div>
             </div>
 

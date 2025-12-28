@@ -14,44 +14,8 @@ export function ThemeProvider() {
           if (data.theme) {
             const theme = data.theme
             
-            // Apply background color via CSS variable (used for components even if image is set)
+            // Apply background color via CSS variable
             document.documentElement.style.setProperty('--app-bg', theme.appBg)
-            
-            // Set background image if available (apply to both html and body)
-            if (theme.backgroundImageMediaId) {
-              const imageUrl = `url(/api/media/${theme.backgroundImageMediaId})`
-              document.documentElement.style.setProperty('--app-bg-image', imageUrl)
-              document.documentElement.style.setProperty('background-image', imageUrl)
-              document.documentElement.style.setProperty('background-size', 'cover')
-              document.documentElement.style.setProperty('background-position', 'center')
-              document.documentElement.style.setProperty('background-repeat', 'no-repeat')
-              document.documentElement.style.setProperty('background-attachment', 'fixed')
-              
-              // Also apply to body
-              if (document.body) {
-                document.body.style.backgroundImage = imageUrl
-                document.body.style.backgroundSize = 'cover'
-                document.body.style.backgroundPosition = 'center'
-                document.body.style.backgroundRepeat = 'no-repeat'
-                document.body.style.backgroundAttachment = 'fixed'
-              }
-            } else {
-              document.documentElement.style.removeProperty('--app-bg-image')
-              document.documentElement.style.removeProperty('background-image')
-              document.documentElement.style.removeProperty('background-size')
-              document.documentElement.style.removeProperty('background-position')
-              document.documentElement.style.removeProperty('background-repeat')
-              document.documentElement.style.removeProperty('background-attachment')
-              
-              // Remove from body
-              if (document.body) {
-                document.body.style.removeProperty('background-image')
-                document.body.style.removeProperty('background-size')
-                document.body.style.removeProperty('background-position')
-                document.body.style.removeProperty('background-repeat')
-                document.body.style.removeProperty('background-attachment')
-              }
-            }
             
             // Generate and apply complementary color scheme (always based on selected color)
             const hexColor = normalizeToHex(theme.appBg)

@@ -5,7 +5,6 @@ import { z } from 'zod'
 
 const themeSchema = z.object({
   appBg: z.string(),
-  backgroundImageMediaId: z.string().nullable().optional(),
 })
 
 export async function GET() {
@@ -17,15 +16,6 @@ export async function GET() {
 
     let theme = await prisma.theme.findUnique({
       where: { id: 'theme-1' },
-      include: {
-        backgroundImage: {
-          select: {
-            id: true,
-            mimeType: true,
-            size: true,
-          },
-        },
-      },
     })
 
     // If theme doesn't exist, create it with defaults
@@ -34,15 +24,6 @@ export async function GET() {
         data: {
           id: 'theme-1',
           appBg: '#400810',
-        },
-        include: {
-          backgroundImage: {
-            select: {
-              id: true,
-              mimeType: true,
-              size: true,
-            },
-          },
         },
       })
     }

@@ -8,15 +8,6 @@ export async function GET() {
   try {
     let theme = await prisma.theme.findUnique({
       where: { id: 'theme-1' },
-      include: {
-        backgroundImage: {
-          select: {
-            id: true,
-            mimeType: true,
-            size: true,
-          },
-        },
-      },
     })
 
     // If theme doesn't exist, create it with defaults
@@ -25,15 +16,6 @@ export async function GET() {
         data: {
           id: 'theme-1',
           appBg: '#400810',
-        },
-        include: {
-          backgroundImage: {
-            select: {
-              id: true,
-              mimeType: true,
-              size: true,
-            },
-          },
         },
       })
     }
@@ -47,8 +29,6 @@ export async function GET() {
       theme: {
         id: 'theme-1',
         appBg: '#400810',
-        backgroundImageMediaId: null,
-        backgroundImage: null,
       },
     })
   }

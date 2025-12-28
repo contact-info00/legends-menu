@@ -100,16 +100,15 @@ model AdminUser {
 }
 
 model Media {
-  id                    String       @id @default(cuid())
-  mimeType              String
-  bytes                 Bytes // BYTEA in PostgreSQL
-  size                  Int // Size in bytes
-  createdAt             DateTime     @default(now())
-  restaurantLogos       Restaurant[] @relation("RestaurantLogo")
-  welcomeBackgrounds    Restaurant[] @relation("WelcomeBackground")
-  categoryImages        Category[]   @relation("CategoryImage")
-  itemImages            Item[]       @relation("ItemImage")
-  themeBackgroundImages Theme[]      @relation("ThemeBackgroundImage")
+  id                 String       @id @default(cuid())
+  mimeType           String
+  bytes              Bytes // BYTEA in PostgreSQL
+  size               Int // Size in bytes
+  createdAt          DateTime     @default(now())
+  restaurantLogos    Restaurant[] @relation("RestaurantLogo")
+  welcomeBackgrounds Restaurant[] @relation("WelcomeBackground")
+  categoryImages     Category[]   @relation("CategoryImage")
+  itemImages         Item[]       @relation("ItemImage")
 }
 
 model UiSettings {
@@ -125,10 +124,8 @@ model UiSettings {
 }
 
 model Theme {
-  id                     String   @id @default("theme-1")
-  appBg                  String   @default("#400810")
-  backgroundImageMediaId String?
-  backgroundImage        Media?   @relation("ThemeBackgroundImage", fields: [backgroundImageMediaId], references: [id])
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  id        String   @id @default("theme-1")
+  appBg     String   @default("#400810")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
