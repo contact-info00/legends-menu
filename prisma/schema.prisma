@@ -11,105 +11,105 @@ datasource db {
 }
 
 model Restaurant {
-  id          String   @id @default(cuid())
-  nameKu      String
-  nameEn      String
-  nameAr      String
-  logoMediaId String?
-  logo        Media?   @relation("RestaurantLogo", fields: [logoMediaId], references: [id])
+  id                       String    @id @default(cuid())
+  nameKu                   String
+  nameEn                   String
+  nameAr                   String
+  logoMediaId              String?
+  logo                     Media?    @relation("RestaurantLogo", fields: [logoMediaId], references: [id])
   welcomeBackgroundMediaId String?
-  welcomeBackground Media? @relation("WelcomeBackground", fields: [welcomeBackgroundMediaId], references: [id])
-  welcomeOverlayColor String @default("#000000")
-  welcomeOverlayOpacity Float @default(0.5)
-  welcomeTextEn String?
-  googleMapsUrl String?
-  phoneNumber  String?
-  brandColors  Json?   // Store custom colors as JSON
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  sections     Section[]
+  welcomeBackground        Media?    @relation("WelcomeBackground", fields: [welcomeBackgroundMediaId], references: [id])
+  welcomeOverlayColor      String    @default("#000000")
+  welcomeOverlayOpacity    Float     @default(0.5)
+  welcomeTextEn            String?
+  googleMapsUrl            String?
+  phoneNumber              String?
+  brandColors              Json? // Store custom colors as JSON
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  sections                 Section[]
 }
 
 model Section {
-  id          String   @id @default(cuid())
+  id           String     @id @default(cuid())
   restaurantId String
-  restaurant  Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  nameKu      String
-  nameEn      String
-  nameAr      String
-  sortOrder   Int      @default(0)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  categories  Category[]
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  nameKu       String
+  nameEn       String
+  nameAr       String
+  sortOrder    Int        @default(0)
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  categories   Category[]
 }
 
 model Category {
-  id          String   @id @default(cuid())
-  sectionId   String
-  section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  nameKu      String
-  nameEn      String
-  nameAr      String
+  id           String   @id @default(cuid())
+  sectionId    String
+  section      Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  nameKu       String
+  nameEn       String
+  nameAr       String
   imageMediaId String?
-  image       Media?   @relation("CategoryImage", fields: [imageMediaId], references: [id])
-  sortOrder   Int      @default(0)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  items       Item[]
+  image        Media?   @relation("CategoryImage", fields: [imageMediaId], references: [id])
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  items        Item[]
 }
 
 model Item {
-  id          String   @id @default(cuid())
-  categoryId  String
-  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  nameKu      String
-  nameEn      String
-  nameAr      String
+  id            String   @id @default(cuid())
+  categoryId    String
+  category      Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  nameKu        String
+  nameEn        String
+  nameAr        String
   descriptionKu String?
   descriptionEn String?
   descriptionAr String?
-  price       Float
-  imageMediaId String?
-  image       Media?   @relation("ItemImage", fields: [imageMediaId], references: [id])
-  sortOrder   Int      @default(0)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  price         Float
+  imageMediaId  String?
+  image         Media?   @relation("ItemImage", fields: [imageMediaId], references: [id])
+  sortOrder     Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model Feedback {
-  id          String   @id @default(cuid())
-  staffRating Int      // 1-5 stars
-  serviceRating Int    // 1-5 stars
-  hygieneRating Int    // 1-5 stars
+  id                String   @id @default(cuid())
+  staffRating       Int // 1-5 stars
+  serviceRating     Int // 1-5 stars
+  hygieneRating     Int // 1-5 stars
   satisfactionEmoji String? // emoji string
-  phoneNumber String?
-  tableNumber String?
-  comment     String?
-  createdAt   DateTime @default(now())
+  phoneNumber       String?
+  tableNumber       String?
+  comment           String?
+  createdAt         DateTime @default(now())
 }
 
 model AdminUser {
-  id          String   @id @default(cuid())
-  pinHash     String   // bcrypt hashed PIN
+  id          String    @id @default(cuid())
+  pinHash     String // bcrypt hashed PIN
   lastLoginAt DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 model Media {
-  id          String   @id @default(cuid())
-  mimeType    String
-  bytes       Bytes    // BYTEA in PostgreSQL
-  size        Int      // Size in bytes
-  createdAt   DateTime @default(now())
-  restaurantLogos Restaurant[] @relation("RestaurantLogo")
-  welcomeBackgrounds Restaurant[] @relation("WelcomeBackground")
-  categoryImages Category[] @relation("CategoryImage")
-  itemImages  Item[]   @relation("ItemImage")
-  themeBackgroundImages Theme[] @relation("ThemeBackgroundImage")
+  id                    String       @id @default(cuid())
+  mimeType              String
+  bytes                 Bytes // BYTEA in PostgreSQL
+  size                  Int // Size in bytes
+  createdAt             DateTime     @default(now())
+  restaurantLogos       Restaurant[] @relation("RestaurantLogo")
+  welcomeBackgrounds    Restaurant[] @relation("WelcomeBackground")
+  categoryImages        Category[]   @relation("CategoryImage")
+  itemImages            Item[]       @relation("ItemImage")
+  themeBackgroundImages Theme[]      @relation("ThemeBackgroundImage")
 }
 
 model UiSettings {
@@ -125,13 +125,10 @@ model UiSettings {
 }
 
 model Theme {
-  id                  String   @id @default("theme-1")
-  appBg               String   @default("#400810")
+  id                     String   @id @default("theme-1")
+  appBg                  String   @default("#400810")
   backgroundImageMediaId String?
-  backgroundImage      Media?   @relation("ThemeBackgroundImage", fields: [backgroundImageMediaId], references: [id])
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  backgroundImage        Media?   @relation("ThemeBackgroundImage", fields: [backgroundImageMediaId], references: [id])
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 }
-
-
-
