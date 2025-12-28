@@ -5,8 +5,20 @@ export async function GET() {
   try {
     const restaurant = await prisma.restaurant.findFirst({
       include: {
-        logo: true,
-        welcomeBackground: true,
+        logo: {
+          select: {
+            id: true,
+            mimeType: true,
+            size: true,
+          },
+        },
+        welcomeBackground: {
+          select: {
+            id: true,
+            mimeType: true,
+            size: true,
+          },
+        },
       },
     })
 
@@ -21,7 +33,9 @@ export async function GET() {
         nameEn: restaurant.nameEn,
         nameAr: restaurant.nameAr,
         logoMediaId: restaurant.logoMediaId,
+        logo: restaurant.logo,
         welcomeBackgroundMediaId: restaurant.welcomeBackgroundMediaId,
+        welcomeBackground: restaurant.welcomeBackground,
         welcomeOverlayColor: restaurant.welcomeOverlayColor,
         welcomeOverlayOpacity: restaurant.welcomeOverlayOpacity,
         welcomeTextEn: restaurant.welcomeTextEn,
@@ -37,7 +51,11 @@ export async function GET() {
     )
   } catch (error) {
     console.error('Error fetching restaurant:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json(
+      { error: 'Internal server error', details: errorMessage },
+      { status: 500 }
+    )
   }
 }
 
