@@ -167,7 +167,6 @@ Language preference is saved in localStorage and persists across sessions.
 - 🚫 **No Ordering**: This is a view-only menu system
 - 🎨 **Theme**: Burgundy gradient with customizable colors
 - 📱 **Mobile-first**: Optimized for QR code scanning
-- 🎥 **Video Codec**: Welcome page background videos must be MP4 with H.264 (AVC) baseline/main profile + AAC audio codec for maximum mobile compatibility. If videos don't play on mobile, re-encode using: `ffmpeg -i input.mp4 -c:v libx264 -profile:v baseline -level 3.0 -c:a aac -b:a 128k output.mp4`
 
 ## License
 

@@ -128,69 +128,50 @@ export default function WelcomePage() {
   // Force video play on mount for mobile compatibility
   useEffect(() => {
     if (shouldLoadVideo && videoRef.current && !prefersReducedMotion) {
-      const v = videoRef.current
-      if (!v) return
-      
-      // Force mobile attributes via ref
-      v.muted = true
-      v.playsInline = true
+      const video = videoRef.current
       
       // Ensure video is visible
-      v.style.opacity = '1'
-      v.style.zIndex = '2'
+      video.style.opacity = '1'
       
       // Try to play the video
       const attemptPlay = async () => {
         if (videoPlayAttempted) return
+        setVideoPlayAttempted(true)
         
         try {
-          // Ensure muted before play
-          v.muted = true
-          v.playsInline = true
-          await v.play()
+          await video.play()
           console.log('Video playback started successfully')
-          setVideoPlayAttempted(true)
           // Ensure video is visible after play
-          v.style.opacity = '1'
-          v.style.zIndex = '2'
+          video.style.opacity = '1'
         } catch (error) {
           // If autoplay fails, keep the poster visible but don't change to image
           console.log('Video autoplay prevented, will try on user interaction', error)
           // Don't change to image - let the video element stay, it might play on user interaction
           // Still keep video visible
-          v.style.opacity = '1'
-          v.style.zIndex = '2'
+          video.style.opacity = '1'
         }
       }
       
       // Wait for video to be ready
-      if (v.readyState >= 2) {
+      if (video.readyState >= 2) {
         attemptPlay()
       } else {
         const handleLoadedData = () => {
-          v.muted = true
-          v.playsInline = true
           attemptPlay()
         }
         const handleCanPlay = () => {
-          v.muted = true
-          v.playsInline = true
-          v.play().catch(() => {})
           attemptPlay()
         }
-        v.addEventListener('loadeddata', handleLoadedData, { once: true })
-        v.addEventListener('canplay', handleCanPlay, { once: true })
-        v.addEventListener('loadedmetadata', () => {
-          v.muted = true
-          v.playsInline = true
-          v.style.opacity = '1'
-          v.style.zIndex = '2'
+        video.addEventListener('loadeddata', handleLoadedData, { once: true })
+        video.addEventListener('canplay', handleCanPlay, { once: true })
+        video.addEventListener('loadedmetadata', () => {
+          video.style.opacity = '1'
           attemptPlay()
         }, { once: true })
         
         return () => {
-          v.removeEventListener('loadeddata', handleLoadedData)
-          v.removeEventListener('canplay', handleCanPlay)
+          video.removeEventListener('loadeddata', handleLoadedData)
+          video.removeEventListener('canplay', handleCanPlay)
         }
       }
     }
@@ -198,20 +179,16 @@ export default function WelcomePage() {
 
   // Handle user interaction to play video on mobile
   useEffect(() => {
-    if (!shouldLoadVideo || prefersReducedMotion) return
+    if (!isMobile || !shouldLoadVideo || prefersReducedMotion) return
     
     const handleUserInteraction = async () => {
       if (videoRef.current && !videoPlayAttempted) {
         try {
-          const v = videoRef.current
-          // Force mobile attributes
-          v.muted = true
-          v.playsInline = true
           // Ensure video is visible
-          v.style.opacity = '1'
-          v.style.zIndex = '2'
+          videoRef.current.style.opacity = '1'
+          videoRef.current.style.zIndex = '2'
           
-          await v.play()
+          await videoRef.current.play()
           console.log('Video started on user interaction')
           setVideoPlayAttempted(true)
           
@@ -239,8 +216,6 @@ export default function WelcomePage() {
       const handleVideoInteraction = async () => {
         if (!videoPlayAttempted) {
           try {
-            video.muted = true
-            video.playsInline = true
             video.style.opacity = '1'
             video.style.zIndex = '2'
             await video.play()
@@ -269,7 +244,7 @@ export default function WelcomePage() {
         document.removeEventListener(event, handleUserInteraction, { capture: true })
       })
     }
-  }, [shouldLoadVideo, prefersReducedMotion, videoPlayAttempted])
+  }, [isMobile, shouldLoadVideo, prefersReducedMotion, videoPlayAttempted])
 
   const handleLanguageSelect = (lang: Language) => {
     setSelectedLang(lang)
@@ -292,12 +267,10 @@ export default function WelcomePage() {
           className={`absolute inset-0 background-fade-in ${isLoaded ? 'animate-in' : ''}`}
           onTouchStart={async (e) => {
             // Make entire background area tappable on mobile to start video
-            if (shouldLoadVideo && !prefersReducedMotion && videoRef.current && !videoPlayAttempted) {
+            if (isMobile && shouldLoadVideo && !prefersReducedMotion && videoRef.current && !videoPlayAttempted) {
               e.stopPropagation()
               try {
                 const video = videoRef.current
-                video.muted = true
-                video.playsInline = true
                 video.style.opacity = '1'
                 video.style.zIndex = '2'
                 await video.play()
@@ -315,12 +288,10 @@ export default function WelcomePage() {
           }}
           onClick={async (e) => {
             // Make entire background area clickable on mobile to start video
-            if (shouldLoadVideo && !prefersReducedMotion && videoRef.current && !videoPlayAttempted) {
+            if (isMobile && shouldLoadVideo && !prefersReducedMotion && videoRef.current && !videoPlayAttempted) {
               e.stopPropagation()
               try {
                 const video = videoRef.current
-                video.muted = true
-                video.playsInline = true
                 video.style.opacity = '1'
                 video.style.zIndex = '2'
                 await video.play()
@@ -336,7 +307,7 @@ export default function WelcomePage() {
               }
             }
           }}
-          style={{ cursor: shouldLoadVideo && !videoPlayAttempted ? 'pointer' : 'default' }}
+          style={{ cursor: isMobile && shouldLoadVideo && !videoPlayAttempted ? 'pointer' : 'default' }}
         >
           {/* Try video first if we detected it's a video, or if backgroundMimeType is null (still detecting) */}
           {(backgroundMimeType === null || backgroundMimeType?.startsWith('video/')) ? (
@@ -376,15 +347,16 @@ export default function WelcomePage() {
                 <video
                   ref={videoRef}
                   key={restaurant.welcomeBackgroundMediaId}
-                  autoPlay
+                  autoPlay={!isMobile}
+                  loop
                   muted
                   playsInline
-                  loop
-                  preload="metadata"
+                  preload={isMobile ? "metadata" : "auto"}
                   disablePictureInPicture
                   controls={false}
                   aria-hidden="true"
                   poster={posterImage || undefined}
+                  src={`/api/media/${restaurant.welcomeBackgroundMediaId}`}
                   className="w-full h-full object-cover absolute inset-0"
                   style={{ 
                     zIndex: 2, 
@@ -395,40 +367,28 @@ export default function WelcomePage() {
                     height: '100%',
                     objectFit: 'cover'
                   }}
-                  onCanPlay={() => {
-                    // Force play on canPlay
-                    if (videoRef.current) {
-                      videoRef.current.muted = true
-                      videoRef.current.playsInline = true
-                      videoRef.current.play().catch(() => {})
-                    }
-                  }}
                   onLoadedData={(e) => {
                     // Video loaded, ensure it's visible
                     const target = e.currentTarget
-                    target.muted = true
-                    target.playsInline = true
                     target.style.opacity = '1'
-                    target.style.zIndex = '2'
                     console.log('Video loaded and visible')
-                    // Try to play
-                    if (!videoPlayAttempted) {
+                    // On mobile, try to play after load
+                    if (isMobile && !videoPlayAttempted) {
                       target.play().catch(() => {
-                        console.log('Video autoplay prevented, waiting for user interaction')
+                        console.log('Mobile autoplay prevented, waiting for user interaction')
                       })
                     }
                   }}
-                  onCanPlayThrough={(e) => {
-                    // Video can play through, ensure it's visible
+                  onCanPlay={(e) => {
+                    // Video can play, ensure it's visible
                     const target = e.currentTarget
-                    target.muted = true
-                    target.playsInline = true
                     target.style.opacity = '1'
-                    target.style.zIndex = '2'
-                    console.log('Video can play through')
-                    // Try to play
-                    if (!videoPlayAttempted) {
-                      target.play().catch(() => {})
+                    console.log('Video can play and visible')
+                    // On mobile, try to play when ready
+                    if (isMobile && !videoPlayAttempted) {
+                      target.play().catch(() => {
+                        console.log('Mobile autoplay prevented, waiting for user interaction')
+                      })
                     }
                   }}
                   onPlaying={(e) => {
@@ -448,11 +408,9 @@ export default function WelcomePage() {
                   onTouchStart={async (e) => {
                     // On mobile, try to play on touch
                     e.stopPropagation()
-                    if (videoRef.current && !videoPlayAttempted) {
+                    if (isMobile && videoRef.current && !videoPlayAttempted) {
                       try {
                         const video = videoRef.current
-                        video.muted = true
-                        video.playsInline = true
                         video.style.opacity = '1'
                         video.style.zIndex = '2'
                         await video.play()
@@ -471,11 +429,9 @@ export default function WelcomePage() {
                   onClick={async (e) => {
                     // On mobile, try to play on click
                     e.stopPropagation()
-                    if (videoRef.current && !videoPlayAttempted) {
+                    if (isMobile && videoRef.current && !videoPlayAttempted) {
                       try {
                         const video = videoRef.current
-                        video.muted = true
-                        video.playsInline = true
                         video.style.opacity = '1'
                         video.style.zIndex = '2'
                         await video.play()
@@ -494,8 +450,6 @@ export default function WelcomePage() {
                   onLoadedMetadata={(e) => {
                     // Ensure video is visible when metadata loads
                     const target = e.currentTarget
-                    target.muted = true
-                    target.playsInline = true
                     target.style.opacity = '1'
                     target.style.zIndex = '2'
                     console.log('Video metadata loaded')
@@ -509,7 +463,7 @@ export default function WelcomePage() {
                 >
                   <source 
                     src={`/api/media/${restaurant.welcomeBackgroundMediaId}`} 
-                    type='video/mp4; codecs="avc1.42E01E, mp4a.40.2"' 
+                    type="video/mp4" 
                   />
                 </video>
               )}
