@@ -15,6 +15,8 @@ export default function WelcomePage() {
   const [shouldLoadVideo, setShouldLoadVideo] = useState(false)
   const [posterImage, setPosterImage] = useState<string | null>(null)
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+  const [videoPlayAttempted, setVideoPlayAttempted] = useState(false)
 
   useEffect(() => {
     // Check for prefers-reduced-motion
@@ -26,8 +28,20 @@ export default function WelcomePage() {
     }
     mediaQuery.addEventListener('change', handleChange)
     
+    // Detect mobile device
+    const checkMobile = () => {
+      const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera
+      const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase())
+      const isSmallScreen = window.innerWidth <= 768
+      setIsMobile(isMobileDevice || isSmallScreen)
+    }
+    
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    
     return () => {
       mediaQuery.removeEventListener('change', handleChange)
+      window.removeEventListener('resize', checkMobile)
     }
   }, [])
 
@@ -121,6 +135,9 @@ export default function WelcomePage() {
       
       // Try to play the video
       const attemptPlay = async () => {
+        if (videoPlayAttempted) return
+        setVideoPlayAttempted(true)
+        
         try {
           await video.play()
           console.log('Video playback started successfully')
@@ -128,7 +145,7 @@ export default function WelcomePage() {
           video.style.opacity = '1'
         } catch (error) {
           // If autoplay fails, keep the poster visible but don't change to image
-          console.log('Video autoplay prevented, but video element will remain', error)
+          console.log('Video autoplay prevented, will try on user interaction', error)
           // Don't change to image - let the video element stay, it might play on user interaction
           // Still keep video visible
           video.style.opacity = '1'
@@ -149,6 +166,7 @@ export default function WelcomePage() {
         video.addEventListener('canplay', handleCanPlay, { once: true })
         video.addEventListener('loadedmetadata', () => {
           video.style.opacity = '1'
+          attemptPlay()
         }, { once: true })
         
         return () => {
@@ -157,7 +175,36 @@ export default function WelcomePage() {
         }
       }
     }
-  }, [shouldLoadVideo, prefersReducedMotion])
+  }, [shouldLoadVideo, prefersReducedMotion, videoPlayAttempted])
+
+  // Handle user interaction to play video on mobile
+  useEffect(() => {
+    if (!isMobile || !shouldLoadVideo || prefersReducedMotion) return
+    
+    const handleUserInteraction = async () => {
+      if (videoRef.current && !videoPlayAttempted) {
+        try {
+          await videoRef.current.play()
+          console.log('Video started on user interaction')
+          setVideoPlayAttempted(true)
+        } catch (error) {
+          console.log('Video play failed on interaction', error)
+        }
+      }
+    }
+    
+    // Try to play on first user interaction
+    const events = ['touchstart', 'touchend', 'click', 'scroll']
+    events.forEach(event => {
+      document.addEventListener(event, handleUserInteraction, { once: true, passive: true })
+    })
+    
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, handleUserInteraction)
+      })
+    }
+  }, [isMobile, shouldLoadVideo, prefersReducedMotion, videoPlayAttempted])
 
   const handleLanguageSelect = (lang: Language) => {
     setSelectedLang(lang)
@@ -214,11 +261,11 @@ export default function WelcomePage() {
                 <video
                   ref={videoRef}
                   key={restaurant.welcomeBackgroundMediaId}
-                  autoPlay
+                  autoPlay={!isMobile}
                   loop
                   muted
                   playsInline
-                  preload="auto"
+                  preload={isMobile ? "metadata" : "auto"}
                   disablePictureInPicture
                   controls={false}
                   aria-hidden="true"
@@ -232,25 +279,64 @@ export default function WelcomePage() {
                     inset: 0,
                     width: '100%',
                     height: '100%',
-                    objectFit: 'cover'
+                    objectFit: 'cover',
+                    WebkitPlaysInline: true,
+                    playsInline: true
                   }}
                   onLoadedData={(e) => {
                     // Video loaded, ensure it's visible
                     const target = e.currentTarget
                     target.style.opacity = '1'
                     console.log('Video loaded and visible')
+                    // On mobile, try to play after load
+                    if (isMobile && !videoPlayAttempted) {
+                      target.play().catch(() => {
+                        console.log('Mobile autoplay prevented, waiting for user interaction')
+                      })
+                    }
                   }}
                   onCanPlay={(e) => {
                     // Video can play, ensure it's visible
                     const target = e.currentTarget
                     target.style.opacity = '1'
                     console.log('Video can play and visible')
+                    // On mobile, try to play when ready
+                    if (isMobile && !videoPlayAttempted) {
+                      target.play().catch(() => {
+                        console.log('Mobile autoplay prevented, waiting for user interaction')
+                      })
+                    }
                   }}
                   onPlaying={(e) => {
                     // Video is playing, ensure it's visible
                     const target = e.currentTarget
                     target.style.opacity = '1'
                     console.log('Video is playing')
+                    setVideoPlayAttempted(true)
+                  }}
+                  onTouchStart={async (e) => {
+                    // On mobile, try to play on touch
+                    if (isMobile && videoRef.current && !videoPlayAttempted) {
+                      try {
+                        await videoRef.current.play()
+                        console.log('Video started on touch')
+                        setVideoPlayAttempted(true)
+                      } catch (error) {
+                        console.log('Video play failed on touch', error)
+                      }
+                    }
+                  }}
+                  onClick={async (e) => {
+                    // On mobile, try to play on click
+                    if (isMobile && videoRef.current && !videoPlayAttempted) {
+                      try {
+                        await videoRef.current.play()
+                        console.log('Video started on click')
+                        setVideoPlayAttempted(true)
+                      } catch (error) {
+                        console.log('Video play failed on click', error)
+                      }
+                    }
                   }}
                   onError={(e) => {
                     // If video fails to load, fall back to image
