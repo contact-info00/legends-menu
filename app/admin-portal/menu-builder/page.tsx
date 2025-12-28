@@ -360,7 +360,7 @@ export default function MenuBuilderPage() {
         )
         const category = section?.categories.find(c => c.items.some(i => i.id === active.id))
         
-        if (category) {
+        if (section && category) {
           const oldIndex = category.items.findIndex(i => i.id === active.id)
           const newIndex = category.items.findIndex(i => i.id === over.id)
           
