@@ -97,21 +97,34 @@ function MenuPageContent() {
     fetch('/api/menu')
       .then((res) => res.json())
       .then((data) => {
-        setSections(data.sections)
-        if (data.sections.length > 0) {
-          setActiveSectionId(data.sections[0].id)
+        // Ensure sections is always an array
+        const sectionsData = Array.isArray(data?.sections) ? data.sections : []
+        setSections(sectionsData)
+        
+        if (sectionsData.length > 0) {
+          setActiveSectionId(sectionsData[0].id)
           setActiveCategoryId(null) // Reset active category when sections load
         }
+        
         // Flatten all items for search
         const items: Item[] = []
-        data.sections.forEach((section: Section) => {
-          section.categories.forEach((category: Category) => {
-            items.push(...category.items.filter((item) => item.isActive))
-          })
+        sectionsData.forEach((section: Section) => {
+          if (section?.categories && Array.isArray(section.categories)) {
+            section.categories.forEach((category: Category) => {
+              if (category?.items && Array.isArray(category.items)) {
+                items.push(...category.items.filter((item) => item?.isActive))
+              }
+            })
+          }
         })
         setAllItems(items)
       })
-      .catch(console.error)
+      .catch((error) => {
+        console.error('Error fetching menu:', error)
+        // Ensure sections is always an array even on error
+        setSections([])
+        setAllItems([])
+      })
 
     fetch('/api/restaurant')
       .then((res) => res.json())
@@ -168,11 +181,13 @@ function MenuPageContent() {
         
         // Extract category ID from element id
         const categoryId = mostVisible.target.id.replace('category-', '')
-        if (categoryId) {
+        if (categoryId && Array.isArray(sections)) {
           // Verify this category belongs to the active section
           const activeSection = sections.find(s => s.id === activeSectionId)
-          if (activeSection?.categories.some(c => c.id === categoryId && c.isActive)) {
-            setActiveCategoryId(categoryId)
+          if (activeSection?.categories && Array.isArray(activeSection.categories)) {
+            if (activeSection.categories.some(c => c.id === categoryId && c.isActive)) {
+              setActiveCategoryId(categoryId)
+            }
           }
         }
       }
@@ -218,7 +233,8 @@ function MenuPageContent() {
   }
 
   const handleItemClick = (itemId: string) => {
-    const item = allItems.find((i) => i.id === itemId)
+    if (!Array.isArray(allItems)) return
+    const item = allItems.find((i) => i?.id === itemId)
     if (item) {
       setSelectedItem(item)
       setIsItemModalOpen(true)
@@ -226,12 +242,14 @@ function MenuPageContent() {
   }
 
   const handleAddToBasket = (itemId: string) => {
-    const item = allItems.find((i) => i.id === itemId)
+    if (!Array.isArray(allItems)) return
+    const item = allItems.find((i) => i?.id === itemId)
     if (!item) return
 
     setBasket((prev) => {
+      if (!Array.isArray(prev)) prev = []
       const wasEmpty = prev.length === 0
-      const existing = prev.find((i) => i.id === itemId)
+      const existing = prev.find((i) => i?.id === itemId)
       
       // Check if this is the first add (basket was empty)
       if (wasEmpty) {
@@ -282,23 +300,23 @@ function MenuPageContent() {
     })
   }
 
-  const activeSection = sections.find((s) => s.id === activeSectionId)
-  const activeCategories = activeSection
+  const activeSection = Array.isArray(sections) ? sections.find((s) => s?.id === activeSectionId) : null
+  const activeCategories = activeSection && Array.isArray(activeSection.categories)
     ? activeSection.categories
-        .filter((c) => c.isActive)
-        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .filter((c) => c?.isActive)
+        .sort((a, b) => (a?.sortOrder || 0) - (b?.sortOrder || 0))
     : []
   
   // Group items by category
-  const itemsByCategory = activeSection
+  const itemsByCategory = activeSection && Array.isArray(activeSection.categories)
     ? activeSection.categories
-        .filter((c) => c.isActive)
-        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .filter((c) => c?.isActive)
+        .sort((a, b) => (a?.sortOrder || 0) - (b?.sortOrder || 0))
         .map((category) => ({
           category,
-          items: category.items
-            .filter((i) => i.isActive)
-            .sort((a, b) => a.sortOrder - b.sortOrder),
+          items: Array.isArray(category.items) ? category.items
+            .filter((i) => i?.isActive)
+            .sort((a, b) => (a?.sortOrder || 0) - (b?.sortOrder || 0)),
         }))
         .filter((group) => group.items.length > 0)
     : []
@@ -569,7 +587,7 @@ function MenuPageContent() {
                   {/* Items Grid */}
                   <div className="grid grid-cols-2 gap-2 sm:gap-4 pb-6 w-full">
                     {items.map((item) => {
-                      const basketItem = basket.find((bi) => bi.id === item.id)
+                      const basketItem = Array.isArray(basket) ? basket.find((bi) => bi?.id === item?.id) : null
                       return (
                         <ItemCard
                           key={item.id}
