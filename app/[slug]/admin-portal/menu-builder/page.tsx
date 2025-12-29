@@ -1755,7 +1755,16 @@ export default function MenuBuilderPage() {
                 </div>
               </div>
               <div className="flex gap-2 pt-2">
-                <Button type="submit" className="flex-1 text-xs sm:text-sm py-2">Create Item</Button>
+                <Button 
+                  type="submit" 
+                  className="flex-1 text-xs sm:text-sm py-2"
+                  style={{
+                    backgroundColor: 'var(--app-bg, #400810)',
+                    color: '#FFFFFF',
+                  }}
+                >
+                  Create Item
+                </Button>
                 <Button
                   type="button"
                   variant="outline"

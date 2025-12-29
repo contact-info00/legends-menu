@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams, useParams } from 'next/navigation'
 import { MenuHeader } from '@/components/menu-header'
 import { FloatingActionBar } from '@/components/floating-action-bar'
@@ -84,6 +84,12 @@ function MenuPageContent() {
     itemPriceSize: 16,
     headerLogoSize: 32,
   })
+  
+  // Refs for bottom navigation auto-scroll
+  const categoryNavContainerRef = useRef<HTMLDivElement>(null)
+  const categoryButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
+  const isUserScrollingNav = useRef(false)
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     // Load language from URL or localStorage
@@ -525,12 +531,23 @@ function MenuPageContent() {
 
               {/* Categories - Separate line */}
               {activeCategories.length > 0 && (
-                <div className="flex gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide items-center w-full" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <div 
+                  ref={categoryNavContainerRef}
+                  className="flex gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide items-center w-full" 
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
                   {activeCategories.map((category) => {
                     const isActive = activeCategoryId === category.id
                     return (
                       <button
                         key={category.id}
+                        ref={(el) => {
+                          if (el) {
+                            categoryButtonRefs.current.set(category.id, el)
+                          } else {
+                            categoryButtonRefs.current.delete(category.id)
+                          }
+                        }}
                         onClick={() => handleCategoryClick(category.id)}
                         className="flex-shrink-0 relative group"
                       >
