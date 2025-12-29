@@ -165,6 +165,13 @@ function MenuPageContent() {
           throw new Error('Failed to fetch')
         }
         const data = await res.json()
+        
+        // DEBUG: Log restaurant data to see what we received
+        console.log('[DEBUG] Menu page - Restaurant data received:', {
+          hasLogo: !!data.logoMediaId,
+          logoMediaId: data.logoMediaId,
+        })
+        
         setRestaurant(data)
       } catch (error) {
         console.error('Error fetching restaurant:', error)

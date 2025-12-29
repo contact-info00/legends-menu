@@ -95,6 +95,23 @@ export default function WelcomeClient({ slug }: WelcomeClientProps) {
       }
       const data = await res.json()
       
+      // DEBUG: Log restaurant data to see what we received
+      console.log('[DEBUG] Welcome page - Restaurant data received:', {
+        hasLogo: !!data.logoMediaId,
+        hasBackground: !!data.welcomeBackgroundMediaId,
+        hasWelcomeText: !!data.welcomeTextEn,
+        logoMediaId: data.logoMediaId,
+        welcomeBackgroundMediaId: data.welcomeBackgroundMediaId,
+        welcomeTextEn: data.welcomeTextEn,
+        fullData: data,
+      })
+      
+      // Ensure restaurant data is set even if media fields are null
+      if (!data) {
+        console.error('[ERROR] Welcome page - No restaurant data received')
+        return
+      }
+      
       // Check if background media ID changed - if so, reset all state
       const mediaIdChanged = restaurant?.welcomeBackgroundMediaId !== data.welcomeBackgroundMediaId
       
