@@ -226,13 +226,13 @@ export default function WelcomePage() {
                   ref={videoRef}
                   key={restaurant.welcomeBackgroundMediaId}
                   autoPlay
-                  muted
+                  muted={true}
                   playsInline
                   loop
                   preload="metadata"
                   disablePictureInPicture
                   controls={false}
-                  poster={posterImage || undefined}
+                  poster={posterImage || `/assets/${restaurant.welcomeBackgroundMediaId}`}
                   src={`/assets/${restaurant.welcomeBackgroundMediaId}`}
                   className="w-full h-full object-cover absolute inset-0"
                   style={{ 
