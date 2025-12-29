@@ -80,9 +80,6 @@ export default function WelcomePage() {
       // Add cache-busting to ensure fresh data
       const res = await fetch(`/data/restaurant?t=${Date.now()}`, {
         cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache',
-        },
       })
       if (!res.ok) throw new Error('Failed to fetch')
       const data = await res.json()
@@ -108,12 +105,12 @@ export default function WelcomePage() {
         if (mimeTypeFromData) {
           // If it's a video and user doesn't prefer reduced motion, start loading it
           if (mimeTypeFromData.startsWith('video/') && !prefersReducedMotion) {
-            setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
+            setPosterImage(`/assets/${data.welcomeBackgroundMediaId}?v=${data.updatedAt ? new Date(data.updatedAt).getTime() : Date.now()}`)
             setShouldLoadVideo(true)
             setBackgroundMimeType(mimeTypeFromData)
           } else if (mimeTypeFromData.startsWith('video/')) {
             // User prefers reduced motion, use poster only
-            setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
+            setPosterImage(`/assets/${data.welcomeBackgroundMediaId}?v=${data.updatedAt ? new Date(data.updatedAt).getTime() : Date.now()}`)
             setBackgroundMimeType('image/jpeg')
             setShouldLoadVideo(false)
           } else {
@@ -127,7 +124,7 @@ export default function WelcomePage() {
           const fetchMediaHead = async (retryCount = 0): Promise<void> => {
             try {
               // Add cache-busting to ensure fresh media type detection
-              const res = await fetch(`/assets/${data.welcomeBackgroundMediaId}?t=${Date.now()}`, { 
+              const res = await fetch(`/assets/${data.welcomeBackgroundMediaId}?v=${data.updatedAt ? new Date(data.updatedAt).getTime() : Date.now()}`, { 
                 method: 'HEAD',
                 cache: 'no-store',
               })
@@ -136,12 +133,12 @@ export default function WelcomePage() {
               if (contentType) {
                 // If it's a video and user doesn't prefer reduced motion, start loading it
                 if (contentType.startsWith('video/') && !prefersReducedMotion) {
-                  setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
+                  setPosterImage(`/assets/${data.welcomeBackgroundMediaId}?v=${data.updatedAt ? new Date(data.updatedAt).getTime() : Date.now()}`)
                   setShouldLoadVideo(true)
                   setBackgroundMimeType(contentType)
                 } else if (contentType.startsWith('video/')) {
                   // User prefers reduced motion, use poster only
-                  setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
+                  setPosterImage(`/assets/${data.welcomeBackgroundMediaId}?v=${data.updatedAt ? new Date(data.updatedAt).getTime() : Date.now()}`)
                   setBackgroundMimeType('image/jpeg')
                   setShouldLoadVideo(false)
                   } else {
@@ -341,7 +338,7 @@ export default function WelcomePage() {
               disablePictureInPicture
               controls={false}
               crossOrigin="anonymous"
-              poster={posterImage ? `${posterImage}?t=${Date.now()}` : undefined}
+              poster={posterImage || undefined}
               className="w-full h-full object-cover absolute inset-0"
               style={{ 
                 zIndex: 2, 
@@ -377,7 +374,7 @@ export default function WelcomePage() {
               }}
             >
               <source 
-                src={`/assets/${restaurant.welcomeBackgroundMediaId}?t=${Date.now()}`} 
+                src={`/assets/${restaurant.welcomeBackgroundMediaId}?v=${restaurant.updatedAt ? new Date(restaurant.updatedAt).getTime() : Date.now()}`} 
                 type="video/mp4" 
               />
             </video>
@@ -385,7 +382,7 @@ export default function WelcomePage() {
             /* Show image ONLY if we confirmed it's an image */
             <img
               key={`image-${restaurant.welcomeBackgroundMediaId}-${restaurant.updatedAt || Date.now()}`}
-              src={`/assets/${restaurant.welcomeBackgroundMediaId}?t=${Date.now()}`}
+              src={`/assets/${restaurant.welcomeBackgroundMediaId}?v=${restaurant.updatedAt ? new Date(restaurant.updatedAt).getTime() : Date.now()}`}
               alt="Welcome Background"
               className="w-full h-full object-cover absolute inset-0"
               style={{ 
@@ -411,7 +408,7 @@ export default function WelcomePage() {
           ) : (
             /* Fallback: if prefers reduced motion for video, show poster as image */
             <img
-              src={`/assets/${restaurant.welcomeBackgroundMediaId}`}
+              src={`/assets/${restaurant.welcomeBackgroundMediaId}?v=${restaurant.updatedAt ? new Date(restaurant.updatedAt).getTime() : Date.now()}`}
               alt="Welcome Background"
               className="w-full h-full object-cover absolute inset-0"
               style={{ 

@@ -20,17 +20,32 @@ export async function GET() {
       })
     }
 
-    return NextResponse.json({ theme })
+    return NextResponse.json(
+      { theme },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        },
+      }
+    )
   } catch (error) {
     console.error('Error fetching theme:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     // Return a default theme if there's an error
-    return NextResponse.json({
-      theme: {
-        id: 'theme-1',
-        appBg: '#400810',
+    return NextResponse.json(
+      {
+        theme: {
+          id: 'theme-1',
+          appBg: '#400810',
+        },
       },
-    })
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        },
+      }
+    )
   }
 }
+
 

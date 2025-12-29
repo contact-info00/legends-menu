@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -25,7 +28,7 @@ export async function GET(
     const headers: Record<string, string> = {
       'Content-Type': media.mimeType,
       'Accept-Ranges': 'bytes',
-      'Cache-Control': 'public, max-age=3600, must-revalidate', // Cache for 1 hour, but revalidate on change
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate', // No caching to ensure immediate updates
     }
 
     // Handle Range requests for video streaming (critical for mobile)
