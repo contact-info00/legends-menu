@@ -74,18 +74,8 @@ export default function WelcomePage() {
     }
   }, [])
 
-  useEffect(() => {
-    // Load language from localStorage
-    const savedLang = localStorage.getItem('language') as Language
-    if (savedLang && languages.some((l) => l.code === savedLang)) {
-      setSelectedLang(savedLang)
-    }
-
-    // Show UI immediately - don't block render
-    setIsLoaded(true)
-
-    // Function to fetch restaurant data - using useCallback so it can be called from multiple places
-    const fetchRestaurant = useCallback(async (retryCount = 0): Promise<void> => {
+  // Function to fetch restaurant data - using useCallback so it can be called from multiple places
+  const fetchRestaurant = useCallback(async (retryCount = 0): Promise<void> => {
       try {
         // Add cache-busting to ensure fresh data
         const res = await fetch(`/data/restaurant?t=${Date.now()}`, {
