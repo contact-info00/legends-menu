@@ -21,35 +21,6 @@ export default function WelcomeClient({ slug }: WelcomeClientProps) {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   
-  // Helper function to attempt video playback
-  const tryPlay = () => {
-    const v = videoRef.current
-    if (!v) return
-    
-    // Ensure video is properly configured for mobile
-    v.muted = true
-    v.playsInline = true
-    v.setAttribute('muted', '')
-    v.setAttribute('playsinline', '')
-    
-    // Only attempt play if video has loaded metadata
-    if (v.readyState >= 1) {
-      v.play().catch((err) => {
-        console.log('Video play attempt failed:', err)
-      })
-    } else {
-      // Wait for metadata to load
-      const onReady = () => {
-        v.play().catch((err) => {
-          console.log('Video play failed after ready:', err)
-        })
-        v.removeEventListener('loadedmetadata', onReady)
-        v.removeEventListener('canplay', onReady)
-      }
-      v.addEventListener('loadedmetadata', onReady, { once: true })
-      v.addEventListener('canplay', onReady, { once: true })
-    }
-  }
 
   useEffect(() => {
     // Check for prefers-reduced-motion
@@ -246,92 +217,6 @@ export default function WelcomeClient({ slug }: WelcomeClientProps) {
     }
   }, [fetchRestaurant])
 
-  // Attempt autoplay on mount and when video element is ready
-  useEffect(() => {
-    if (!shouldLoadVideo || prefersReducedMotion) return
-    
-    const video = videoRef.current
-    if (!video) return
-    
-    // Try immediately if video is ready
-    if (video.readyState >= 1) {
-      tryPlay()
-    } else {
-      // Wait for video to be ready
-      const onReady = () => {
-        tryPlay()
-      }
-      video.addEventListener('loadedmetadata', onReady, { once: true })
-      video.addEventListener('canplay', onReady, { once: true })
-      
-      return () => {
-        video.removeEventListener('loadedmetadata', onReady)
-        video.removeEventListener('canplay', onReady)
-      }
-    }
-  }, [shouldLoadVideo, prefersReducedMotion, restaurant?.welcomeBackgroundMediaId])
-
-  // Gesture unlock fallback - listen for first user interaction anywhere on page
-  useEffect(() => {
-    if (!shouldLoadVideo || prefersReducedMotion) return
-    
-    let hasPlayed = false
-    
-    const onFirstGesture = () => {
-      if (hasPlayed) return
-      const video = videoRef.current
-      if (!video) return
-      
-      // Ensure video is ready
-      if (video.readyState >= 1) {
-        video.muted = true
-        video.playsInline = true
-        video.setAttribute('muted', '')
-        video.setAttribute('playsinline', '')
-        video.play()
-          .then(() => {
-            hasPlayed = true
-            console.log('Video started on user gesture')
-          })
-          .catch((err) => {
-            console.log('Video play failed on gesture:', err)
-          })
-      } else {
-        // Wait for video to be ready
-        const onReady = () => {
-          video.muted = true
-          video.playsInline = true
-          video.setAttribute('muted', '')
-          video.setAttribute('playsinline', '')
-          video.play()
-            .then(() => {
-              hasPlayed = true
-              console.log('Video started on user gesture (after load)')
-            })
-            .catch((err) => {
-              console.log('Video play failed on gesture:', err)
-            })
-          video.removeEventListener('loadedmetadata', onReady)
-          video.removeEventListener('canplay', onReady)
-        }
-        video.addEventListener('loadedmetadata', onReady, { once: true })
-        video.addEventListener('canplay', onReady, { once: true })
-      }
-    }
-    
-    // Use document for better mobile compatibility
-    document.addEventListener('touchstart', onFirstGesture, { once: true, passive: true })
-    document.addEventListener('pointerdown', onFirstGesture, { once: true, passive: true })
-    document.addEventListener('click', onFirstGesture, { once: true })
-    document.addEventListener('touchend', onFirstGesture, { once: true, passive: true })
-    
-    return () => {
-      document.removeEventListener('touchstart', onFirstGesture)
-      document.removeEventListener('pointerdown', onFirstGesture)
-      document.removeEventListener('click', onFirstGesture)
-      document.removeEventListener('touchend', onFirstGesture)
-    }
-  }, [shouldLoadVideo, prefersReducedMotion])
 
   const handleLanguageSelect = (lang: Language) => {
     setSelectedLang(lang)
@@ -377,24 +262,19 @@ export default function WelcomeClient({ slug }: WelcomeClientProps) {
                 height: '100%',
                 objectFit: 'cover'
               }}
-              onLoadedMetadata={() => {
-                // Video metadata loaded, ensure attributes and try play
+              onLoadedData={() => {
                 const v = videoRef.current
                 if (v) {
                   v.muted = true
-                  v.playsInline = true
-                  v.setAttribute('muted', '')
-                  v.setAttribute('playsinline', '')
-                  tryPlay()
+                  v.play().catch(() => {})
                 }
               }}
               onCanPlay={() => {
-                // Video can play, attempt playback immediately
-                tryPlay()
-              }}
-              onLoadedData={() => {
-                // Video data loaded, try play
-                tryPlay()
+                const v = videoRef.current
+                if (v) {
+                  v.muted = true
+                  v.play().catch(() => {})
+                }
               }}
               onError={(e) => {
                 // Log error but don't change the media type - show what was uploaded
