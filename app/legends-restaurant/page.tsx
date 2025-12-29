@@ -198,8 +198,21 @@ export default function WelcomePage() {
         }
       }
     }
+  }, [prefersReducedMotion])
+
+  useEffect(() => {
+    // Load language from localStorage
+    const savedLang = localStorage.getItem('language') as Language
+    if (savedLang && languages.some((l) => l.code === savedLang)) {
+      setSelectedLang(savedLang)
+    }
+
+    // Show UI immediately - don't block render
+    setIsLoaded(true)
+
+    // Fetch restaurant data on mount
     fetchRestaurant()
-  }, [prefersReducedMotion, fetchRestaurant])
+  }, [fetchRestaurant])
 
   // Refetch restaurant data when page becomes visible (after admin changes)
   useEffect(() => {
