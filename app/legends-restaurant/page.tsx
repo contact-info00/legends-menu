@@ -92,89 +92,91 @@ export default function WelcomePage() {
       
       if (mediaIdChanged) {
         console.log('Background media ID changed from', restaurant?.welcomeBackgroundMediaId, 'to', data.welcomeBackgroundMediaId)
+        // Reset state first
         setShouldLoadVideo(false)
         setPosterImage(null)
         setBackgroundMimeType(null)
       }
       
+      // Update restaurant data
       setRestaurant(data)
       
       // Check if background is video
       if (data.welcomeBackgroundMediaId) {
-          // First, check if we have mimeType from the restaurant data
-          const mimeTypeFromData = data.welcomeBackground?.mimeType
+        // First, check if we have mimeType from the restaurant data
+        const mimeTypeFromData = data.welcomeBackground?.mimeType
+        
+        if (mimeTypeFromData) {
+          console.log('Background media mimeType from API:', mimeTypeFromData, 'Media ID:', data.welcomeBackgroundMediaId)
           
-          if (mimeTypeFromData) {
-            console.log('Background media mimeType from API:', mimeTypeFromData)
+          // If it's a video and user doesn't prefer reduced motion, start loading it
+          if (mimeTypeFromData.startsWith('video/') && !prefersReducedMotion) {
+            setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
+            setShouldLoadVideo(true)
             setBackgroundMimeType(mimeTypeFromData)
-            
-            // If it's a video and user doesn't prefer reduced motion, start loading it
-            if (mimeTypeFromData.startsWith('video/') && !prefersReducedMotion) {
-              setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
-              setShouldLoadVideo(true)
-            } else if (mimeTypeFromData.startsWith('video/')) {
-              // User prefers reduced motion, use poster only
-              setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
-              setBackgroundMimeType('image/jpeg')
-              setShouldLoadVideo(false)
-            } else {
-              // It's an image
-              console.log('Image detected, setting background. MimeType:', mimeTypeFromData, 'Media ID:', data.welcomeBackgroundMediaId)
-              setBackgroundMimeType(mimeTypeFromData)
-              setPosterImage(null)
-              setShouldLoadVideo(false)
-            }
+          } else if (mimeTypeFromData.startsWith('video/')) {
+            // User prefers reduced motion, use poster only
+            setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
+            setBackgroundMimeType('image/jpeg')
+            setShouldLoadVideo(false)
           } else {
-            // Fallback: Try to detect media type via HEAD request
-            const fetchMediaHead = async (retryCount = 0): Promise<void> => {
-              try {
-                // Add cache-busting to ensure fresh media type detection
-                const res = await fetch(`/assets/${data.welcomeBackgroundMediaId}?t=${Date.now()}`, { 
-                  method: 'HEAD',
-                  cache: 'no-store',
-                })
-                const contentType = res.headers.get('content-type')
-                console.log('Background media content type from HEAD:', contentType)
-                
-                if (contentType) {
+            // It's an image
+            console.log('Image detected, setting background. MimeType:', mimeTypeFromData, 'Media ID:', data.welcomeBackgroundMediaId)
+            setBackgroundMimeType(mimeTypeFromData)
+            setPosterImage(null)
+            setShouldLoadVideo(false)
+          }
+        } else {
+          // Fallback: Try to detect media type via HEAD request
+          const fetchMediaHead = async (retryCount = 0): Promise<void> => {
+            try {
+              // Add cache-busting to ensure fresh media type detection
+              const res = await fetch(`/assets/${data.welcomeBackgroundMediaId}?t=${Date.now()}`, { 
+                method: 'HEAD',
+                cache: 'no-store',
+              })
+              const contentType = res.headers.get('content-type')
+              console.log('Background media content type from HEAD:', contentType, 'Media ID:', data.welcomeBackgroundMediaId)
+              
+              if (contentType) {
+                // If it's a video and user doesn't prefer reduced motion, start loading it
+                if (contentType.startsWith('video/') && !prefersReducedMotion) {
+                  setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
+                  setShouldLoadVideo(true)
                   setBackgroundMimeType(contentType)
-                  
-                  // If it's a video and user doesn't prefer reduced motion, start loading it
-                  if (contentType.startsWith('video/') && !prefersReducedMotion) {
-                    setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
-                    setShouldLoadVideo(true)
-                  } else if (contentType.startsWith('video/')) {
-                    // User prefers reduced motion, use poster only
-                    setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
-                    setBackgroundMimeType('image/jpeg')
-                    setShouldLoadVideo(false)
-                  } else {
-                    // It's an image
-                    console.log('Image detected from HEAD request. ContentType:', contentType, 'Media ID:', data.welcomeBackgroundMediaId)
-                    setPosterImage(null)
-                    setShouldLoadVideo(false)
-                  }
-                } else {
-                  // No content type, default to image
-                  console.log('No content type detected, defaulting to image')
+                } else if (contentType.startsWith('video/')) {
+                  // User prefers reduced motion, use poster only
+                  setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
                   setBackgroundMimeType('image/jpeg')
+                  setShouldLoadVideo(false)
+                } else {
+                  // It's an image
+                  console.log('Image detected from HEAD request. ContentType:', contentType, 'Media ID:', data.welcomeBackgroundMediaId)
+                  setBackgroundMimeType(contentType)
                   setPosterImage(null)
                   setShouldLoadVideo(false)
                 }
-              } catch (error) {
-                console.error('HEAD request failed, defaulting to image:', error)
-                if (retryCount < 1) {
-                  setTimeout(() => fetchMediaHead(retryCount + 1), 500)
-                  return
-                }
-                // If HEAD fails, default to image (not video)
+              } else {
+                // No content type, default to image
+                console.log('No content type detected, defaulting to image')
                 setBackgroundMimeType('image/jpeg')
                 setPosterImage(null)
                 setShouldLoadVideo(false)
               }
+            } catch (error) {
+              console.error('HEAD request failed, defaulting to image:', error)
+              if (retryCount < 1) {
+                setTimeout(() => fetchMediaHead(retryCount + 1), 500)
+                return
+              }
+              // If HEAD fails, default to image (not video)
+              setBackgroundMimeType('image/jpeg')
+              setPosterImage(null)
+              setShouldLoadVideo(false)
             }
-            fetchMediaHead()
           }
+          fetchMediaHead()
+        }
       } else {
         // No background media
         setBackgroundMimeType(null)
@@ -224,15 +226,6 @@ export default function WelcomePage() {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('focus', handleFocus)
     }
-  }, [fetchRestaurant])
-
-  // Poll for background changes every 3 seconds (in case admin updates while page is open)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchRestaurant()
-    }, 3000) // Check every 3 seconds
-
-    return () => clearInterval(interval)
   }, [fetchRestaurant])
 
   // Attempt autoplay on mount and when video element is ready
