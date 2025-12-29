@@ -59,6 +59,7 @@ export async function GET() {
       settings = await prisma.uiSettings.findUnique({
         where: { id: 'ui-settings-1' },
       })
+      console.log('[DEBUG] GET /api/ui-settings - Raw database record:', JSON.stringify(settings, null, 2))
     } catch (findError: any) {
       // If findUnique fails due to missing columns, try raw SQL
       if (findError?.code === 'P2022' || findError?.message?.includes('does not exist')) {

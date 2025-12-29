@@ -67,6 +67,9 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
+    
+    // Debug: Log incoming request
+    console.log('[DEBUG] PUT /api/admin/ui-settings - Request body:', JSON.stringify(body, null, 2))
 
     // Validation
     const errors: string[] = []
@@ -213,11 +216,17 @@ export async function PUT(request: NextRequest) {
       // Update existing settings
       const updateData: any = { ...settings }
       
+      // Debug: Log what we're about to update
+      console.log('[DEBUG] PUT /api/admin/ui-settings - Updating with data:', JSON.stringify(updateData, null, 2))
+      
       try {
         uiSettings = await prisma.uiSettings.update({
           where: { id: 'ui-settings-1' },
           data: updateData,
         })
+        
+        // Debug: Log what was actually saved
+        console.log('[DEBUG] PUT /api/admin/ui-settings - Updated record:', JSON.stringify(uiSettings, null, 2))
       } catch (updateError: any) {
         // If update fails due to missing columns, use raw SQL
         if (updateError?.code === 'P2022' || updateError?.message?.includes('does not exist')) {
@@ -250,7 +259,7 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    const responseData = {
       sectionTitleSize: uiSettings.sectionTitleSize,
       categoryTitleSize: uiSettings.categoryTitleSize,
       itemNameSize: uiSettings.itemNameSize,
@@ -259,7 +268,12 @@ export async function PUT(request: NextRequest) {
       headerLogoSize: uiSettings.headerLogoSize,
       bottomNavSectionSize: (uiSettings as any).bottomNavSectionSize ?? DEFAULT_SETTINGS.bottomNavSectionSize,
       bottomNavCategorySize: (uiSettings as any).bottomNavCategorySize ?? DEFAULT_SETTINGS.bottomNavCategorySize,
-    })
+    }
+    
+    // Debug: Log response
+    console.log('[DEBUG] PUT /api/admin/ui-settings - Response data:', JSON.stringify(responseData, null, 2))
+    
+    return NextResponse.json(responseData)
   } catch (error: any) {
     console.error('Error updating UI settings:', error)
     // If error is due to missing columns, suggest running migration

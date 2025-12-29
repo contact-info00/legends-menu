@@ -64,13 +64,16 @@ export default function TypographyPage() {
   const handleSave = async () => {
     setIsLoading(true)
     try {
+      console.log('[DEBUG] Typography page - Saving settings:', JSON.stringify(settings, null, 2))
       const response = await fetch('/api/admin/ui-settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings),
       })
-
+      
       if (response.ok) {
+        const responseData = await response.json()
+        console.log('[DEBUG] Typography page - Save response:', JSON.stringify(responseData, null, 2))
         toast.success('Typography settings saved successfully!')
         // Trigger storage event so menu page can detect the update
         localStorage.setItem('typography-updated', Date.now().toString())
