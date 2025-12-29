@@ -70,7 +70,7 @@ export default function SettingsPage() {
 
   const fetchSettings = async () => {
     try {
-      const response = await fetch('/api/admin/settings')
+      const response = await fetch(`/api/admin/settings?slug=${slug}`)
       if (response.ok) {
         const data = await response.json()
         setSettings(data)
@@ -107,7 +107,7 @@ export default function SettingsPage() {
       const updateResponse = await fetch('/api/admin/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...settings, logoMediaId: mediaId }),
+        body: JSON.stringify({ ...settings, logoMediaId: mediaId, slug }),
       })
 
       if (updateResponse.ok) {
@@ -180,7 +180,7 @@ export default function SettingsPage() {
       const updateResponse = await fetch('/api/admin/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...settings, welcomeBackgroundMediaId: mediaId }),
+        body: JSON.stringify({ ...settings, welcomeBackgroundMediaId: mediaId, slug }),
       })
 
       if (updateResponse.ok) {
@@ -238,7 +238,7 @@ export default function SettingsPage() {
       const response = await fetch('/api/admin/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings),
+        body: JSON.stringify({ ...settings, slug }),
       })
 
       if (response.ok) {

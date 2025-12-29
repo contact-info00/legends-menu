@@ -2,14 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAdminSession } from '@/lib/auth'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const isAuthenticated = await getAdminSession()
     if (!isAuthenticated) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const restaurant = await prisma.restaurant.findFirst()
+    // Get slug from query parameter
+    const searchParams = request.nextUrl.searchParams
+    const slug = searchParams.get('slug') || 'legends-restaurant' // Default to legends-restaurant
+
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { slug },
+    })
     if (!restaurant) {
       return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 })
     }
@@ -47,7 +53,12 @@ export async function PUT(request: NextRequest) {
       console.log('Settings update request body:', JSON.stringify(body, null, 2))
     }
 
-    const restaurant = await prisma.restaurant.findFirst()
+    // Get slug from body or query parameter, default to legends-restaurant
+    const slug = body.slug || request.nextUrl.searchParams.get('slug') || 'legends-restaurant'
+
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { slug },
+    })
     if (!restaurant) {
       return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 })
     }
