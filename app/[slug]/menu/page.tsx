@@ -279,6 +279,58 @@ function MenuPageContent() {
     }
   }, [sections, activeSectionId])
 
+  // Auto-scroll bottom navigation when active category changes
+  useEffect(() => {
+    if (!activeCategoryId || isUserScrollingNav.current) return
+    
+    const categoryButton = categoryButtonRefs.current.get(activeCategoryId)
+    if (categoryButton && categoryNavContainerRef.current) {
+      // Use requestAnimationFrame to ensure DOM is ready
+      requestAnimationFrame(() => {
+        if (!isUserScrollingNav.current) {
+          categoryButton.scrollIntoView({
+            behavior: 'smooth',
+            inline: 'center',
+            block: 'nearest',
+          })
+        }
+      })
+    }
+  }, [activeCategoryId])
+
+  // Handle user scrolling the navigation (debounce)
+  useEffect(() => {
+    const container = categoryNavContainerRef.current
+    if (!container) return
+
+    const handleScroll = () => {
+      isUserScrollingNav.current = true
+      
+      // Clear existing timeout
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current)
+      }
+      
+      // Reset flag after user stops scrolling
+      scrollTimeoutRef.current = setTimeout(() => {
+        isUserScrollingNav.current = false
+      }, 150)
+    }
+
+    container.addEventListener('scroll', handleScroll, { passive: true })
+    container.addEventListener('touchstart', handleScroll, { passive: true })
+    container.addEventListener('touchmove', handleScroll, { passive: true })
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll)
+      container.removeEventListener('touchstart', handleScroll)
+      container.removeEventListener('touchmove', handleScroll)
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current)
+      }
+    }
+  }, [])
+
   useEffect(() => {
     // Save basket to localStorage
     localStorage.setItem('basket', JSON.stringify(basket))
@@ -485,8 +537,8 @@ function MenuPageContent() {
                 }}
               ></div>
               
-              {/* Sections */}
-              <div className="flex gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide items-center justify-center mb-2 w-full">
+              {/* Sections - Fixed, no scroll */}
+              <div className="flex gap-1.5 sm:gap-2 items-center justify-center mb-2 w-full overflow-hidden">
                 {sections.filter((s) => s.isActive).map((section) => {
                   const isActive = activeSectionId === section.id
                   return (
@@ -529,7 +581,7 @@ function MenuPageContent() {
                 })}
               </div>
 
-              {/* Categories - Separate line */}
+              {/* Categories - Separate scrollable container */}
               {activeCategories.length > 0 && (
                 <div 
                   ref={categoryNavContainerRef}

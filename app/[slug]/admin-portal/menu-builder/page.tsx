@@ -130,6 +130,27 @@ export default function MenuBuilderPage() {
     fetchMenuData()
   }, [])
 
+  // Lock body scroll when Add Item modal is open
+  useEffect(() => {
+    if (showAddItem) {
+      // Save current scroll position
+      const scrollY = window.scrollY
+      document.body.style.position = 'fixed'
+      document.body.style.top = `-${scrollY}px`
+      document.body.style.width = '100%'
+      document.body.style.overflow = 'hidden'
+      
+      return () => {
+        // Restore scroll position when modal closes
+        document.body.style.position = ''
+        document.body.style.top = ''
+        document.body.style.width = ''
+        document.body.style.overflow = ''
+        window.scrollTo(0, scrollY)
+      }
+    }
+  }, [showAddItem])
+
 
   const fetchMenuData = async () => {
     try {
@@ -1602,9 +1623,9 @@ export default function MenuBuilderPage() {
 
       {/* Add Item Modal */}
       {showAddItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm">
           <div 
-            className="backdrop-blur-xl rounded-2xl sm:rounded-3xl border p-3 sm:p-6 w-full max-w-[95%] sm:max-w-md mx-2 sm:mx-auto my-4 sm:my-8 max-h-[95vh] overflow-y-auto"
+            className="backdrop-blur-xl rounded-2xl sm:rounded-3xl border p-3 sm:p-6 w-full max-w-[71.25%] sm:max-w-[21rem] mx-2 sm:mx-auto my-4 sm:my-8 max-h-[95vh] overflow-y-auto"
             style={{
               backgroundColor: 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))',
               borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
