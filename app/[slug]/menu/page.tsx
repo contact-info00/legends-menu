@@ -621,7 +621,7 @@ function MenuPageContent() {
                         setActiveSectionId(section.id)
                         setActiveCategoryId(null) // Reset active category when section changes
                       }}
-                      className="flex-shrink-0 px-2 sm:px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-colors duration-300 backdrop-blur-sm border text-xs sm:text-sm"
+                      className="flex-shrink-0 rounded-lg font-medium whitespace-nowrap transition-colors duration-300 backdrop-blur-sm border flex items-center justify-center"
                       style={{
                         backgroundColor: isActive 
                           ? 'var(--auto-lighter-surface, rgba(255, 255, 255, 0.15))' 
@@ -634,6 +634,8 @@ function MenuPageContent() {
                           ? `0 0 15px var(--auto-primary-glow-subtle, rgba(128, 0, 32, 0.25)), 0 4px 6px -1px var(--auto-shadow-color, rgba(0, 0, 0, 0.3))`
                           : 'none',
                         fontSize: 'var(--bottom-nav-section-size)',
+                        padding: '0.4em 0.8em',
+                        lineHeight: '1.2',
                       }}
                       onMouseEnter={(e) => {
                         if (!isActive) {
@@ -678,7 +680,7 @@ function MenuPageContent() {
                       >
                         {/* Category button with triangular background */}
                         <div 
-                          className="relative px-2 sm:px-3 py-1.5 backdrop-blur-sm rounded-lg border transition-colors duration-300"
+                          className="relative backdrop-blur-sm rounded-lg border transition-colors duration-300 flex items-center justify-center"
                           style={{
                             backgroundColor: isActive 
                               ? 'var(--auto-lighter-surface, rgba(255, 255, 255, 0.15))' 
@@ -689,6 +691,9 @@ function MenuPageContent() {
                             boxShadow: isActive
                               ? `0 0 15px var(--auto-primary-glow-subtle, rgba(128, 0, 32, 0.25)), 0 4px 6px -1px var(--auto-shadow-color, rgba(0, 0, 0, 0.3))`
                               : 'none',
+                            fontSize: 'var(--bottom-nav-category-size)',
+                            padding: '0.4em 0.8em',
+                            lineHeight: '1.2',
                           }}
                           onMouseEnter={(e) => {
                             if (!isActive) {
@@ -707,10 +712,13 @@ function MenuPageContent() {
                           }}
                         >
                           <span 
-                            className="relative font-semibold whitespace-nowrap text-xs sm:text-sm"
+                            className="relative font-semibold whitespace-nowrap"
                             style={{ 
                               fontSize: 'var(--bottom-nav-category-size)',
                               color: 'var(--auto-text-primary, #FFFFFF)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
                             }}
                           >
                             {getLocalizedText(category, currentLang)}
