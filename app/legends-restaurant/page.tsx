@@ -16,7 +16,15 @@ export default function WelcomePage() {
   const [posterImage, setPosterImage] = useState<string | null>(null)
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  const [videoPlayAttempted, setVideoPlayAttempted] = useState(false)
+  
+  // Helper function to attempt video playback
+  const tryPlay = () => {
+    const v = videoRef.current
+    if (!v) return
+    v.muted = true
+    v.playsInline = true
+    v.play().catch(() => {})
+  }
 
   useEffect(() => {
     // Check for prefers-reduced-motion
@@ -134,126 +142,31 @@ export default function WelcomePage() {
     fetchRestaurant()
   }, [prefersReducedMotion])
 
-  // Force video play on mount for mobile compatibility
+  // Attempt autoplay on mount
   useEffect(() => {
-    if (shouldLoadVideo && videoRef.current && !prefersReducedMotion) {
-      const video = videoRef.current
-      
-      // Ensure video is visible
-      video.style.opacity = '1'
-      
-      // Try to play the video
-      const attemptPlay = async () => {
-        if (videoPlayAttempted) return
-        setVideoPlayAttempted(true)
-        
-        try {
-          await video.play()
-          console.log('Video playback started successfully')
-          // Ensure video is visible after play
-          video.style.opacity = '1'
-        } catch (error) {
-          // If autoplay fails, keep the poster visible but don't change to image
-          console.log('Video autoplay prevented, will try on user interaction', error)
-          // Don't change to image - let the video element stay, it might play on user interaction
-          // Still keep video visible
-          video.style.opacity = '1'
-        }
-      }
-      
-      // Wait for video to be ready
-      if (video.readyState >= 2) {
-        attemptPlay()
-      } else {
-        const handleLoadedData = () => {
-          attemptPlay()
-        }
-        const handleCanPlay = () => {
-          attemptPlay()
-        }
-        video.addEventListener('loadeddata', handleLoadedData, { once: true })
-        video.addEventListener('canplay', handleCanPlay, { once: true })
-        video.addEventListener('loadedmetadata', () => {
-          video.style.opacity = '1'
-          attemptPlay()
-        }, { once: true })
-        
-        return () => {
-          video.removeEventListener('loadeddata', handleLoadedData)
-          video.removeEventListener('canplay', handleCanPlay)
-        }
-      }
+    if (shouldLoadVideo && !prefersReducedMotion) {
+      tryPlay()
     }
-  }, [shouldLoadVideo, prefersReducedMotion, videoPlayAttempted])
+  }, [shouldLoadVideo, prefersReducedMotion])
 
-  // Handle user interaction to play video on mobile
+  // Gesture unlock fallback - listen for first user interaction
   useEffect(() => {
-    if (!isMobile || !shouldLoadVideo || prefersReducedMotion) return
+    if (!shouldLoadVideo || prefersReducedMotion) return
     
-    const handleUserInteraction = async () => {
-      if (videoRef.current && !videoPlayAttempted) {
-        try {
-          // Ensure video is visible
-          videoRef.current.style.opacity = '1'
-          videoRef.current.style.zIndex = '2'
-          
-          await videoRef.current.play()
-          console.log('Video started on user interaction')
-          setVideoPlayAttempted(true)
-          
-          // Hide poster after video starts
-          const poster = document.querySelector('img[alt="Welcome Background Poster"]') as HTMLImageElement
-          if (poster) {
-            poster.style.opacity = '0'
-            poster.style.zIndex = '1'
-          }
-        } catch (error) {
-          console.log('Video play failed on interaction', error)
-        }
-      }
+    const onFirstGesture = () => {
+      tryPlay()
     }
     
-    // Try to play on first user interaction - use capture phase for better reliability
-    const events = ['touchstart', 'touchend', 'click', 'scroll', 'pointerdown']
-    events.forEach(event => {
-      document.addEventListener(event, handleUserInteraction, { once: true, passive: true, capture: true })
-    })
-    
-    // Also try on the video element itself
-    if (videoRef.current) {
-      const video = videoRef.current
-      const handleVideoInteraction = async () => {
-        if (!videoPlayAttempted) {
-          try {
-            video.style.opacity = '1'
-            video.style.zIndex = '2'
-            await video.play()
-            console.log('Video started on direct interaction')
-            setVideoPlayAttempted(true)
-          } catch (error) {
-            console.log('Video play failed on direct interaction', error)
-          }
-        }
-      }
-      
-      events.forEach(event => {
-        video.addEventListener(event, handleVideoInteraction, { once: true, passive: true })
-      })
-      
-      return () => {
-        events.forEach(event => {
-          document.removeEventListener(event, handleUserInteraction, { capture: true })
-          video.removeEventListener(event, handleVideoInteraction)
-        })
-      }
-    }
+    window.addEventListener('touchstart', onFirstGesture, { once: true, passive: true })
+    window.addEventListener('pointerdown', onFirstGesture, { once: true, passive: true })
+    window.addEventListener('click', onFirstGesture, { once: true })
     
     return () => {
-      events.forEach(event => {
-        document.removeEventListener(event, handleUserInteraction, { capture: true })
-      })
+      window.removeEventListener('touchstart', onFirstGesture)
+      window.removeEventListener('pointerdown', onFirstGesture)
+      window.removeEventListener('click', onFirstGesture)
     }
-  }, [isMobile, shouldLoadVideo, prefersReducedMotion, videoPlayAttempted])
+  }, [shouldLoadVideo, prefersReducedMotion])
 
   const handleLanguageSelect = (lang: Language) => {
     setSelectedLang(lang)
@@ -274,55 +187,12 @@ export default function WelcomePage() {
       {restaurant?.welcomeBackgroundMediaId ? (
         <div 
           className={`absolute inset-0 background-fade-in ${isLoaded ? 'animate-in' : ''}`}
-          onTouchStart={async (e) => {
-            // Make entire background area tappable on mobile to start video
-            if (isMobile && shouldLoadVideo && !prefersReducedMotion && videoRef.current && !videoPlayAttempted) {
-              e.stopPropagation()
-              try {
-                const video = videoRef.current
-                video.style.opacity = '1'
-                video.style.zIndex = '2'
-                await video.play()
-                console.log('Video started on background touch')
-                setVideoPlayAttempted(true)
-                // Hide poster
-                const poster = document.querySelector('img[alt="Welcome Background Poster"]') as HTMLImageElement
-                if (poster) {
-                  poster.style.opacity = '0'
-                }
-              } catch (error) {
-                console.log('Video play failed on background touch', error)
-              }
-            }
-          }}
-          onClick={async (e) => {
-            // Make entire background area clickable on mobile to start video
-            if (isMobile && shouldLoadVideo && !prefersReducedMotion && videoRef.current && !videoPlayAttempted) {
-              e.stopPropagation()
-              try {
-                const video = videoRef.current
-                video.style.opacity = '1'
-                video.style.zIndex = '2'
-                await video.play()
-                console.log('Video started on background click')
-                setVideoPlayAttempted(true)
-                // Hide poster
-                const poster = document.querySelector('img[alt="Welcome Background Poster"]') as HTMLImageElement
-                if (poster) {
-                  poster.style.opacity = '0'
-                }
-              } catch (error) {
-                console.log('Video play failed on background click', error)
-              }
-            }
-          }}
-          style={{ cursor: isMobile && shouldLoadVideo && !videoPlayAttempted ? 'pointer' : 'default' }}
         >
           {/* Try video first if we detected it's a video, or if backgroundMimeType is null (still detecting) */}
           {(backgroundMimeType === null || backgroundMimeType?.startsWith('video/')) ? (
             <>
               {/* Poster/Placeholder - shows immediately, hidden when video is playing */}
-              {posterImage && shouldLoadVideo && !prefersReducedMotion && !videoPlayAttempted && (
+              {posterImage && shouldLoadVideo && !prefersReducedMotion && (
                 <img
                   src={posterImage}
                   alt="Welcome Background Poster"
@@ -334,9 +204,8 @@ export default function WelcomePage() {
                     width: '100%',
                     height: '100%',
                     objectFit: 'cover',
-                    opacity: isMobile ? 1 : 0,
                     transition: 'opacity 0.5s ease-out',
-                    pointerEvents: isMobile ? 'none' : 'auto'
+                    pointerEvents: 'none'
                   }}
                   loading="eager"
                   decoding="async"
@@ -356,14 +225,13 @@ export default function WelcomePage() {
                 <video
                   ref={videoRef}
                   key={restaurant.welcomeBackgroundMediaId}
-                  autoPlay={!isMobile}
-                  loop
+                  autoPlay
                   muted
                   playsInline
-                  preload={isMobile ? "metadata" : "auto"}
+                  loop
+                  preload="metadata"
                   disablePictureInPicture
                   controls={false}
-                  aria-hidden="true"
                   poster={posterImage || undefined}
                   src={`/assets/${restaurant.welcomeBackgroundMediaId}`}
                   className="w-full h-full object-cover absolute inset-0"
@@ -376,92 +244,16 @@ export default function WelcomePage() {
                     height: '100%',
                     objectFit: 'cover'
                   }}
-                  onLoadedData={(e) => {
-                    // Video loaded, ensure it's visible
-                    const target = e.currentTarget
-                    target.style.opacity = '1'
-                    console.log('Video loaded and visible')
-                    // On mobile, try to play after load
-                    if (isMobile && !videoPlayAttempted) {
-                      target.play().catch(() => {
-                        console.log('Mobile autoplay prevented, waiting for user interaction')
-                      })
-                    }
-                  }}
-                  onCanPlay={(e) => {
-                    // Video can play, ensure it's visible
-                    const target = e.currentTarget
-                    target.style.opacity = '1'
-                    console.log('Video can play and visible')
-                    // On mobile, try to play when ready
-                    if (isMobile && !videoPlayAttempted) {
-                      target.play().catch(() => {
-                        console.log('Mobile autoplay prevented, waiting for user interaction')
-                      })
-                    }
+                  onCanPlay={() => {
+                    tryPlay()
                   }}
                   onPlaying={(e) => {
-                    // Video is playing, ensure it's visible
-                    const target = e.currentTarget
-                    target.style.opacity = '1'
-                    target.style.zIndex = '2'
-                    console.log('Video is playing')
-                    setVideoPlayAttempted(true)
                     // Hide poster when video starts playing
                     const poster = document.querySelector('img[alt="Welcome Background Poster"]') as HTMLImageElement
                     if (poster) {
                       poster.style.opacity = '0'
                       poster.style.zIndex = '1'
                     }
-                  }}
-                  onTouchStart={async (e) => {
-                    // On mobile, try to play on touch
-                    e.stopPropagation()
-                    if (isMobile && videoRef.current && !videoPlayAttempted) {
-                      try {
-                        const video = videoRef.current
-                        video.style.opacity = '1'
-                        video.style.zIndex = '2'
-                        await video.play()
-                        console.log('Video started on touch')
-                        setVideoPlayAttempted(true)
-                        // Hide poster
-                        const poster = document.querySelector('img[alt="Welcome Background Poster"]') as HTMLImageElement
-                        if (poster) {
-                          poster.style.opacity = '0'
-                        }
-                      } catch (error) {
-                        console.log('Video play failed on touch', error)
-                      }
-                    }
-                  }}
-                  onClick={async (e) => {
-                    // On mobile, try to play on click
-                    e.stopPropagation()
-                    if (isMobile && videoRef.current && !videoPlayAttempted) {
-                      try {
-                        const video = videoRef.current
-                        video.style.opacity = '1'
-                        video.style.zIndex = '2'
-                        await video.play()
-                        console.log('Video started on click')
-                        setVideoPlayAttempted(true)
-                        // Hide poster
-                        const poster = document.querySelector('img[alt="Welcome Background Poster"]') as HTMLImageElement
-                        if (poster) {
-                          poster.style.opacity = '0'
-                        }
-                      } catch (error) {
-                        console.log('Video play failed on click', error)
-                      }
-                    }
-                  }}
-                  onLoadedMetadata={(e) => {
-                    // Ensure video is visible when metadata loads
-                    const target = e.currentTarget
-                    target.style.opacity = '1'
-                    target.style.zIndex = '2'
-                    console.log('Video metadata loaded')
                   }}
                   onError={(e) => {
                     // If video fails to load, fall back to image
