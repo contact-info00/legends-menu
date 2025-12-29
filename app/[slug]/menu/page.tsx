@@ -629,7 +629,7 @@ function MenuPageContent() {
                         boxShadow: isActive
                           ? `0 0 15px var(--auto-primary-glow-subtle, rgba(128, 0, 32, 0.25)), 0 4px 6px -1px var(--auto-shadow-color, rgba(0, 0, 0, 0.3))`
                           : 'none',
-                        fontSize: 'var(--menu-section-size)',
+                        fontSize: 'var(--menu-item-name-size)',
                       }}
                       onMouseEnter={(e) => {
                         if (!isActive) {
@@ -705,7 +705,7 @@ function MenuPageContent() {
                           <span 
                             className="relative font-semibold whitespace-nowrap text-xs sm:text-sm"
                             style={{ 
-                              fontSize: 'var(--menu-category-size)',
+                              fontSize: 'var(--menu-item-name-size)',
                               color: 'var(--auto-text-primary, #FFFFFF)',
                             }}
                           >
