@@ -59,7 +59,7 @@ export function ItemModal({ item, currentLang, isOpen, onClose }: ItemModalProps
         <div className="w-full aspect-square relative">
           {item.imageMediaId ? (
             <OptimizedImage
-              src={`/api/media/${item.imageMediaId}`}
+              src={`/assets/${item.imageMediaId}`}
               alt={getLocalizedText(item, currentLang)}
               className="w-full h-full rounded-t-3xl"
               aspectRatio="square"

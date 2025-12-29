@@ -53,9 +53,10 @@ export default function WelcomePageClient({ restaurant }: WelcomePageClientProps
 
     // Check if background is video
     if (restaurant.welcomeBackgroundMediaId) {
-      // Try to detect video type via HEAD request
-      fetch(`/api/media/${restaurant.welcomeBackgroundMediaId}`, { method: 'HEAD' })
-        .then((res) => {
+      // Try to detect video type via HEAD request with retry
+      const fetchMediaHead = async (retryCount = 0) => {
+        try {
+          const res = await fetch(`/assets/${restaurant.welcomeBackgroundMediaId}`, { method: 'HEAD' })
           const contentType = res.headers.get('content-type')
           setBackgroundMimeType(contentType)
           
@@ -66,14 +67,19 @@ export default function WelcomePageClient({ restaurant }: WelcomePageClientProps
               setShouldLoadVideo(true)
             }, 300)
           }
-        })
-        .catch(() => {
+        } catch (error) {
+          if (retryCount < 1) {
+            setTimeout(() => fetchMediaHead(retryCount + 1), 500)
+            return
+          }
           // If HEAD fails, assume it might be a video and try loading
           setBackgroundMimeType('video/mp4') // Default assumption
           setTimeout(() => {
             setShouldLoadVideo(true)
           }, 300)
-        })
+        }
+      }
+      fetchMediaHead()
     }
   }, [restaurant.welcomeBackgroundMediaId])
 
@@ -110,7 +116,7 @@ export default function WelcomePageClient({ restaurant }: WelcomePageClientProps
               {shouldLoadVideo && (
                 <video
                   key={restaurant.welcomeBackgroundMediaId}
-                  src={`/api/media/${restaurant.welcomeBackgroundMediaId}`}
+                  src={`/assets/${restaurant.welcomeBackgroundMediaId}`}
                   autoPlay
                   loop
                   muted
@@ -136,7 +142,7 @@ export default function WelcomePageClient({ restaurant }: WelcomePageClientProps
               {/* Fallback image if video detection fails */}
               {backgroundMimeType && !backgroundMimeType.startsWith('video/') && (
                 <img
-                  src={`/api/media/${restaurant.welcomeBackgroundMediaId}`}
+                  src={`/assets/${restaurant.welcomeBackgroundMediaId}`}
                   alt="Welcome Background"
                   className="w-full h-full object-cover background-media-fade absolute inset-0"
                   style={{ zIndex: 2 }}
@@ -175,7 +181,7 @@ export default function WelcomePageClient({ restaurant }: WelcomePageClientProps
           <div className={`absolute top-16 left-0 right-0 px-4 py-4 welcome-fade-in ${isLoaded ? 'animate-in' : ''}`}>
             <div className="flex items-center justify-center max-w-7xl mx-auto">
               <img
-                src={`/api/media/${restaurant.logoMediaId}`}
+                src={`/assets/${restaurant.logoMediaId}`}
                 alt="Restaurant Logo"
                 className="h-16 w-auto object-contain"
                 loading="eager"

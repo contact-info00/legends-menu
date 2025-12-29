@@ -114,7 +114,7 @@ export function SearchDrawer({
                 >
                   {item.imageMediaId ? (
                     <img
-                      src={`/api/media/${item.imageMediaId}`}
+                      src={`/assets/${item.imageMediaId}`}
                       alt={getLocalizedText(item, currentLang)}
                       className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
                       loading="lazy"

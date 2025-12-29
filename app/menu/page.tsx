@@ -93,15 +93,14 @@ function MenuPageContent() {
       localStorage.setItem('language', lang)
     }
 
-    // Fetch data
-    fetch('/api/menu')
-      .then((res) => {
+    // Fetch data with retry
+    const fetchMenu = async (retryCount = 0) => {
+      try {
+        const res = await fetch('/data/menu')
         if (!res.ok) {
           throw new Error(`Failed to fetch menu: ${res.status} ${res.statusText}`)
         }
-        return res.json()
-      })
-      .then((data) => {
+        const data = await res.json()
         // Ensure sections is always an array
         const sectionsData = Array.isArray(data?.sections) ? data.sections : []
         if (process.env.NODE_ENV === 'development') {
@@ -138,19 +137,34 @@ function MenuPageContent() {
           }
         })
         setAllItems(items)
-      })
-      .catch((error) => {
+      } catch (error) {
         console.error('Error fetching menu:', error)
+        if (retryCount < 1) {
+          setTimeout(() => fetchMenu(retryCount + 1), 500)
+          return
+        }
         // Ensure sections is always an array even on error
         setSections([])
         setAllItems([])
         // Don't show error to user - page will just show empty state
-      })
+      }
+    }
+    fetchMenu()
 
-    fetch('/api/restaurant')
-      .then((res) => res.json())
-      .then((data) => setRestaurant(data))
-      .catch(console.error)
+    const fetchRestaurant = async (retryCount = 0) => {
+      try {
+        const res = await fetch('/data/restaurant')
+        if (!res.ok) throw new Error('Failed to fetch')
+        const data = await res.json()
+        setRestaurant(data)
+      } catch (error) {
+        console.error('Error fetching restaurant:', error)
+        if (retryCount < 1) {
+          setTimeout(() => fetchRestaurant(retryCount + 1), 500)
+        }
+      }
+    }
+    fetchRestaurant()
 
     // Load basket from localStorage
     const savedBasket = localStorage.getItem('basket')
@@ -386,7 +400,7 @@ function MenuPageContent() {
       }}
     >
       <MenuHeader
-        logoUrl={restaurant?.logoMediaId ? `/api/media/${restaurant.logoMediaId}` : undefined}
+        logoUrl={restaurant?.logoMediaId ? `/assets/${restaurant.logoMediaId}` : undefined}
       />
 
       <FloatingActionBar

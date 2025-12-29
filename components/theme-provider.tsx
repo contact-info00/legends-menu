@@ -5,10 +5,10 @@ import { generateColorScheme, normalizeToHex } from '@/lib/color-utils'
 
 export function ThemeProvider() {
   useEffect(() => {
-    // Fetch theme and apply CSS variables
-    const applyTheme = async () => {
+    // Fetch theme and apply CSS variables with retry
+    const applyTheme = async (retryCount = 0) => {
       try {
-        const response = await fetch('/api/theme')
+        const response = await fetch('/data/theme')
         if (response.ok) {
           const data = await response.json()
           if (data.theme) {
@@ -38,6 +38,9 @@ export function ThemeProvider() {
         }
       } catch (error) {
         console.error('Error applying theme:', error)
+        if (retryCount < 1) {
+          setTimeout(() => applyTheme(retryCount + 1), 500)
+        }
       }
     }
 

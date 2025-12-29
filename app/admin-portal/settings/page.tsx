@@ -49,9 +49,9 @@ export default function SettingsPage() {
     fetchTheme()
   }, [])
 
-  const fetchTheme = async () => {
+  const fetchTheme = async (retryCount = 0) => {
     try {
-      const response = await fetch('/api/theme')
+      const response = await fetch('/data/theme')
       if (response.ok) {
         const data = await response.json()
         if (data.theme?.appBg) {
@@ -60,6 +60,9 @@ export default function SettingsPage() {
       }
     } catch (error) {
       console.error('Error fetching theme:', error)
+      if (retryCount < 1) {
+        setTimeout(() => fetchTheme(retryCount + 1), 500)
+      }
     }
   }
 
@@ -70,10 +73,10 @@ export default function SettingsPage() {
         const data = await response.json()
         setSettings(data)
         if (data.logoMediaId) {
-          setLogoPreview(`/api/media/${data.logoMediaId}`)
+          setLogoPreview(`/assets/${data.logoMediaId}`)
         }
         if (data.welcomeBackgroundMediaId) {
-          setBackgroundPreview(`/api/media/${data.welcomeBackgroundMediaId}`)
+          setBackgroundPreview(`/assets/${data.welcomeBackgroundMediaId}`)
         }
       }
     } catch (error) {
@@ -182,9 +185,9 @@ export default function SettingsPage() {
         setSettings({ ...settings, welcomeBackgroundMediaId: mediaId })
         // Update preview for video
         if (isVideo) {
-          setBackgroundPreview(`/api/media/${mediaId}`)
+          setBackgroundPreview(`/assets/${mediaId}`)
         } else {
-          setBackgroundPreview(`/api/media/${mediaId}`)
+          setBackgroundPreview(`/assets/${mediaId}`)
         }
         toast.success('Background uploaded successfully!')
       } else {

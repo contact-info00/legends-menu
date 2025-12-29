@@ -55,13 +55,12 @@ export default function WelcomePage() {
     // Show UI immediately - don't block render
     setIsLoaded(true)
 
-    // Fetch restaurant data (non-blocking)
-    fetch('/api/restaurant')
-      .then((res) => {
+    // Fetch restaurant data (non-blocking) with retry
+    const fetchRestaurant = async (retryCount = 0): Promise<void> => {
+      try {
+        const res = await fetch('/data/restaurant')
         if (!res.ok) throw new Error('Failed to fetch')
-        return res.json()
-      })
-      .then((data) => {
+        const data = await res.json()
         setRestaurant(data)
         // Check if background is video
         if (data.welcomeBackgroundMediaId) {
@@ -74,11 +73,11 @@ export default function WelcomePage() {
             
             // If it's a video and user doesn't prefer reduced motion, start loading it
             if (mimeTypeFromData.startsWith('video/') && !prefersReducedMotion) {
-              setPosterImage(`/api/media/${data.welcomeBackgroundMediaId}`)
+              setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
               setShouldLoadVideo(true)
             } else if (mimeTypeFromData.startsWith('video/')) {
               // User prefers reduced motion, use poster only
-              setPosterImage(`/api/media/${data.welcomeBackgroundMediaId}`)
+              setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
               setBackgroundMimeType('image/jpeg')
             } else {
               // It's an image
@@ -86,43 +85,53 @@ export default function WelcomePage() {
             }
           } else {
             // Fallback: Try to detect video type via HEAD request
-            fetch(`/api/media/${data.welcomeBackgroundMediaId}`, { method: 'HEAD' })
-              .then((res) => {
+            const fetchMediaHead = async (retryCount = 0): Promise<void> => {
+              try {
+                const res = await fetch(`/assets/${data.welcomeBackgroundMediaId}`, { method: 'HEAD' })
                 const contentType = res.headers.get('content-type')
                 console.log('Background media content type from HEAD:', contentType)
                 setBackgroundMimeType(contentType)
                 
                 // If it's a video and user doesn't prefer reduced motion, start loading it
                 if (contentType?.startsWith('video/') && !prefersReducedMotion) {
-                  setPosterImage(`/api/media/${data.welcomeBackgroundMediaId}`)
+                  setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
                   setShouldLoadVideo(true)
                 } else if (contentType?.startsWith('video/')) {
                   // User prefers reduced motion, use poster only
-                  setPosterImage(`/api/media/${data.welcomeBackgroundMediaId}`)
+                  setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
                   setBackgroundMimeType('image/jpeg')
                 } else {
                   // It's an image
                   setPosterImage(null)
                 }
-              })
-              .catch((error) => {
+              } catch (error) {
                 console.error('HEAD request failed, defaulting to video attempt:', error)
+                if (retryCount < 1) {
+                  setTimeout(() => fetchMediaHead(retryCount + 1), 500)
+                  return
+                }
                 // If HEAD fails, try as video and let browser handle it
                 if (!prefersReducedMotion) {
                   setBackgroundMimeType('video/mp4')
-                  setPosterImage(`/api/media/${data.welcomeBackgroundMediaId}`)
+                  setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
                   setShouldLoadVideo(true)
                 } else {
-                  setPosterImage(`/api/media/${data.welcomeBackgroundMediaId}`)
+                  setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
                   setBackgroundMimeType('image/jpeg')
                 }
-              })
+              }
+            }
+            fetchMediaHead()
           }
         }
-      })
-      .catch((error) => {
+      } catch (error) {
         console.error('Error fetching restaurant:', error)
-      })
+        if (retryCount < 1) {
+          setTimeout(() => fetchRestaurant(retryCount + 1), 500)
+        }
+      }
+    }
+    fetchRestaurant()
   }, [prefersReducedMotion])
 
   // Force video play on mount for mobile compatibility
@@ -356,7 +365,7 @@ export default function WelcomePage() {
                   controls={false}
                   aria-hidden="true"
                   poster={posterImage || undefined}
-                  src={`/api/media/${restaurant.welcomeBackgroundMediaId}`}
+                  src={`/assets/${restaurant.welcomeBackgroundMediaId}`}
                   className="w-full h-full object-cover absolute inset-0"
                   style={{ 
                     zIndex: 2, 
@@ -462,7 +471,7 @@ export default function WelcomePage() {
                   }}
                 >
                   <source 
-                    src={`/api/media/${restaurant.welcomeBackgroundMediaId}`} 
+                    src={`/assets/${restaurant.welcomeBackgroundMediaId}`} 
                     type="video/mp4" 
                   />
                 </video>
@@ -470,7 +479,7 @@ export default function WelcomePage() {
               {/* Fallback image if video detection fails or prefers reduced motion */}
               {(prefersReducedMotion || (backgroundMimeType && !backgroundMimeType.startsWith('video/') && !shouldLoadVideo)) && (
                 <img
-                  src={posterImage || `/api/media/${restaurant.welcomeBackgroundMediaId}`}
+                  src={posterImage || `/assets/${restaurant.welcomeBackgroundMediaId}`}
                   alt="Welcome Background"
                   className="w-full h-full object-cover absolute inset-0"
                   style={{ 
@@ -488,7 +497,7 @@ export default function WelcomePage() {
             </>
           ) : (
             <img
-              src={`/api/media/${restaurant.welcomeBackgroundMediaId}`}
+              src={`/assets/${restaurant.welcomeBackgroundMediaId}`}
               alt="Welcome Background"
               className="w-full h-full object-cover"
               style={{
@@ -523,7 +532,7 @@ export default function WelcomePage() {
           <div className={`absolute top-16 left-0 right-0 px-4 py-4 welcome-fade-in ${isLoaded ? 'animate-in' : ''}`}>
             <div className="flex items-center justify-center max-w-7xl mx-auto">
               <img
-                src={`/api/media/${restaurant.logoMediaId}`}
+                src={`/assets/${restaurant.logoMediaId}`}
                 alt="Restaurant Logo"
                 className="h-16 w-auto object-contain"
                 loading="eager"

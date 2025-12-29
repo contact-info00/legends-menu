@@ -133,10 +133,11 @@ export default function RootLayout({
                   // localStorage might not be available, continue
                 }
                 
-                // Then fetch from API and update if different
-                fetch('/api/theme')
-                  .then(response => response.json())
-                  .then(data => {
+                // Then fetch from API and update if different (with retry)
+                const fetchTheme = async (retryCount = 0) => {
+                  try {
+                    const response = await fetch('/data/theme');
+                    const data = await response.json();
                     if (data.theme && data.theme.appBg) {
                       const bgColor = data.theme.appBg;
                       applyThemeColors(bgColor);
@@ -147,10 +148,14 @@ export default function RootLayout({
                         // localStorage might not be available
                       }
                     }
-                  })
-                  .catch(e => {
+                  } catch (e) {
                     console.error('Error applying theme:', e);
-                  });
+                    if (retryCount < 1) {
+                      setTimeout(() => fetchTheme(retryCount + 1), 500);
+                    }
+                  }
+                };
+                fetchTheme();
               })();
             `,
           }}

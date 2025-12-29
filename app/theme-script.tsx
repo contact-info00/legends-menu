@@ -8,7 +8,7 @@ export function ThemeScript() {
       try {
         // Fetch theme synchronously using XMLHttpRequest (blocking)
         const xhr = new XMLHttpRequest();
-        xhr.open('GET', '/api/theme', false); // false = synchronous
+        xhr.open('GET', '/data/theme', false); // false = synchronous
         xhr.send();
         
         if (xhr.status === 200) {

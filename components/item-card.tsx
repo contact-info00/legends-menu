@@ -76,7 +76,7 @@ export function ItemCard({ item, currentLang, onItemClick, onAddToBasket, quanti
         <div className="aspect-square w-full relative">
           {item.imageMediaId ? (
             <OptimizedImage
-              src={`/api/media/${item.imageMediaId}`}
+              src={`/assets/${item.imageMediaId}`}
               alt={getLocalizedText(item, currentLang)}
               className="w-full h-full"
               aspectRatio="square"

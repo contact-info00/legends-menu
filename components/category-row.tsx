@@ -46,7 +46,7 @@ export function CategoryRow({ categories, currentLang, onCategoryClick }: Catego
             >
               {category.imageMediaId ? (
                 <img
-                  src={`/api/media/${category.imageMediaId}`}
+                  src={`/assets/${category.imageMediaId}`}
                   alt={getLocalizedText(category, currentLang)}
                   className="w-full h-full object-cover"
                   loading="lazy"

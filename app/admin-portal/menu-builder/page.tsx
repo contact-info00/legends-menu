@@ -608,7 +608,7 @@ export default function MenuBuilderPage() {
       price: item.price.toString(),
     })
     if (item.imageMediaId) {
-      setItemImagePreview(`/api/media/${item.imageMediaId}`)
+      setItemImagePreview(`/assets/${item.imageMediaId}`)
     }
   }
 
@@ -1247,7 +1247,7 @@ export default function MenuBuilderPage() {
         <div className="w-12 h-12 sm:w-16 sm:h-16 rounded bg-gray-700 overflow-hidden flex-shrink-0">
           {item.imageMediaId ? (
             <img
-              src={`/api/media/${item.imageMediaId}`}
+              src={`/assets/${item.imageMediaId}`}
               alt={item.nameEn}
               className="w-full h-full object-cover"
             />
