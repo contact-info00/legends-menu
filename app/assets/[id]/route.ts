@@ -16,19 +16,54 @@ export async function GET(
 
     // Convert Buffer to ArrayBuffer for response
     const buffer = Buffer.from(media.bytes)
+    const fileSize = media.size
 
+    // Parse Range header for video streaming (required for mobile browsers)
+    const rangeHeader = request.headers.get('range')
+    
     // Determine headers based on mime type
     const headers: Record<string, string> = {
       'Content-Type': media.mimeType,
-      'Content-Length': media.size.toString(),
+      'Accept-Ranges': 'bytes',
       'Cache-Control': 'public, max-age=31536000, immutable',
     }
 
-    // Add Accept-Ranges header for video files (required for mobile video playback)
-    if (media.mimeType.startsWith('video/')) {
-      headers['Accept-Ranges'] = 'bytes'
+    // Handle Range requests for video streaming (critical for mobile)
+    if (rangeHeader && media.mimeType.startsWith('video/')) {
+      // Parse range header (e.g., "bytes=0-1023" or "bytes=1024-")
+      const rangeMatch = rangeHeader.match(/bytes=(\d+)-(\d*)/)
+      
+      if (rangeMatch) {
+        const start = parseInt(rangeMatch[1], 10)
+        const end = rangeMatch[2] ? parseInt(rangeMatch[2], 10) : fileSize - 1
+        const chunkSize = end - start + 1
+
+        // Validate range
+        if (start >= fileSize || end >= fileSize || start > end) {
+          return new NextResponse(null, {
+            status: 416, // Range Not Satisfiable
+            headers: {
+              'Content-Range': `bytes */${fileSize}`,
+            },
+          })
+        }
+
+        // Extract the requested byte range
+        const chunk = buffer.slice(start, end + 1)
+
+        headers['Content-Range'] = `bytes ${start}-${end}/${fileSize}`
+        headers['Content-Length'] = chunkSize.toString()
+
+        return new NextResponse(chunk, {
+          status: 206, // Partial Content
+          headers,
+        })
+      }
     }
 
+    // Full file response (no range request)
+    headers['Content-Length'] = fileSize.toString()
+    
     return new NextResponse(buffer, {
       headers,
     })

@@ -314,8 +314,8 @@ export default function WelcomePage() {
                   preload="auto"
                   disablePictureInPicture
                   controls={false}
+                  crossOrigin="anonymous"
                   poster={posterImage || `/assets/${restaurant.welcomeBackgroundMediaId}`}
-                  src={`/assets/${restaurant.welcomeBackgroundMediaId}`}
                   className="w-full h-full object-cover absolute inset-0"
                   style={{ 
                     zIndex: 2, 
