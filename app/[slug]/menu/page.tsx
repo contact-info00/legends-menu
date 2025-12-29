@@ -155,8 +155,15 @@ function MenuPageContent() {
 
     const fetchRestaurant = async (retryCount = 0) => {
       try {
-        const res = await fetch('/data/restaurant')
-        if (!res.ok) throw new Error('Failed to fetch')
+        const res = await fetch(`/data/restaurant?slug=${slug}`)
+        if (!res.ok) {
+          if (res.status === 404) {
+            // Restaurant not found - redirect to 404
+            window.location.href = '/404'
+            return
+          }
+          throw new Error('Failed to fetch')
+        }
         const data = await res.json()
         setRestaurant(data)
       } catch (error) {

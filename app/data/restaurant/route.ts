@@ -1,12 +1,22 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const restaurant = await prisma.restaurant.findFirst({
+    // Require slug parameter - no fallback
+    const searchParams = request.nextUrl.searchParams
+    const slug = searchParams.get('slug')
+
+    if (!slug) {
+      return NextResponse.json({ error: 'Slug parameter is required' }, { status: 400 })
+    }
+
+    // Query by slug - no fallback to first restaurant
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { slug },
       include: {
         logo: {
           select: {

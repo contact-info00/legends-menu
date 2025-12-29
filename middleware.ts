@@ -34,16 +34,35 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // BLOCK: Reserved slugs that should not be treated as restaurant slugs
+  const reservedSlugs = [
+    'menu',
+    'admin-portal',
+    'login',
+    'signup',
+    'dashboard',
+    'pricing',
+    'about',
+    'contact',
+  ]
+
+  // Extract the first segment (potential slug)
+  const firstSegment = pathname.split('/')[1]
+
+  // Block if first segment is a reserved slug
+  if (reservedSlugs.includes(firstSegment)) {
+    return new NextResponse(null, { status: 404 })
+  }
+
   // ALLOW: Slug-prefixed routes (e.g., /legends-restaurant, /legends-restaurant/menu, /any-slug/anything)
   // Pattern: /[slug] or /[slug]/*
+  // Only allow after reserved slugs are blocked
   const slugPattern = /^\/[^\/]+(\/.*)?$/
   if (slugPattern.test(pathname)) {
     return NextResponse.next()
   }
 
   // BLOCK: All other top-level routes (return 404)
-  // This blocks routes like /menu, /login, /admin-portal, /pricing, /about, etc.
-  // These should belong to the platform project, not this digital-menu project
   return new NextResponse(null, { status: 404 })
 }
 
