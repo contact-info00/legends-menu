@@ -298,88 +298,57 @@ export default function WelcomePage() {
         >
           {/* Show video ONLY if we confirmed it's a video */}
           {backgroundMimeType?.startsWith('video/') && shouldLoadVideo && !prefersReducedMotion ? (
-            <>
-              {/* Poster/Placeholder - shows immediately, hidden when video is playing */}
-              {posterImage && (
-                <img
-                  src={posterImage}
-                  alt="Welcome Background Poster"
-                  className="absolute inset-0 w-full h-full object-cover"
-                  style={{ 
-                    zIndex: 3,
-                    position: 'absolute',
-                    inset: 0,
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    transition: 'opacity 0.5s ease-out',
-                    pointerEvents: 'none'
-                  }}
-                  loading="eager"
-                  decoding="async"
-                />
-              )}
-              {/* Video element */}
-              <video
-                ref={videoRef}
-                key={`video-${restaurant.welcomeBackgroundMediaId}-${restaurant.updatedAt || Date.now()}`}
-                autoPlay
-                muted
-                playsInline
-                loop
-                preload="auto"
-                disablePictureInPicture
-                controls={false}
-                crossOrigin="anonymous"
-                poster={posterImage ? `${posterImage}?t=${Date.now()}` : undefined}
-                className="w-full h-full object-cover absolute inset-0"
-                style={{ 
-                  zIndex: 2, 
-                  opacity: 1, 
-                  position: 'absolute',
-                  inset: 0,
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover'
-                }}
-                onLoadedMetadata={() => {
-                  // Video metadata loaded, ensure attributes and try play
-                  const v = videoRef.current
-                  if (v) {
-                    v.muted = true
-                    v.playsInline = true
-                    v.setAttribute('muted', '')
-                    v.setAttribute('playsinline', '')
-                    tryPlay()
-                  }
-                }}
-                onCanPlay={() => {
-                  // Video can play, attempt playback
+            <video
+              ref={videoRef}
+              key={`video-${restaurant.welcomeBackgroundMediaId}-${restaurant.updatedAt || Date.now()}`}
+              autoPlay
+              muted
+              playsInline
+              loop
+              preload="auto"
+              disablePictureInPicture
+              controls={false}
+              crossOrigin="anonymous"
+              poster={posterImage ? `${posterImage}?t=${Date.now()}` : undefined}
+              className="w-full h-full object-cover absolute inset-0"
+              style={{ 
+                zIndex: 2, 
+                opacity: 1, 
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover'
+              }}
+              onLoadedMetadata={() => {
+                // Video metadata loaded, ensure attributes and try play
+                const v = videoRef.current
+                if (v) {
+                  v.muted = true
+                  v.playsInline = true
+                  v.setAttribute('muted', '')
+                  v.setAttribute('playsinline', '')
                   tryPlay()
-                }}
-                onLoadedData={() => {
-                  // Video data loaded, try play
-                  tryPlay()
-                }}
-                onPlaying={(e) => {
-                  // Hide poster when video starts playing
-                  const poster = document.querySelector('img[alt="Welcome Background Poster"]') as HTMLImageElement
-                  if (poster) {
-                    poster.style.opacity = '0'
-                    poster.style.zIndex = '1'
-                  }
-                }}
-                onError={(e) => {
-                  // Log error but don't change the media type - show what was uploaded
-                  console.error('Video failed to load:', e)
-                }}
-              >
-                <source 
-                  src={`/assets/${restaurant.welcomeBackgroundMediaId}?t=${Date.now()}`} 
-                  type="video/mp4" 
-                />
-              </video>
-            </>
+                }
+              }}
+              onCanPlay={() => {
+                // Video can play, attempt playback immediately
+                tryPlay()
+              }}
+              onLoadedData={() => {
+                // Video data loaded, try play
+                tryPlay()
+              }}
+              onError={(e) => {
+                // Log error but don't change the media type - show what was uploaded
+                console.error('Video failed to load:', e)
+              }}
+            >
+              <source 
+                src={`/assets/${restaurant.welcomeBackgroundMediaId}?t=${Date.now()}`} 
+                type="video/mp4" 
+              />
+            </video>
           ) : backgroundMimeType && !backgroundMimeType.startsWith('video/') ? (
             /* Show image ONLY if we confirmed it's an image */
             <img
