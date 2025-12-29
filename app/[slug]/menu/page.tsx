@@ -630,9 +630,7 @@ function MenuPageContent() {
                         borderColor: isActive
                           ? 'var(--auto-border, rgba(255, 255, 255, 0.3))'
                           : 'var(--auto-border, rgba(255, 255, 255, 0.2))',
-                        boxShadow: isActive
-                          ? `0 0 15px var(--auto-primary-glow-subtle, rgba(128, 0, 32, 0.25)), 0 4px 6px -1px var(--auto-shadow-color, rgba(0, 0, 0, 0.3))`
-                          : 'none',
+                        boxShadow: 'none',
                         fontSize: 'var(--bottom-nav-section-size)',
                         padding: '0.4em 0.8em',
                         lineHeight: '1.2',
@@ -688,9 +686,7 @@ function MenuPageContent() {
                             borderColor: isActive
                               ? 'var(--auto-border, rgba(255, 255, 255, 0.3))'
                               : 'var(--auto-border, rgba(255, 255, 255, 0.2))',
-                            boxShadow: isActive
-                              ? `0 0 15px var(--auto-primary-glow-subtle, rgba(128, 0, 32, 0.25)), 0 4px 6px -1px var(--auto-shadow-color, rgba(0, 0, 0, 0.3))`
-                              : 'none',
+                            boxShadow: 'none',
                             fontSize: 'var(--bottom-nav-category-size)',
                             padding: '0.4em 0.8em',
                             lineHeight: '1.2',
