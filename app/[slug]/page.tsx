@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import { MapPin, Phone } from 'lucide-react'
 import { Language, languages } from '@/lib/i18n'
 
 export default function WelcomePage() {
   const router = useRouter()
+  const params = useParams()
+  const slug = params.slug as string
   const videoRef = useRef<HTMLVideoElement>(null)
   const [selectedLang, setSelectedLang] = useState<Language>('en')
   const [restaurant, setRestaurant] = useState<any>(null)
@@ -308,7 +310,7 @@ export default function WelcomePage() {
   const handleLanguageSelect = (lang: Language) => {
     setSelectedLang(lang)
     localStorage.setItem('language', lang)
-    router.push(`/menu?lang=${lang}`)
+    router.push(`/${slug}/menu?lang=${lang}`)
   }
 
   const overlayStyle = restaurant
