@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { MapPin, Phone } from 'lucide-react'
 import { Language, languages } from '@/lib/i18n'
@@ -84,16 +84,28 @@ export default function WelcomePage() {
     // Show UI immediately - don't block render
     setIsLoaded(true)
 
-    // Fetch restaurant data (non-blocking) with retry
+    // Function to fetch restaurant data
     const fetchRestaurant = async (retryCount = 0): Promise<void> => {
       try {
         // Add cache-busting to ensure fresh data
         const res = await fetch(`/data/restaurant?t=${Date.now()}`, {
           cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+          },
         })
         if (!res.ok) throw new Error('Failed to fetch')
         const data = await res.json()
-        setRestaurant(data)
+        
+        // Check if background media ID changed - if so, reset all state
+        setRestaurant((prevRestaurant) => {
+          if (prevRestaurant?.welcomeBackgroundMediaId !== data.welcomeBackgroundMediaId) {
+            setShouldLoadVideo(false)
+            setPosterImage(null)
+            setBackgroundMimeType(null)
+          }
+          return data
+        })
         
         // Reset video state first
         setShouldLoadVideo(false)
@@ -188,6 +200,29 @@ export default function WelcomePage() {
     }
     fetchRestaurant()
   }, [prefersReducedMotion])
+
+  // Refetch restaurant data when page becomes visible (after admin changes)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Page became visible, refetch to get latest data
+        fetchRestaurant()
+      }
+    }
+
+    const handleFocus = () => {
+      // Window regained focus, refetch to get latest data
+      fetchRestaurant()
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [fetchRestaurant])
 
   // Attempt autoplay on mount and when video element is ready
   useEffect(() => {
