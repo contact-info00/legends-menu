@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -25,10 +22,11 @@ export async function GET(
     const rangeHeader = request.headers.get('range')
     
     // Determine headers based on mime type
+    // Media is immutable per ID (each upload creates a new ID), so we can cache aggressively
     const headers: Record<string, string> = {
       'Content-Type': media.mimeType,
       'Accept-Ranges': 'bytes',
-      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate', // No caching to ensure immediate updates
+      'Cache-Control': 'public, max-age=31536000, immutable', // Cache for 1 year - media is immutable per ID
     }
 
     // Handle Range requests for video streaming (critical for mobile)
