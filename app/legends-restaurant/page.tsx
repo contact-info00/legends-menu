@@ -88,7 +88,7 @@ export default function WelcomePage() {
       const data = await res.json()
       
       // Check if background media ID changed - if so, reset all state
-      setRestaurant((prevRestaurant) => {
+      setRestaurant((prevRestaurant: any) => {
         if (prevRestaurant?.welcomeBackgroundMediaId !== data.welcomeBackgroundMediaId) {
           setShouldLoadVideo(false)
           setPosterImage(null)
