@@ -25,7 +25,7 @@ export async function GET(
     const headers: Record<string, string> = {
       'Content-Type': media.mimeType,
       'Accept-Ranges': 'bytes',
-      'Cache-Control': 'public, max-age=31536000, immutable',
+      'Cache-Control': 'public, max-age=3600, must-revalidate', // Cache for 1 hour, but revalidate on change
     }
 
     // Handle Range requests for video streaming (critical for mobile)

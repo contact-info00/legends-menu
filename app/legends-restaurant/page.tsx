@@ -87,7 +87,10 @@ export default function WelcomePage() {
     // Fetch restaurant data (non-blocking) with retry
     const fetchRestaurant = async (retryCount = 0): Promise<void> => {
       try {
-        const res = await fetch('/data/restaurant')
+        // Add cache-busting to ensure fresh data
+        const res = await fetch(`/data/restaurant?t=${Date.now()}`, {
+          cache: 'no-store',
+        })
         if (!res.ok) throw new Error('Failed to fetch')
         const data = await res.json()
         setRestaurant(data)
@@ -124,7 +127,11 @@ export default function WelcomePage() {
             // Fallback: Try to detect media type via HEAD request
             const fetchMediaHead = async (retryCount = 0): Promise<void> => {
               try {
-                const res = await fetch(`/assets/${data.welcomeBackgroundMediaId}`, { method: 'HEAD' })
+                // Add cache-busting to ensure fresh media type detection
+                const res = await fetch(`/assets/${data.welcomeBackgroundMediaId}?t=${Date.now()}`, { 
+                  method: 'HEAD',
+                  cache: 'no-store',
+                })
                 const contentType = res.headers.get('content-type')
                 console.log('Background media content type from HEAD:', contentType)
                 
@@ -315,7 +322,7 @@ export default function WelcomePage() {
               {/* Video element */}
               <video
                 ref={videoRef}
-                key={restaurant.welcomeBackgroundMediaId}
+                key={`video-${restaurant.welcomeBackgroundMediaId}-${restaurant.updatedAt || Date.now()}`}
                 autoPlay
                 muted
                 playsInline
@@ -324,7 +331,7 @@ export default function WelcomePage() {
                 disablePictureInPicture
                 controls={false}
                 crossOrigin="anonymous"
-                poster={posterImage || undefined}
+                poster={posterImage ? `${posterImage}?t=${Date.now()}` : undefined}
                 className="w-full h-full object-cover absolute inset-0"
                 style={{ 
                   zIndex: 2, 
@@ -368,7 +375,7 @@ export default function WelcomePage() {
                 }}
               >
                 <source 
-                  src={`/assets/${restaurant.welcomeBackgroundMediaId}`} 
+                  src={`/assets/${restaurant.welcomeBackgroundMediaId}?t=${Date.now()}`} 
                   type="video/mp4" 
                 />
               </video>
@@ -376,7 +383,8 @@ export default function WelcomePage() {
           ) : backgroundMimeType && !backgroundMimeType.startsWith('video/') ? (
             /* Show image ONLY if we confirmed it's an image */
             <img
-              src={`/assets/${restaurant.welcomeBackgroundMediaId}`}
+              key={`image-${restaurant.welcomeBackgroundMediaId}-${restaurant.updatedAt || Date.now()}`}
+              src={`/assets/${restaurant.welcomeBackgroundMediaId}?t=${Date.now()}`}
               alt="Welcome Background"
               className="w-full h-full object-cover absolute inset-0"
               style={{ 

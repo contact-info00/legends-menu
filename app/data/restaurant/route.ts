@@ -42,10 +42,11 @@ export async function GET() {
         googleMapsUrl: restaurant.googleMapsUrl,
         phoneNumber: restaurant.phoneNumber,
         brandColors: restaurant.brandColors,
+        updatedAt: restaurant.updatedAt,
       },
       {
         headers: {
-          'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=240',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
         },
       }
     )
