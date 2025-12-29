@@ -84,8 +84,8 @@ export default function WelcomePage() {
     // Show UI immediately - don't block render
     setIsLoaded(true)
 
-    // Function to fetch restaurant data
-    const fetchRestaurant = async (retryCount = 0): Promise<void> => {
+    // Function to fetch restaurant data - using useCallback so it can be called from multiple places
+    const fetchRestaurant = useCallback(async (retryCount = 0): Promise<void> => {
       try {
         // Add cache-busting to ensure fresh data
         const res = await fetch(`/data/restaurant?t=${Date.now()}`, {
@@ -199,7 +199,7 @@ export default function WelcomePage() {
       }
     }
     fetchRestaurant()
-  }, [prefersReducedMotion])
+  }, [prefersReducedMotion, fetchRestaurant])
 
   // Refetch restaurant data when page becomes visible (after admin changes)
   useEffect(() => {
