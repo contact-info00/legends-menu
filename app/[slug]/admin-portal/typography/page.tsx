@@ -407,7 +407,16 @@ export default function TypographyPage() {
             </div>
           </div>
 
-          <Button onClick={handleSave} disabled={isLoading} className="w-full" size="lg">
+          <Button 
+            onClick={handleSave} 
+            disabled={isLoading} 
+            className="w-full" 
+            size="lg"
+            style={{
+              backgroundColor: 'var(--app-bg, #400810)',
+              color: '#FFFFFF',
+            }}
+          >
             {isLoading ? 'Saving...' : 'Save Typography Settings'}
           </Button>
         </div>

@@ -216,6 +216,40 @@ function MenuPageContent() {
     }
   }, [searchParams])
 
+  // Refetch UI settings when page becomes visible (after admin changes)
+  useEffect(() => {
+    const fetchUiSettings = () => {
+      fetch('/api/ui-settings')
+        .then((res) => res.json())
+        .then((data) => {
+          setUiSettings(data)
+        })
+        .catch((error) => {
+          console.error('Error fetching UI settings:', error)
+        })
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Page became visible, refetch to get latest typography settings
+        fetchUiSettings()
+      }
+    }
+
+    const handleFocus = () => {
+      // Window regained focus, refetch to get latest typography settings
+      fetchUiSettings()
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [])
+
   // Set up Intersection Observer to track visible categories on scroll
   useEffect(() => {
     if (sections.length === 0 || !activeSectionId) return

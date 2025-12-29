@@ -120,6 +120,8 @@ model UiSettings {
   itemDescriptionSize Int      @default(14)
   itemPriceSize       Int      @default(16)
   headerLogoSize      Int      @default(32)
+  bottomNavSectionSize Int     @default(18)
+  bottomNavCategorySize Int     @default(15)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }
