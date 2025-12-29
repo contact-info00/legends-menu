@@ -4,63 +4,58 @@ import type { NextRequest } from 'next/server'
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Exclude these paths from rewrite
-  const excludedPaths = [
-    '/menu',
-    '/admin-portal',
-    '/api',
-    '/login',
-    '/_next',
-    '/favicon.ico',
-    '/robots.txt',
-    '/sitemap.xml',
-    '/legends-restaurant', // Use static route instead of dynamic welcome page
-  ]
-
-  // Check if path starts with any excluded prefix
-  const isExcluded = excludedPaths.some((excluded) => {
-    if (excluded === pathname) return true
-    if (pathname.startsWith(excluded + '/')) return true
-    return false
-  })
-
-  // Check if it's a static file (has extension)
-  const hasExtension = /\.(ico|png|jpg|jpeg|gif|svg|css|js|json|xml|txt|woff|woff2|ttf|eot)$/i.test(pathname)
-
-  // If excluded or has extension, don't rewrite
-  if (isExcluded || hasExtension) {
+  // ALLOW: Next.js internal routes
+  if (pathname.startsWith('/_next/')) {
     return NextResponse.next()
   }
 
-  // If path is root, don't rewrite (keep existing behavior)
+  // ALLOW: Static assets and API routes
+  if (
+    pathname.startsWith('/assets/') ||
+    pathname.startsWith('/data/') ||
+    pathname.startsWith('/api/')
+  ) {
+    return NextResponse.next()
+  }
+
+  // ALLOW: Static files
+  if (
+    pathname === '/favicon.ico' ||
+    pathname === '/favicon.png' ||
+    pathname === '/robots.txt' ||
+    pathname === '/sitemap.xml' ||
+    /\.(ico|png|jpg|jpeg|gif|svg|css|js|json|xml|txt|woff|woff2|ttf|eot|webp|mp4)$/i.test(pathname)
+  ) {
+    return NextResponse.next()
+  }
+
+  // ALLOW: Root "/" - return 404 (handled by app/page.tsx)
   if (pathname === '/') {
     return NextResponse.next()
   }
 
-  // Rewrite /:slug to /welcome/:slug
-  // Extract slug (everything after /)
-  const slug = pathname.slice(1) // Remove leading /
-
-  // Only rewrite if slug is not empty and doesn't contain slashes (single level)
-  if (slug && !slug.includes('/')) {
-    const url = request.nextUrl.clone()
-    url.pathname = `/welcome/${slug}`
-    return NextResponse.rewrite(url)
+  // ALLOW: Slug-prefixed routes (e.g., /legends-restaurant, /legends-restaurant/menu, /any-slug/anything)
+  // Pattern: /[slug] or /[slug]/*
+  const slugPattern = /^\/[^\/]+(\/.*)?$/
+  if (slugPattern.test(pathname)) {
+    return NextResponse.next()
   }
 
-  return NextResponse.next()
+  // BLOCK: All other top-level routes (return 404)
+  // This blocks routes like /menu, /login, /admin-portal, /pricing, /about, etc.
+  // These should belong to the platform project, not this digital-menu project
+  return new NextResponse(null, { status: 404 })
 }
 
 export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api (API routes)
+     * - api (API routes - handled in middleware)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image).*)',
   ],
 }
-
