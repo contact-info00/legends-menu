@@ -91,6 +91,11 @@ export default function WelcomePage() {
         if (!res.ok) throw new Error('Failed to fetch')
         const data = await res.json()
         setRestaurant(data)
+        
+        // Reset video state first
+        setShouldLoadVideo(false)
+        setPosterImage(null)
+        
         // Check if background is video
         if (data.welcomeBackgroundMediaId) {
           // First, check if we have mimeType from the restaurant data
@@ -108,50 +113,64 @@ export default function WelcomePage() {
               // User prefers reduced motion, use poster only
               setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
               setBackgroundMimeType('image/jpeg')
+              setShouldLoadVideo(false)
             } else {
               // It's an image
+              setBackgroundMimeType(mimeTypeFromData)
               setPosterImage(null)
+              setShouldLoadVideo(false)
             }
           } else {
-            // Fallback: Try to detect video type via HEAD request
+            // Fallback: Try to detect media type via HEAD request
             const fetchMediaHead = async (retryCount = 0): Promise<void> => {
               try {
                 const res = await fetch(`/assets/${data.welcomeBackgroundMediaId}`, { method: 'HEAD' })
                 const contentType = res.headers.get('content-type')
                 console.log('Background media content type from HEAD:', contentType)
-                setBackgroundMimeType(contentType)
                 
-                // If it's a video and user doesn't prefer reduced motion, start loading it
-                if (contentType?.startsWith('video/') && !prefersReducedMotion) {
-                  setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
-                  setShouldLoadVideo(true)
-                } else if (contentType?.startsWith('video/')) {
-                  // User prefers reduced motion, use poster only
-                  setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
-                  setBackgroundMimeType('image/jpeg')
+                if (contentType) {
+                  setBackgroundMimeType(contentType)
+                  
+                  // If it's a video and user doesn't prefer reduced motion, start loading it
+                  if (contentType.startsWith('video/') && !prefersReducedMotion) {
+                    setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
+                    setShouldLoadVideo(true)
+                  } else if (contentType.startsWith('video/')) {
+                    // User prefers reduced motion, use poster only
+                    setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
+                    setBackgroundMimeType('image/jpeg')
+                    setShouldLoadVideo(false)
+                  } else {
+                    // It's an image
+                    setPosterImage(null)
+                    setShouldLoadVideo(false)
+                  }
                 } else {
-                  // It's an image
+                  // No content type, default to image
+                  console.log('No content type detected, defaulting to image')
+                  setBackgroundMimeType('image/jpeg')
                   setPosterImage(null)
+                  setShouldLoadVideo(false)
                 }
               } catch (error) {
-                console.error('HEAD request failed, defaulting to video attempt:', error)
+                console.error('HEAD request failed, defaulting to image:', error)
                 if (retryCount < 1) {
                   setTimeout(() => fetchMediaHead(retryCount + 1), 500)
                   return
                 }
-                // If HEAD fails, try as video and let browser handle it
-                if (!prefersReducedMotion) {
-                  setBackgroundMimeType('video/mp4')
-                  setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
-                  setShouldLoadVideo(true)
-                } else {
-                  setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
-                  setBackgroundMimeType('image/jpeg')
-                }
+                // If HEAD fails, default to image (not video)
+                setBackgroundMimeType('image/jpeg')
+                setPosterImage(null)
+                setShouldLoadVideo(false)
               }
             }
             fetchMediaHead()
           }
+        } else {
+          // No background media
+          setBackgroundMimeType(null)
+          setPosterImage(null)
+          setShouldLoadVideo(false)
         }
       } catch (error) {
         console.error('Error fetching restaurant:', error)
@@ -270,11 +289,11 @@ export default function WelcomePage() {
         <div 
           className={`absolute inset-0 background-fade-in ${isLoaded ? 'animate-in' : ''}`}
         >
-          {/* Try video first if we detected it's a video, or if backgroundMimeType is null (still detecting) */}
-          {(backgroundMimeType === null || backgroundMimeType?.startsWith('video/')) ? (
+          {/* Show video ONLY if we confirmed it's a video */}
+          {backgroundMimeType?.startsWith('video/') && shouldLoadVideo && !prefersReducedMotion ? (
             <>
               {/* Poster/Placeholder - shows immediately, hidden when video is playing */}
-              {posterImage && shouldLoadVideo && !prefersReducedMotion && (
+              {posterImage && (
                 <img
                   src={posterImage}
                   alt="Welcome Background Poster"
@@ -293,104 +312,101 @@ export default function WelcomePage() {
                   decoding="async"
                 />
               )}
-              {!posterImage && (
-                <div 
-                  className="absolute inset-0"
-                  style={{ 
-                    zIndex: 1,
-                    backgroundColor: 'var(--app-bg, #400810)',
-                  }}
-                />
-              )}
-              {/* Video - loads when shouldLoadVideo is true */}
-              {shouldLoadVideo && !prefersReducedMotion && (
-                <video
-                  ref={videoRef}
-                  key={restaurant.welcomeBackgroundMediaId}
-                  autoPlay
-                  muted
-                  playsInline
-                  loop
-                  preload="auto"
-                  disablePictureInPicture
-                  controls={false}
-                  crossOrigin="anonymous"
-                  poster={posterImage || `/assets/${restaurant.welcomeBackgroundMediaId}`}
-                  className="w-full h-full object-cover absolute inset-0"
-                  style={{ 
-                    zIndex: 2, 
-                    opacity: 1, 
-                    position: 'absolute',
-                    inset: 0,
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover'
-                  }}
-                  onLoadedMetadata={() => {
-                    // Video metadata loaded, ensure attributes and try play
-                    const v = videoRef.current
-                    if (v) {
-                      v.muted = true
-                      v.playsInline = true
-                      v.setAttribute('muted', '')
-                      v.setAttribute('playsinline', '')
-                      tryPlay()
-                    }
-                  }}
-                  onCanPlay={() => {
-                    // Video can play, attempt playback
+              {/* Video element */}
+              <video
+                ref={videoRef}
+                key={restaurant.welcomeBackgroundMediaId}
+                autoPlay
+                muted
+                playsInline
+                loop
+                preload="auto"
+                disablePictureInPicture
+                controls={false}
+                crossOrigin="anonymous"
+                poster={posterImage || undefined}
+                className="w-full h-full object-cover absolute inset-0"
+                style={{ 
+                  zIndex: 2, 
+                  opacity: 1, 
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover'
+                }}
+                onLoadedMetadata={() => {
+                  // Video metadata loaded, ensure attributes and try play
+                  const v = videoRef.current
+                  if (v) {
+                    v.muted = true
+                    v.playsInline = true
+                    v.setAttribute('muted', '')
+                    v.setAttribute('playsinline', '')
                     tryPlay()
-                  }}
-                  onLoadedData={() => {
-                    // Video data loaded, try play
-                    tryPlay()
-                  }}
-                  onPlaying={(e) => {
-                    // Hide poster when video starts playing
-                    const poster = document.querySelector('img[alt="Welcome Background Poster"]') as HTMLImageElement
-                    if (poster) {
-                      poster.style.opacity = '0'
-                      poster.style.zIndex = '1'
-                    }
-                  }}
-                  onError={(e) => {
-                    // If video fails to load, fall back to image
-                    console.error('Video failed to load, falling back to image', e)
-                    setBackgroundMimeType('image/jpeg')
-                    setShouldLoadVideo(false)
-                  }}
-                >
-                  <source 
-                    src={`/assets/${restaurant.welcomeBackgroundMediaId}`} 
-                    type="video/mp4" 
-                  />
-                </video>
-              )}
-              {/* Fallback image if video detection fails or prefers reduced motion */}
-              {(prefersReducedMotion || (backgroundMimeType && !backgroundMimeType.startsWith('video/') && !shouldLoadVideo)) && (
-                <img
-                  src={posterImage || `/assets/${restaurant.welcomeBackgroundMediaId}`}
-                  alt="Welcome Background"
-                  className="w-full h-full object-cover absolute inset-0"
-                  style={{ 
-                    zIndex: 2,
-                    position: 'absolute',
-                    inset: 0,
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover'
-                  }}
-                  loading="eager"
-                  decoding="async"
+                  }
+                }}
+                onCanPlay={() => {
+                  // Video can play, attempt playback
+                  tryPlay()
+                }}
+                onLoadedData={() => {
+                  // Video data loaded, try play
+                  tryPlay()
+                }}
+                onPlaying={(e) => {
+                  // Hide poster when video starts playing
+                  const poster = document.querySelector('img[alt="Welcome Background Poster"]') as HTMLImageElement
+                  if (poster) {
+                    poster.style.opacity = '0'
+                    poster.style.zIndex = '1'
+                  }
+                }}
+                onError={(e) => {
+                  // Log error but don't change the media type - show what was uploaded
+                  console.error('Video failed to load:', e)
+                }}
+              >
+                <source 
+                  src={`/assets/${restaurant.welcomeBackgroundMediaId}`} 
+                  type="video/mp4" 
                 />
-              )}
+              </video>
             </>
-          ) : (
+          ) : backgroundMimeType && !backgroundMimeType.startsWith('video/') ? (
+            /* Show image ONLY if we confirmed it's an image */
             <img
               src={`/assets/${restaurant.welcomeBackgroundMediaId}`}
               alt="Welcome Background"
-              className="w-full h-full object-cover"
-              style={{
+              className="w-full h-full object-cover absolute inset-0"
+              style={{ 
+                zIndex: 2,
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover'
+              }}
+              loading="eager"
+              decoding="async"
+            />
+          ) : backgroundMimeType === null ? (
+            /* Loading state while detecting media type */
+            <div 
+              className="absolute inset-0"
+              style={{ 
+                zIndex: 1,
+                backgroundColor: 'var(--app-bg, #400810)',
+              }}
+            />
+          ) : (
+            /* Fallback: if prefers reduced motion for video, show poster as image */
+            <img
+              src={`/assets/${restaurant.welcomeBackgroundMediaId}`}
+              alt="Welcome Background"
+              className="w-full h-full object-cover absolute inset-0"
+              style={{ 
+                zIndex: 2,
                 position: 'absolute',
                 inset: 0,
                 width: '100%',
