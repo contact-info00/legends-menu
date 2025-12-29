@@ -41,8 +41,12 @@ export async function GET() {
       bottomNavSectionSize: (settings as any).bottomNavSectionSize ?? DEFAULT_SETTINGS.bottomNavSectionSize,
       bottomNavCategorySize: (settings as any).bottomNavCategorySize ?? DEFAULT_SETTINGS.bottomNavCategorySize,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching UI settings:', error)
+    // If error is due to missing columns, return defaults
+    if (error?.message?.includes('bottomNavSectionSize') || error?.message?.includes('bottomNavCategorySize') || error?.code === 'P2021') {
+      console.warn('UiSettings columns missing, returning defaults. Run migration to add columns.')
+    }
     // Return defaults on error
     return NextResponse.json(DEFAULT_SETTINGS)
   }

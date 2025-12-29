@@ -160,6 +160,17 @@ export async function PUT(request: NextRequest) {
     })
   } catch (error: any) {
     console.error('Error updating UI settings:', error)
+    // If error is due to missing columns, suggest running migration
+    if (error?.message?.includes('bottomNavSectionSize') || error?.message?.includes('bottomNavCategorySize') || error?.code === 'P2021') {
+      console.warn('UiSettings columns missing. Run migration: npx prisma migrate deploy')
+      return NextResponse.json(
+        {
+          error: 'Database schema mismatch',
+          message: 'Missing columns in UiSettings table. Please run: npx prisma migrate deploy',
+        },
+        { status: 500 }
+      )
+    }
     return NextResponse.json(
       {
         error: 'Internal server error',
