@@ -1625,7 +1625,7 @@ export default function MenuBuilderPage() {
       {showAddItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm">
           <div 
-            className="backdrop-blur-xl rounded-2xl sm:rounded-3xl border p-3 sm:p-6 w-full max-w-[71.25%] sm:max-w-[21rem] mx-2 sm:mx-auto my-4 sm:my-8 max-h-[95vh] overflow-y-auto"
+            className="backdrop-blur-xl rounded-2xl sm:rounded-3xl border p-3 sm:p-6 w-full max-w-[53.44%] sm:max-w-[15.75rem] mx-2 sm:mx-auto my-4 sm:my-8 max-h-[95vh] overflow-y-auto"
             style={{
               backgroundColor: 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))',
               borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
