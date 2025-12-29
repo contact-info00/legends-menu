@@ -76,33 +76,33 @@ export default function WelcomePage() {
 
   // Function to fetch restaurant data - using useCallback so it can be called from multiple places
   const fetchRestaurant = useCallback(async (retryCount = 0): Promise<void> => {
-      try {
-        // Add cache-busting to ensure fresh data
-        const res = await fetch(`/data/restaurant?t=${Date.now()}`, {
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache',
-          },
-        })
-        if (!res.ok) throw new Error('Failed to fetch')
-        const data = await res.json()
-        
-        // Check if background media ID changed - if so, reset all state
-        setRestaurant((prevRestaurant) => {
-          if (prevRestaurant?.welcomeBackgroundMediaId !== data.welcomeBackgroundMediaId) {
-            setShouldLoadVideo(false)
-            setPosterImage(null)
-            setBackgroundMimeType(null)
-          }
-          return data
-        })
-        
-        // Reset video state first
-        setShouldLoadVideo(false)
-        setPosterImage(null)
-        
-        // Check if background is video
-        if (data.welcomeBackgroundMediaId) {
+    try {
+      // Add cache-busting to ensure fresh data
+      const res = await fetch(`/data/restaurant?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      })
+      if (!res.ok) throw new Error('Failed to fetch')
+      const data = await res.json()
+      
+      // Check if background media ID changed - if so, reset all state
+      setRestaurant((prevRestaurant) => {
+        if (prevRestaurant?.welcomeBackgroundMediaId !== data.welcomeBackgroundMediaId) {
+          setShouldLoadVideo(false)
+          setPosterImage(null)
+          setBackgroundMimeType(null)
+        }
+        return data
+      })
+      
+      // Reset video state first
+      setShouldLoadVideo(false)
+      setPosterImage(null)
+      
+      // Check if background is video
+      if (data.welcomeBackgroundMediaId) {
           // First, check if we have mimeType from the restaurant data
           const mimeTypeFromData = data.welcomeBackground?.mimeType
           
@@ -175,17 +175,16 @@ export default function WelcomePage() {
             }
             fetchMediaHead()
           }
-        } else {
-          // No background media
-          setBackgroundMimeType(null)
-          setPosterImage(null)
-          setShouldLoadVideo(false)
-        }
-      } catch (error) {
-        console.error('Error fetching restaurant:', error)
-        if (retryCount < 1) {
-          setTimeout(() => fetchRestaurant(retryCount + 1), 500)
-        }
+      } else {
+        // No background media
+        setBackgroundMimeType(null)
+        setPosterImage(null)
+        setShouldLoadVideo(false)
+      }
+    } catch (error) {
+      console.error('Error fetching restaurant:', error)
+      if (retryCount < 1) {
+        setTimeout(() => fetchRestaurant(retryCount + 1), 500)
       }
     }
   }, [prefersReducedMotion])
