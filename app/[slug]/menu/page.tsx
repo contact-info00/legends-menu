@@ -198,10 +198,13 @@ function MenuPageContent() {
       }
     }
 
-    // Fetch UI settings
-    fetch('/api/ui-settings')
+    // Fetch UI settings with cache-busting
+    fetch(`/api/ui-settings?t=${Date.now()}`, {
+      cache: 'no-store',
+    })
       .then((res) => res.json())
       .then((data) => {
+        console.log('[DEBUG] Menu page - UI settings loaded:', data)
         setUiSettings(data)
       })
       .catch((error) => {
@@ -219,9 +222,16 @@ function MenuPageContent() {
   // Refetch UI settings when page becomes visible (after admin changes)
   useEffect(() => {
     const fetchUiSettings = () => {
-      fetch('/api/ui-settings')
+      fetch(`/api/ui-settings?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
+      })
         .then((res) => res.json())
         .then((data) => {
+          console.log('[DEBUG] Menu page - UI settings refetched:', data)
           setUiSettings(data)
         })
         .catch((error) => {
@@ -241,12 +251,37 @@ function MenuPageContent() {
       fetchUiSettings()
     }
 
+    // Listen for storage events (when admin saves settings in another tab)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'typography-updated') {
+        // Admin panel saved typography, refetch immediately
+        fetchUiSettings()
+      }
+    }
+
+    // Listen for custom events (when admin saves settings in same tab)
+    const handleTypographyUpdate = () => {
+      fetchUiSettings()
+    }
+
+    // Periodic refresh every 3 seconds when page is visible (to catch admin changes)
+    const intervalId = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchUiSettings()
+      }
+    }, 3000)
+
     document.addEventListener('visibilitychange', handleVisibilityChange)
     window.addEventListener('focus', handleFocus)
+    window.addEventListener('storage', handleStorageChange)
+    window.addEventListener('typography-updated', handleTypographyUpdate)
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('typography-updated', handleTypographyUpdate)
+      clearInterval(intervalId)
     }
   }, [])
 

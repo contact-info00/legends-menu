@@ -74,7 +74,13 @@ export async function GET() {
     
     if (!settings) {
       // Return defaults if no settings exist
-      return NextResponse.json(DEFAULT_SETTINGS)
+      return NextResponse.json(DEFAULT_SETTINGS, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      })
     }
 
     return NextResponse.json({
@@ -86,6 +92,12 @@ export async function GET() {
       headerLogoSize: settings.headerLogoSize,
       bottomNavSectionSize: (settings as any).bottomNavSectionSize ?? DEFAULT_SETTINGS.bottomNavSectionSize,
       bottomNavCategorySize: (settings as any).bottomNavCategorySize ?? DEFAULT_SETTINGS.bottomNavCategorySize,
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
     })
   } catch (error: any) {
     console.error('Error fetching UI settings:', error)
@@ -94,7 +106,13 @@ export async function GET() {
       console.warn('UiSettings columns missing, returning defaults. Run migration to add columns.')
     }
     // Return defaults on error
-    return NextResponse.json(DEFAULT_SETTINGS)
+    return NextResponse.json(DEFAULT_SETTINGS, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    })
   }
 }
 

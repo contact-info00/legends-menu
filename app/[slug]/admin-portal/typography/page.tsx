@@ -72,6 +72,10 @@ export default function TypographyPage() {
 
       if (response.ok) {
         toast.success('Typography settings saved successfully!')
+        // Trigger storage event so menu page can detect the update
+        localStorage.setItem('typography-updated', Date.now().toString())
+        // Also trigger a custom event for same-tab communication
+        window.dispatchEvent(new Event('typography-updated'))
       } else {
         const errorData = await response.json().catch(() => ({}))
         toast.error(errorData.message || 'Failed to save settings')
