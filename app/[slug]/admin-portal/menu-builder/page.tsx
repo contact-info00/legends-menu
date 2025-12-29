@@ -1625,11 +1625,13 @@ export default function MenuBuilderPage() {
       {showAddItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm">
           <div 
-            className="backdrop-blur-xl rounded-2xl sm:rounded-3xl border p-3 sm:p-6 w-full max-w-[37.41%] sm:max-w-[11rem] mx-2 sm:mx-auto my-4 sm:my-8 max-h-[70vh] overflow-y-auto"
+            className="backdrop-blur-xl rounded-2xl sm:rounded-3xl border p-3 sm:p-6 w-full max-w-[37.41%] sm:max-w-[11rem] mx-2 sm:mx-auto my-4 sm:my-8 max-h-[70vh] overflow-y-auto scrollbar-hide"
             style={{
               backgroundColor: 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))',
               borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
               boxShadow: `0 20px 50px -12px var(--auto-shadow-color, rgba(0, 0, 0, 0.3)), 0 8px 16px -4px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`,
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
             }}
           >
             <div className="flex items-center justify-between mb-3 sm:mb-4">
