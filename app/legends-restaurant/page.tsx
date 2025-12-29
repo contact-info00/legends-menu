@@ -21,9 +21,30 @@ export default function WelcomePage() {
   const tryPlay = () => {
     const v = videoRef.current
     if (!v) return
+    
+    // Ensure video is properly configured for mobile
     v.muted = true
     v.playsInline = true
-    v.play().catch(() => {})
+    v.setAttribute('muted', '')
+    v.setAttribute('playsinline', '')
+    
+    // Only attempt play if video has loaded metadata
+    if (v.readyState >= 1) {
+      v.play().catch((err) => {
+        console.log('Video play attempt failed:', err)
+      })
+    } else {
+      // Wait for metadata to load
+      const onReady = () => {
+        v.play().catch((err) => {
+          console.log('Video play failed after ready:', err)
+        })
+        v.removeEventListener('loadedmetadata', onReady)
+        v.removeEventListener('canplay', onReady)
+      }
+      v.addEventListener('loadedmetadata', onReady, { once: true })
+      v.addEventListener('canplay', onReady, { once: true })
+    }
   }
 
   useEffect(() => {
@@ -142,29 +163,90 @@ export default function WelcomePage() {
     fetchRestaurant()
   }, [prefersReducedMotion])
 
-  // Attempt autoplay on mount
-  useEffect(() => {
-    if (shouldLoadVideo && !prefersReducedMotion) {
-      tryPlay()
-    }
-  }, [shouldLoadVideo, prefersReducedMotion])
-
-  // Gesture unlock fallback - listen for first user interaction
+  // Attempt autoplay on mount and when video element is ready
   useEffect(() => {
     if (!shouldLoadVideo || prefersReducedMotion) return
     
-    const onFirstGesture = () => {
+    const video = videoRef.current
+    if (!video) return
+    
+    // Try immediately if video is ready
+    if (video.readyState >= 1) {
       tryPlay()
+    } else {
+      // Wait for video to be ready
+      const onReady = () => {
+        tryPlay()
+      }
+      video.addEventListener('loadedmetadata', onReady, { once: true })
+      video.addEventListener('canplay', onReady, { once: true })
+      
+      return () => {
+        video.removeEventListener('loadedmetadata', onReady)
+        video.removeEventListener('canplay', onReady)
+      }
+    }
+  }, [shouldLoadVideo, prefersReducedMotion, restaurant?.welcomeBackgroundMediaId])
+
+  // Gesture unlock fallback - listen for first user interaction anywhere on page
+  useEffect(() => {
+    if (!shouldLoadVideo || prefersReducedMotion) return
+    
+    let hasPlayed = false
+    
+    const onFirstGesture = () => {
+      if (hasPlayed) return
+      const video = videoRef.current
+      if (!video) return
+      
+      // Ensure video is ready
+      if (video.readyState >= 1) {
+        video.muted = true
+        video.playsInline = true
+        video.setAttribute('muted', '')
+        video.setAttribute('playsinline', '')
+        video.play()
+          .then(() => {
+            hasPlayed = true
+            console.log('Video started on user gesture')
+          })
+          .catch((err) => {
+            console.log('Video play failed on gesture:', err)
+          })
+      } else {
+        // Wait for video to be ready
+        const onReady = () => {
+          video.muted = true
+          video.playsInline = true
+          video.setAttribute('muted', '')
+          video.setAttribute('playsinline', '')
+          video.play()
+            .then(() => {
+              hasPlayed = true
+              console.log('Video started on user gesture (after load)')
+            })
+            .catch((err) => {
+              console.log('Video play failed on gesture:', err)
+            })
+          video.removeEventListener('loadedmetadata', onReady)
+          video.removeEventListener('canplay', onReady)
+        }
+        video.addEventListener('loadedmetadata', onReady, { once: true })
+        video.addEventListener('canplay', onReady, { once: true })
+      }
     }
     
-    window.addEventListener('touchstart', onFirstGesture, { once: true, passive: true })
-    window.addEventListener('pointerdown', onFirstGesture, { once: true, passive: true })
-    window.addEventListener('click', onFirstGesture, { once: true })
+    // Use document for better mobile compatibility
+    document.addEventListener('touchstart', onFirstGesture, { once: true, passive: true })
+    document.addEventListener('pointerdown', onFirstGesture, { once: true, passive: true })
+    document.addEventListener('click', onFirstGesture, { once: true })
+    document.addEventListener('touchend', onFirstGesture, { once: true, passive: true })
     
     return () => {
-      window.removeEventListener('touchstart', onFirstGesture)
-      window.removeEventListener('pointerdown', onFirstGesture)
-      window.removeEventListener('click', onFirstGesture)
+      document.removeEventListener('touchstart', onFirstGesture)
+      document.removeEventListener('pointerdown', onFirstGesture)
+      document.removeEventListener('click', onFirstGesture)
+      document.removeEventListener('touchend', onFirstGesture)
     }
   }, [shouldLoadVideo, prefersReducedMotion])
 
@@ -226,10 +308,10 @@ export default function WelcomePage() {
                   ref={videoRef}
                   key={restaurant.welcomeBackgroundMediaId}
                   autoPlay
-                  muted={true}
+                  muted
                   playsInline
                   loop
-                  preload="metadata"
+                  preload="auto"
                   disablePictureInPicture
                   controls={false}
                   poster={posterImage || `/assets/${restaurant.welcomeBackgroundMediaId}`}
@@ -244,7 +326,23 @@ export default function WelcomePage() {
                     height: '100%',
                     objectFit: 'cover'
                   }}
+                  onLoadedMetadata={() => {
+                    // Video metadata loaded, ensure attributes and try play
+                    const v = videoRef.current
+                    if (v) {
+                      v.muted = true
+                      v.playsInline = true
+                      v.setAttribute('muted', '')
+                      v.setAttribute('playsinline', '')
+                      tryPlay()
+                    }
+                  }}
                   onCanPlay={() => {
+                    // Video can play, attempt playback
+                    tryPlay()
+                  }}
+                  onLoadedData={() => {
+                    // Video data loaded, try play
                     tryPlay()
                   }}
                   onPlaying={(e) => {
