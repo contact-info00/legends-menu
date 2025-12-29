@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+// Force dynamic rendering to prevent caching
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // Default values (same as admin endpoint)
 const DEFAULT_SETTINGS = {
   sectionTitleSize: 22,
@@ -73,18 +77,21 @@ export async function GET() {
       }
     }
     
+    const noCacheHeaders = {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'X-Content-Type-Options': 'nosniff',
+    }
+
     if (!settings) {
       // Return defaults if no settings exist
       return NextResponse.json(DEFAULT_SETTINGS, {
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0',
-        },
+        headers: noCacheHeaders,
       })
     }
 
-    return NextResponse.json({
+    const responseData = {
       sectionTitleSize: settings.sectionTitleSize,
       categoryTitleSize: settings.categoryTitleSize,
       itemNameSize: settings.itemNameSize,
@@ -93,12 +100,12 @@ export async function GET() {
       headerLogoSize: settings.headerLogoSize,
       bottomNavSectionSize: (settings as any).bottomNavSectionSize ?? DEFAULT_SETTINGS.bottomNavSectionSize,
       bottomNavCategorySize: (settings as any).bottomNavCategorySize ?? DEFAULT_SETTINGS.bottomNavCategorySize,
-    }, {
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-      },
+    }
+    
+    console.log('[DEBUG] GET /api/ui-settings - Response data:', JSON.stringify(responseData, null, 2))
+    
+    return NextResponse.json(responseData, {
+      headers: noCacheHeaders,
     })
   } catch (error: any) {
     console.error('Error fetching UI settings:', error)
@@ -109,9 +116,10 @@ export async function GET() {
     // Return defaults on error
     return NextResponse.json(DEFAULT_SETTINGS, {
       headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
         'Pragma': 'no-cache',
         'Expires': '0',
+        'X-Content-Type-Options': 'nosniff',
       },
     })
   }
