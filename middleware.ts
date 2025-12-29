@@ -10,11 +10,15 @@ export function middleware(request: NextRequest) {
   }
 
   // ALLOW: Static assets and API routes
-  if (
-    pathname.startsWith('/assets/') ||
-    pathname.startsWith('/data/') ||
-    pathname.startsWith('/api/')
-  ) {
+  if (pathname.startsWith('/assets/')) {
+    return NextResponse.next()
+  }
+
+  if (pathname.startsWith('/data/')) {
+    return NextResponse.next()
+  }
+
+  if (pathname.startsWith('/api/')) {
     return NextResponse.next()
   }
 
@@ -23,8 +27,7 @@ export function middleware(request: NextRequest) {
     pathname === '/favicon.ico' ||
     pathname === '/favicon.png' ||
     pathname === '/robots.txt' ||
-    pathname === '/sitemap.xml' ||
-    /\.(ico|png|jpg|jpeg|gif|svg|css|js|json|xml|txt|woff|woff2|ttf|eot|webp|mp4)$/i.test(pathname)
+    pathname === '/sitemap.xml'
   ) {
     return NextResponse.next()
   }
@@ -34,35 +37,16 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // BLOCK: Reserved slugs that should not be treated as restaurant slugs
-  const reservedSlugs = [
-    'menu',
-    'admin-portal',
-    'login',
-    'signup',
-    'dashboard',
-    'pricing',
-    'about',
-    'contact',
-  ]
-
-  // Extract the first segment (potential slug)
-  const firstSegment = pathname.split('/')[1]
-
-  // Block if first segment is a reserved slug
-  if (reservedSlugs.includes(firstSegment)) {
-    return new NextResponse(null, { status: 404 })
-  }
-
-  // ALLOW: Slug-prefixed routes (e.g., /legends-restaurant, /legends-restaurant/menu, /any-slug/anything)
-  // Pattern: /[slug] or /[slug]/*
-  // Only allow after reserved slugs are blocked
-  const slugPattern = /^\/[^\/]+(\/.*)?$/
-  if (slugPattern.test(pathname)) {
+  // ALLOW: ONLY Legends slug
+  if (pathname === '/legends-restaurant') {
     return NextResponse.next()
   }
 
-  // BLOCK: All other top-level routes (return 404)
+  if (pathname.startsWith('/legends-restaurant/')) {
+    return NextResponse.next()
+  }
+
+  // BLOCK: Everything else - return 404
   return new NextResponse(null, { status: 404 })
 }
 
