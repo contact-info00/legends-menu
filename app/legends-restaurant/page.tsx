@@ -119,6 +119,7 @@ export default function WelcomePage() {
               setShouldLoadVideo(false)
             } else {
               // It's an image
+              console.log('Image detected, setting background. MimeType:', mimeTypeFromData, 'Media ID:', data.welcomeBackgroundMediaId)
               setBackgroundMimeType(mimeTypeFromData)
               setPosterImage(null)
               setShouldLoadVideo(false)
@@ -149,6 +150,7 @@ export default function WelcomePage() {
                     setShouldLoadVideo(false)
                   } else {
                     // It's an image
+                    console.log('Image detected from HEAD request. ContentType:', contentType, 'Media ID:', data.welcomeBackgroundMediaId)
                     setPosterImage(null)
                     setShouldLoadVideo(false)
                   }
