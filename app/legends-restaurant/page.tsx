@@ -88,18 +88,16 @@ export default function WelcomePage() {
       const data = await res.json()
       
       // Check if background media ID changed - if so, reset all state
-      setRestaurant((prevRestaurant: any) => {
-        if (prevRestaurant?.welcomeBackgroundMediaId !== data.welcomeBackgroundMediaId) {
-          setShouldLoadVideo(false)
-          setPosterImage(null)
-          setBackgroundMimeType(null)
-        }
-        return data
-      })
+      const mediaIdChanged = restaurant?.welcomeBackgroundMediaId !== data.welcomeBackgroundMediaId
       
-      // Reset video state first
-      setShouldLoadVideo(false)
-      setPosterImage(null)
+      if (mediaIdChanged) {
+        console.log('Background media ID changed from', restaurant?.welcomeBackgroundMediaId, 'to', data.welcomeBackgroundMediaId)
+        setShouldLoadVideo(false)
+        setPosterImage(null)
+        setBackgroundMimeType(null)
+      }
+      
+      setRestaurant(data)
       
       // Check if background is video
       if (data.welcomeBackgroundMediaId) {
@@ -224,6 +222,15 @@ export default function WelcomePage() {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('focus', handleFocus)
     }
+  }, [fetchRestaurant])
+
+  // Poll for background changes every 3 seconds (in case admin updates while page is open)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchRestaurant()
+    }, 3000) // Check every 3 seconds
+
+    return () => clearInterval(interval)
   }, [fetchRestaurant])
 
   // Attempt autoplay on mount and when video element is ready
