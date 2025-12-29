@@ -83,6 +83,8 @@ function MenuPageContent() {
     itemDescriptionSize: 14,
     itemPriceSize: 16,
     headerLogoSize: 32,
+    bottomNavSectionSize: 18,
+    bottomNavCategorySize: 15,
   })
   
   // Refs for bottom navigation auto-scroll
@@ -540,6 +542,8 @@ function MenuPageContent() {
         ['--menu-item-desc-size' as any]: `${uiSettings.itemDescriptionSize}px`,
         ['--menu-item-price-size' as any]: `${uiSettings.itemPriceSize}px`,
         ['--header-logo-size' as any]: `${uiSettings.headerLogoSize}px`,
+        ['--bottom-nav-section-size' as any]: `${uiSettings.bottomNavSectionSize ?? 18}px`,
+        ['--bottom-nav-category-size' as any]: `${uiSettings.bottomNavCategorySize ?? 15}px`,
       }}
     >
       <MenuHeader
@@ -629,7 +633,7 @@ function MenuPageContent() {
                         boxShadow: isActive
                           ? `0 0 15px var(--auto-primary-glow-subtle, rgba(128, 0, 32, 0.25)), 0 4px 6px -1px var(--auto-shadow-color, rgba(0, 0, 0, 0.3))`
                           : 'none',
-                        fontSize: 'var(--menu-item-name-size)',
+                        fontSize: 'var(--bottom-nav-section-size)',
                       }}
                       onMouseEnter={(e) => {
                         if (!isActive) {
@@ -705,7 +709,7 @@ function MenuPageContent() {
                           <span 
                             className="relative font-semibold whitespace-nowrap text-xs sm:text-sm"
                             style={{ 
-                              fontSize: 'var(--menu-item-name-size)',
+                              fontSize: 'var(--bottom-nav-category-size)',
                               color: 'var(--auto-text-primary, #FFFFFF)',
                             }}
                           >
