@@ -91,7 +91,6 @@ export default function WelcomePage() {
       const mediaIdChanged = restaurant?.welcomeBackgroundMediaId !== data.welcomeBackgroundMediaId
       
       if (mediaIdChanged) {
-        console.log('Background media ID changed from', restaurant?.welcomeBackgroundMediaId, 'to', data.welcomeBackgroundMediaId)
         // Reset state first
         setShouldLoadVideo(false)
         setPosterImage(null)
@@ -107,8 +106,6 @@ export default function WelcomePage() {
         const mimeTypeFromData = data.welcomeBackground?.mimeType
         
         if (mimeTypeFromData) {
-          console.log('Background media mimeType from API:', mimeTypeFromData, 'Media ID:', data.welcomeBackgroundMediaId)
-          
           // If it's a video and user doesn't prefer reduced motion, start loading it
           if (mimeTypeFromData.startsWith('video/') && !prefersReducedMotion) {
             setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
@@ -121,7 +118,6 @@ export default function WelcomePage() {
             setShouldLoadVideo(false)
           } else {
             // It's an image
-            console.log('Image detected, setting background. MimeType:', mimeTypeFromData, 'Media ID:', data.welcomeBackgroundMediaId)
             setBackgroundMimeType(mimeTypeFromData)
             setPosterImage(null)
             setShouldLoadVideo(false)
@@ -136,7 +132,6 @@ export default function WelcomePage() {
                 cache: 'no-store',
               })
               const contentType = res.headers.get('content-type')
-              console.log('Background media content type from HEAD:', contentType, 'Media ID:', data.welcomeBackgroundMediaId)
               
               if (contentType) {
                 // If it's a video and user doesn't prefer reduced motion, start loading it
@@ -149,17 +144,15 @@ export default function WelcomePage() {
                   setPosterImage(`/assets/${data.welcomeBackgroundMediaId}`)
                   setBackgroundMimeType('image/jpeg')
                   setShouldLoadVideo(false)
-                } else {
-                  // It's an image
-                  console.log('Image detected from HEAD request. ContentType:', contentType, 'Media ID:', data.welcomeBackgroundMediaId)
-                  setBackgroundMimeType(contentType)
+                  } else {
+                    // It's an image
+                    setBackgroundMimeType(contentType)
                   setPosterImage(null)
                   setShouldLoadVideo(false)
                 }
-              } else {
-                // No content type, default to image
-                console.log('No content type detected, defaulting to image')
-                setBackgroundMimeType('image/jpeg')
+                } else {
+                  // No content type, default to image
+                  setBackgroundMimeType('image/jpeg')
                 setPosterImage(null)
                 setShouldLoadVideo(false)
               }
