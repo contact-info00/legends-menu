@@ -126,26 +126,128 @@ export async function PUT(request: NextRequest) {
       )
     }
 
+    // Check if bottomNav columns exist, and add them if missing
+    try {
+      const columnCheck = await prisma.$queryRaw<Array<{ column_name: string }>>`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'UiSettings' 
+        AND column_name IN ('bottomNavSectionSize', 'bottomNavCategorySize')
+      `
+      
+      const existingColumns = columnCheck.map(row => row.column_name)
+      
+      // Add missing columns if they don't exist
+      if (!existingColumns.includes('bottomNavCategorySize')) {
+        await prisma.$executeRaw`
+          ALTER TABLE "UiSettings" 
+          ADD COLUMN "bottomNavCategorySize" INTEGER NOT NULL DEFAULT 15
+        `
+        console.log('Added missing column: bottomNavCategorySize')
+      }
+      
+      if (!existingColumns.includes('bottomNavSectionSize')) {
+        await prisma.$executeRaw`
+          ALTER TABLE "UiSettings" 
+          ADD COLUMN "bottomNavSectionSize" INTEGER NOT NULL DEFAULT 18
+        `
+        console.log('Added missing column: bottomNavSectionSize')
+      }
+    } catch (columnError: any) {
+      // If column check fails, log but continue (columns might already exist)
+      console.warn('Column check/creation failed, continuing with update:', columnError?.message)
+    }
+
     // Get or create settings (singleton with fixed ID)
-    let uiSettings = await prisma.uiSettings.findUnique({
-      where: { id: 'ui-settings-1' },
-    })
+    let uiSettings
+    try {
+      uiSettings = await prisma.uiSettings.findUnique({
+        where: { id: 'ui-settings-1' },
+      })
+    } catch (findError: any) {
+      // If findUnique fails due to missing columns, try raw SQL
+      if (findError?.code === 'P2022' || findError?.message?.includes('does not exist')) {
+        console.warn('Prisma query failed, using raw SQL fallback')
+        const rawResult = await prisma.$queryRaw<Array<any>>`
+          SELECT * FROM "UiSettings" WHERE id = 'ui-settings-1'
+        `
+        uiSettings = rawResult[0] || null
+      } else {
+        throw findError
+      }
+    }
     
     if (!uiSettings) {
       // Create with defaults merged with provided values
-      uiSettings = await prisma.uiSettings.create({
-        data: {
-          id: 'ui-settings-1',
-          ...DEFAULT_SETTINGS,
-          ...settings,
-        },
-      })
+      try {
+        uiSettings = await prisma.uiSettings.create({
+          data: {
+            id: 'ui-settings-1',
+            ...DEFAULT_SETTINGS,
+            ...settings,
+          },
+        })
+      } catch (createError: any) {
+        // If create fails due to missing columns, use raw SQL
+        if (createError?.code === 'P2022' || createError?.message?.includes('does not exist')) {
+          console.warn('Prisma create failed, using raw SQL fallback')
+          const allData = { ...DEFAULT_SETTINGS, ...settings }
+          const columns = Object.keys(allData).map(k => `"${k}"`).join(', ')
+          const values = Object.values(allData).map((_, i) => `$${i + 1}`).join(', ')
+          const valueArray = Object.values(allData)
+          
+          await prisma.$executeRawUnsafe(
+            `INSERT INTO "UiSettings" (id, ${columns}) VALUES ('ui-settings-1', ${values}) ON CONFLICT (id) DO UPDATE SET ${Object.keys(allData).map((k, i) => `"${k}" = $${i + 1}`).join(', ')}`,
+            ...valueArray, ...valueArray
+          )
+          
+          const rawResult = await prisma.$queryRaw<Array<any>>`
+            SELECT * FROM "UiSettings" WHERE id = 'ui-settings-1'
+          `
+          uiSettings = rawResult[0]
+        } else {
+          throw createError
+        }
+      }
     } else {
       // Update existing settings
-      uiSettings = await prisma.uiSettings.update({
-        where: { id: 'ui-settings-1' },
-        data: settings,
-      })
+      const updateData: any = { ...settings }
+      
+      try {
+        uiSettings = await prisma.uiSettings.update({
+          where: { id: 'ui-settings-1' },
+          data: updateData,
+        })
+      } catch (updateError: any) {
+        // If update fails due to missing columns, use raw SQL
+        if (updateError?.code === 'P2022' || updateError?.message?.includes('does not exist')) {
+          console.warn('Prisma update failed, using raw SQL fallback')
+          const setClauses: string[] = []
+          const values: any[] = []
+          let paramIndex = 1
+          
+          for (const [key, value] of Object.entries(updateData)) {
+            setClauses.push(`"${key}" = $${paramIndex}`)
+            values.push(value)
+            paramIndex++
+          }
+          
+          if (setClauses.length > 0) {
+            await prisma.$executeRawUnsafe(
+              `UPDATE "UiSettings" SET ${setClauses.join(', ')} WHERE id = 'ui-settings-1'`,
+              ...values
+            )
+            
+            // Fetch updated record
+            const rawResult = await prisma.$queryRaw<Array<any>>`
+              SELECT * FROM "UiSettings" WHERE id = 'ui-settings-1'
+            `
+            uiSettings = rawResult[0] || uiSettings
+          }
+        } else {
+          throw updateError
+        }
+      }
     }
 
     return NextResponse.json({
