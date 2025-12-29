@@ -87,8 +87,8 @@ export default function WelcomeClient({ slug }: WelcomeClientProps) {
       })
       if (!res.ok) {
         if (res.status === 404) {
-          // Restaurant not found - redirect to 404
-          window.location.href = '/404'
+          // Restaurant not found - stop trying (middleware ensures only valid slugs reach here)
+          console.error('Restaurant not found for slug:', slug)
           return
         }
         throw new Error('Failed to fetch')

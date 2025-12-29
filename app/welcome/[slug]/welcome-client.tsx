@@ -86,7 +86,7 @@ export default function WelcomePageClient({ restaurant }: WelcomePageClientProps
   const handleLanguageSelect = (lang: Language) => {
     setSelectedLang(lang)
     localStorage.setItem('language', lang)
-    router.push(`/menu?lang=${lang}`)
+    router.push(`/${restaurant.slug}/menu?lang=${lang}`)
   }
 
   const overlayStyle = {
