@@ -4,25 +4,25 @@ import type { NextRequest } from 'next/server'
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // ALLOW: Next.js internal routes
-  if (pathname.startsWith('/_next/')) {
+  // 1) ALWAYS ALLOW: Next.js internal routes
+  if (pathname.startsWith('/_next')) {
     return NextResponse.next()
   }
 
-  // ALLOW: Static assets and API routes
-  if (pathname.startsWith('/assets/')) {
+  // 2) ALWAYS ALLOW: Static assets and API routes
+  if (pathname.startsWith('/assets')) {
     return NextResponse.next()
   }
 
-  if (pathname.startsWith('/data/')) {
+  if (pathname.startsWith('/data')) {
     return NextResponse.next()
   }
 
-  if (pathname.startsWith('/api/')) {
+  if (pathname.startsWith('/api')) {
     return NextResponse.next()
   }
 
-  // ALLOW: Static files
+  // 3) ALWAYS ALLOW: Static files
   if (
     pathname === '/favicon.ico' ||
     pathname === '/favicon.png' ||
@@ -32,12 +32,12 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // ALLOW: Root "/" - return 404 (handled by app/page.tsx)
+  // 4) ALLOW: Root "/" - return 404 (handled by app/page.tsx)
   if (pathname === '/') {
     return NextResponse.next()
   }
 
-  // ALLOW: ONLY Legends slug
+  // 5) ALLOW: ONLY Legends restaurant pages
   if (pathname === '/legends-restaurant') {
     return NextResponse.next()
   }
@@ -46,7 +46,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // BLOCK: Everything else - return 404
+  // 6) BLOCK: Everything else - return 404
   return new NextResponse(null, { status: 404 })
 }
 
@@ -54,10 +54,8 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api (API routes - handled in middleware)
      * - _next/static (static files)
      * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
      */
     '/((?!_next/static|_next/image).*)',
   ],
