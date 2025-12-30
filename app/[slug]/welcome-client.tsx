@@ -20,7 +20,6 @@ export default function WelcomeClient({ slug }: WelcomeClientProps) {
   const [posterImage, setPosterImage] = useState<string | null>(null)
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  const [videoLoadFailed, setVideoLoadFailed] = useState(false)
   
 
   useEffect(() => {
@@ -81,7 +80,6 @@ export default function WelcomeClient({ slug }: WelcomeClientProps) {
         setShouldLoadVideo(false)
         setPosterImage(null)
         setBackgroundMimeType(null)
-        setVideoLoadFailed(false)
       }
       
       // Update restaurant data
@@ -229,8 +227,8 @@ export default function WelcomeClient({ slug }: WelcomeClientProps) {
         <div 
           className={`absolute inset-0 background-fade-in ${isLoaded ? 'animate-in' : ''}`}
         >
-          {/* Show video ONLY if we confirmed it's a video and it hasn't failed to load */}
-          {backgroundMimeType?.startsWith('video/') && shouldLoadVideo && !prefersReducedMotion && !videoLoadFailed ? (
+          {/* Show video ONLY if we confirmed it's a video */}
+          {backgroundMimeType?.startsWith('video/') && shouldLoadVideo && !prefersReducedMotion ? (
             <video
               ref={videoRef}
               key={`video-${restaurant.welcomeBackgroundMediaId}-${restaurant.updatedAt || Date.now()}`}
@@ -238,9 +236,10 @@ export default function WelcomeClient({ slug }: WelcomeClientProps) {
               muted
               playsInline
               loop
-              preload="metadata"
+              preload="auto"
               disablePictureInPicture
               controls={false}
+              crossOrigin="anonymous"
               poster={posterImage || undefined}
               className="w-full h-full object-cover absolute inset-0"
               style={{ 
@@ -267,15 +266,12 @@ export default function WelcomeClient({ slug }: WelcomeClientProps) {
                 }
               }}
               onError={() => {
-                // Video failed to load, fallback to image
-                setVideoLoadFailed(true)
-                setBackgroundMimeType('image/jpeg')
-                setShouldLoadVideo(false)
+                // Silently handle video load errors
               }}
             >
               <source 
                 src={`/assets/${restaurant.welcomeBackgroundMediaId}?v=${restaurant.updatedAt ? new Date(restaurant.updatedAt).getTime() : Date.now()}`} 
-                type={backgroundMimeType || 'video/mp4'} 
+                type="video/mp4" 
               />
             </video>
           ) : backgroundMimeType && !backgroundMimeType.startsWith('video/') ? (
