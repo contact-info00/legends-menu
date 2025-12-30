@@ -1906,7 +1906,16 @@ export default function MenuBuilderPage() {
                 />
               </div>
               <div className="flex gap-2 pt-2">
-                <Button type="submit" className="flex-1">Update Section</Button>
+                <Button 
+                  type="submit" 
+                  className="flex-1"
+                  style={{
+                    backgroundColor: 'var(--app-bg, #400810)',
+                    color: '#FFFFFF',
+                  }}
+                >
+                  Update Section
+                </Button>
                 <Button
                   type="button"
                   variant="outline"
@@ -1972,7 +1981,16 @@ export default function MenuBuilderPage() {
                 />
               </div>
               <div className="flex gap-2 pt-2">
-                <Button type="submit" className="flex-1">Update Category</Button>
+                <Button 
+                  type="submit" 
+                  className="flex-1"
+                  style={{
+                    backgroundColor: 'var(--app-bg, #400810)',
+                    color: '#FFFFFF',
+                  }}
+                >
+                  Update Category
+                </Button>
                 <Button
                   type="button"
                   variant="outline"
