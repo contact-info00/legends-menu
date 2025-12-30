@@ -151,6 +151,27 @@ export default function MenuBuilderPage() {
     }
   }, [showAddItem])
 
+  // Lock body scroll when Edit Item modal is open
+  useEffect(() => {
+    if (editingItem) {
+      // Save current scroll position
+      const scrollY = window.scrollY
+      document.body.style.position = 'fixed'
+      document.body.style.top = `-${scrollY}px`
+      document.body.style.width = '100%'
+      document.body.style.overflow = 'hidden'
+      
+      return () => {
+        // Restore scroll position when modal closes
+        document.body.style.position = ''
+        document.body.style.top = ''
+        document.body.style.width = ''
+        document.body.style.overflow = ''
+        window.scrollTo(0, scrollY)
+      }
+    }
+  }, [editingItem])
+
 
   const fetchMenuData = async () => {
     try {
@@ -1949,13 +1970,15 @@ export default function MenuBuilderPage() {
 
       {/* Edit Item Modal */}
       {editingItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm">
           <div 
-            className="backdrop-blur-xl rounded-2xl sm:rounded-3xl border p-3 sm:p-6 w-full max-w-[95%] sm:max-w-md mx-2 sm:mx-auto my-4 sm:my-8 max-h-[95vh] overflow-y-auto"
+            className="backdrop-blur-xl rounded-2xl sm:rounded-3xl border p-3 sm:p-6 w-full max-w-[37.41%] sm:max-w-[11rem] mx-2 sm:mx-auto my-4 sm:my-8 max-h-[70vh] overflow-y-auto scrollbar-hide"
             style={{
               backgroundColor: 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))',
               borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
               boxShadow: `0 20px 50px -12px var(--auto-shadow-color, rgba(0, 0, 0, 0.3)), 0 8px 16px -4px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`,
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
             }}
           >
             <div className="flex items-center justify-between mb-3 sm:mb-4">
@@ -2095,7 +2118,16 @@ export default function MenuBuilderPage() {
                 </div>
               </div>
               <div className="flex gap-2 pt-2">
-                <Button type="submit" className="flex-1 text-xs sm:text-sm py-2">Update Item</Button>
+                <Button 
+                  type="submit" 
+                  className="flex-1 text-xs sm:text-sm py-2"
+                  style={{
+                    backgroundColor: 'var(--app-bg, #400810)',
+                    color: '#FFFFFF',
+                  }}
+                >
+                  Update Item
+                </Button>
                 <Button
                   type="button"
                   variant="outline"
