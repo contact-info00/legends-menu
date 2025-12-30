@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { X, Search as SearchIcon } from 'lucide-react'
 import { Language } from '@/lib/i18n'
 import { getLocalizedText } from '@/lib/i18n'
@@ -31,6 +31,8 @@ export function SearchDrawer({
 }: SearchDrawerProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [filteredItems, setFilteredItems] = useState<Item[]>([])
+  const scrollYRef = useRef<number>(0)
+  const contentRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -46,10 +48,67 @@ export function SearchDrawer({
     setFilteredItems(filtered)
   }, [searchQuery, items, currentLang])
 
+  // Lock background scroll when search is open
+  useEffect(() => {
+    if (isOpen) {
+      // Save current scroll position
+      scrollYRef.current = window.scrollY
+      
+      // Lock body scroll
+      document.body.style.overflow = 'hidden'
+      document.body.style.position = 'fixed'
+      document.body.style.top = `-${scrollYRef.current}px`
+      document.body.style.width = '100%'
+      
+      return () => {
+        // Restore scroll position when search closes
+        document.body.style.overflow = ''
+        document.body.style.position = ''
+        document.body.style.top = ''
+        document.body.style.width = ''
+        window.scrollTo(0, scrollYRef.current)
+      }
+    }
+  }, [isOpen])
+
+  // Prevent scroll chaining - stop touch events from propagating to body
+  useEffect(() => {
+    if (!isOpen || !contentRef.current) return
+
+    const content = contentRef.current
+    
+    const handleTouchMove = (e: TouchEvent) => {
+      // Allow scrolling inside the search content
+      const target = e.target as HTMLElement
+      if (content.contains(target) || content === target) {
+        return
+      }
+      // Prevent scrolling on overlay
+      e.preventDefault()
+    }
+
+    // Use passive: false to allow preventDefault
+    document.addEventListener('touchmove', handleTouchMove, { passive: false })
+
+    return () => {
+      document.removeEventListener('touchmove', handleTouchMove)
+    }
+  }, [isOpen])
+
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50">
+    <div 
+      className="fixed inset-0 z-50"
+      style={{
+        top: 'env(safe-area-inset-top, 0)',
+        bottom: 'env(safe-area-inset-bottom, 0)',
+        left: 'env(safe-area-inset-left, 0)',
+        right: 'env(safe-area-inset-right, 0)',
+        height: '100dvh',
+        height: '100vh', // Fallback for browsers that don't support dvh
+      }}
+    >
       {/* Overlay */}
       <div
         className="absolute inset-0 bg-[var(--modal-overlay)]"
@@ -58,11 +117,19 @@ export function SearchDrawer({
 
       {/* Drawer */}
       <div 
-        className="absolute right-0 top-0 h-full w-full max-w-md backdrop-blur-xl shadow-2xl overflow-y-auto border-l"
+        ref={contentRef}
+        className="absolute right-0 top-0 w-full max-w-md backdrop-blur-xl shadow-2xl overflow-y-auto border-l overscroll-contain"
         style={{
+          height: '100%',
+          maxHeight: '100dvh',
+          maxHeight: '100vh', // Fallback
           backgroundColor: 'var(--app-bg, #400810)',
           borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
           boxShadow: `0 10px 25px -5px var(--auto-shadow-color, rgba(0, 0, 0, 0.3)), 0 4px 6px -2px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`,
+          WebkitOverflowScrolling: 'touch',
+          overscrollBehavior: 'contain',
+          paddingTop: 'env(safe-area-inset-top, 0)',
+          paddingBottom: 'env(safe-area-inset-bottom, 0)',
         }}
       >
         {/* Header */}
@@ -71,6 +138,7 @@ export function SearchDrawer({
           style={{
             backgroundColor: 'var(--app-bg, #400810)',
             borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
+            paddingTop: 'calc(1rem + env(safe-area-inset-top, 0))',
           }}
         >
           <div className="flex items-center gap-3">
@@ -85,6 +153,9 @@ export function SearchDrawer({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
+                style={{
+                  fontSize: '16px', // Prevent iOS zoom (must be >= 16px)
+                }}
                 autoFocus
               />
             </div>
@@ -99,7 +170,7 @@ export function SearchDrawer({
         </div>
 
         {/* Results */}
-        <div className="p-4">
+        <div className="p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0))' }}>
           {filteredItems.length === 0 && searchQuery ? (
             <p className="text-center text-white/60 py-8">
               No items found

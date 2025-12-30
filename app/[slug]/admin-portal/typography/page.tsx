@@ -318,8 +318,11 @@ export default function TypographyPage() {
               {/* Section Preview */}
               <div>
                 <div 
-                  className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#800020] to-[#5C0015] text-white font-medium mb-3 inline-block"
-                  style={{ fontSize: 'var(--menu-section-size)' }}
+                  className="px-3 py-1.5 rounded-lg text-white font-medium mb-3 inline-block"
+                  style={{ 
+                    fontSize: 'var(--menu-section-size)',
+                    backgroundColor: 'var(--app-bg, #400810)',
+                  }}
                 >
                   Sample Section
                 </div>
@@ -328,7 +331,10 @@ export default function TypographyPage() {
               {/* Category Preview */}
               <div>
                 <div 
-                  className="relative inline-block px-6 py-3 bg-gradient-to-r from-[#800020]/30 to-[#5C0015]/30 backdrop-blur-sm rounded-xl border border-white/20 mb-4"
+                  className="relative inline-block px-6 py-3 backdrop-blur-sm rounded-xl border border-white/20 mb-4"
+                  style={{
+                    backgroundColor: 'var(--app-bg, #400810)',
+                  }}
                 >
                   <h2 
                     className="font-bold text-white"
@@ -341,7 +347,12 @@ export default function TypographyPage() {
 
               {/* Item Card Preview */}
               <div className="rounded-2xl overflow-hidden shadow-xl border border-white/30 bg-white/10 backdrop-blur-xl p-4">
-                <div className="aspect-square w-full bg-gradient-to-br from-[#5C0015]/30 to-[#800020]/30 rounded-xl mb-3 flex items-center justify-center text-white/60">
+                <div 
+                  className="aspect-square w-full rounded-xl mb-3 flex items-center justify-center text-white/60"
+                  style={{
+                    backgroundColor: 'var(--app-bg, #400810)',
+                  }}
+                >
                   Item Image
                 </div>
                 <div className="space-y-2">
@@ -390,20 +401,31 @@ export default function TypographyPage() {
               {/* Bottom Navigation Preview */}
               <div>
                 <h3 className="text-sm font-medium text-white/80 mb-2">Bottom Navigation Preview</h3>
-                <div className="backdrop-blur-xl bg-gradient-to-r from-[#800020]/30 to-[#5C0015]/30 rounded-xl p-4 border border-white/20">
+                <div 
+                  className="backdrop-blur-xl rounded-xl p-4 border border-white/20"
+                  style={{
+                    backgroundColor: 'var(--app-bg, #400810)',
+                  }}
+                >
                   <div className="space-y-3">
                     <div className="flex gap-2 items-center justify-center">
                       <div 
-                        className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#800020] to-[#5C0015] text-white font-medium"
-                        style={{ fontSize: 'var(--bottom-nav-section-size)' }}
+                        className="px-3 py-1.5 rounded-lg text-white font-medium"
+                        style={{ 
+                          fontSize: 'var(--bottom-nav-section-size)',
+                          backgroundColor: 'var(--app-bg, #400810)',
+                        }}
                       >
                         Section
                       </div>
                     </div>
                     <div className="flex gap-2 items-center justify-center">
                       <div 
-                        className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#800020]/40 to-[#5C0015]/40 text-white font-semibold"
-                        style={{ fontSize: 'var(--bottom-nav-category-size)' }}
+                        className="px-3 py-1.5 rounded-lg text-white font-semibold"
+                        style={{ 
+                          fontSize: 'var(--bottom-nav-category-size)',
+                          backgroundColor: 'var(--app-bg, #400810)',
+                        }}
                       >
                         Category
                       </div>
