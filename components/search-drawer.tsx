@@ -106,7 +106,6 @@ export function SearchDrawer({
         left: 'env(safe-area-inset-left, 0)',
         right: 'env(safe-area-inset-right, 0)',
         height: '100dvh',
-        height: '100vh', // Fallback for browsers that don't support dvh
       }}
     >
       {/* Overlay */}
@@ -122,7 +121,6 @@ export function SearchDrawer({
         style={{
           height: '100%',
           maxHeight: '100dvh',
-          maxHeight: '100vh', // Fallback
           backgroundColor: 'var(--app-bg, #400810)',
           borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
           boxShadow: `0 10px 25px -5px var(--auto-shadow-color, rgba(0, 0, 0, 0.3)), 0 4px 6px -2px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`,
