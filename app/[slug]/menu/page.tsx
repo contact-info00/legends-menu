@@ -133,6 +133,7 @@ function MenuPageContent() {
         setSections(sectionsData)
         
         // Auto-select section: check localStorage first, then use first available
+        let selectedSectionId: string | null = null
         if (sectionsData.length > 0) {
           const storageKey = `menu-section-${slug}-${lang}`
           const savedSectionId = localStorage.getItem(storageKey)
@@ -143,19 +144,24 @@ function MenuPageContent() {
             : null
           
           if (savedSection) {
-            setActiveSectionId(savedSection.id)
+            selectedSectionId = savedSection.id
           } else {
             // Use first active section, sorted by sortOrder
             const sortedSections = sectionsData
               .filter((s: Section) => s.isActive)
               .sort((a: Section, b: Section) => (a.sortOrder || 0) - (b.sortOrder || 0))
             if (sortedSections.length > 0) {
-              setActiveSectionId(sortedSections[0].id)
+              selectedSectionId = sortedSections[0].id
               // Save to localStorage
               localStorage.setItem(storageKey, sortedSections[0].id)
             }
           }
-          setActiveCategoryId(null) // Reset active category when sections load
+          
+          // Set state synchronously to avoid race condition
+          if (selectedSectionId) {
+            setActiveSectionId(selectedSectionId)
+            setActiveCategoryId(null) // Reset active category when sections load
+          }
         }
         
         // Flatten all items for search
@@ -170,7 +176,9 @@ function MenuPageContent() {
           }
         })
         setAllItems(items)
-        setIsLoadingMenu(false)
+        
+        // Loading state will be managed by useEffect that watches sections and activeSectionId
+        // This ensures loading only ends when state is fully ready
       } catch (error) {
         console.error('Error fetching menu:', error)
         if (retryCount < 1) {
@@ -180,7 +188,7 @@ function MenuPageContent() {
         // Ensure sections is always an array even on error
         setSections([])
         setAllItems([])
-        setIsLoadingMenu(false)
+        // Loading state will be managed by useEffect (sections.length === 0 will trigger it)
         // Don't show error to user - page will just show empty state
       }
     }
@@ -246,33 +254,55 @@ function MenuPageContent() {
     }
   }, [searchParams, slug])
 
-  // Auto-select section when sections are loaded and no section is selected
+  // Auto-select section when sections are loaded and no section is selected (fallback safety)
   useEffect(() => {
-    if (isLoadingMenu || sections.length === 0) return
+    // Only run if we have sections but no active section selected
+    if (sections.length === 0 || activeSectionId) return
     
-    // If no section is selected, auto-select first available section
-    if (!activeSectionId) {
-      const sortedSections = sections
-        .filter((s: Section) => s.isActive)
-        .sort((a: Section, b: Section) => (a.sortOrder || 0) - (b.sortOrder || 0))
+    const sortedSections = sections
+      .filter((s: Section) => s.isActive)
+      .sort((a: Section, b: Section) => (a.sortOrder || 0) - (b.sortOrder || 0))
+    
+    if (sortedSections.length > 0) {
+      const storageKey = `menu-section-${slug}-${currentLang}`
+      const savedSectionId = localStorage.getItem(storageKey)
+      const savedSection = savedSectionId 
+        ? sortedSections.find((s: Section) => s.id === savedSectionId && s.isActive)
+        : null
       
-      if (sortedSections.length > 0) {
-        const storageKey = `menu-section-${slug}-${currentLang}`
-        const savedSectionId = localStorage.getItem(storageKey)
-        const savedSection = savedSectionId 
-          ? sortedSections.find((s: Section) => s.id === savedSectionId && s.isActive)
-          : null
-        
-        if (savedSection) {
-          setActiveSectionId(savedSection.id)
-        } else {
-          setActiveSectionId(sortedSections[0].id)
-          localStorage.setItem(storageKey, sortedSections[0].id)
-        }
-        setActiveCategoryId(null)
+      if (savedSection) {
+        setActiveSectionId(savedSection.id)
+      } else {
+        setActiveSectionId(sortedSections[0].id)
+        localStorage.setItem(storageKey, sortedSections[0].id)
       }
+      setActiveCategoryId(null)
     }
-  }, [sections, activeSectionId, isLoadingMenu, slug, currentLang])
+  }, [sections.length, activeSectionId, slug, currentLang])
+
+  // End loading state when we have sections AND (a section is selected OR sections are empty)
+  useEffect(() => {
+    if (!isLoadingMenu) return
+    
+    if (sections.length === 0) {
+      // No sections at all, end loading
+      setIsLoadingMenu(false)
+      return
+    }
+    
+    // We have sections - check if we need to wait for selection
+    const hasActiveSections = sections.some((s: Section) => s.isActive)
+    if (!hasActiveSections) {
+      // No active sections available, end loading (will show empty state)
+      setIsLoadingMenu(false)
+      return
+    }
+    
+    // We have active sections - wait until one is selected
+    if (activeSectionId) {
+      setIsLoadingMenu(false)
+    }
+  }, [sections, activeSectionId, isLoadingMenu])
 
   // Refetch UI settings when page becomes visible (after admin changes)
   useEffect(() => {
@@ -815,7 +845,11 @@ function MenuPageContent() {
 
       <div className="pb-20 relative z-10 w-full overflow-x-hidden" style={{ paddingBottom: '180px' }}>
         {/* Items Grid - Grouped by Category */}
-        {isLoadingMenu ? null : !activeSection ? (
+        {isLoadingMenu ? null : sections.length === 0 ? (
+          <div className="flex items-center justify-center min-h-[50vh] px-4">
+            <p className="text-white/70 text-center">No sections available.</p>
+          </div>
+        ) : !activeSection ? (
           <div className="flex items-center justify-center min-h-[50vh] px-4">
             <p className="text-white/70 text-center">No section selected. Please select a section from the navigation below.</p>
           </div>
