@@ -76,16 +76,52 @@ function MenuPageContent() {
   const [allItems, setAllItems] = useState<Item[]>([])
   const [shouldAnimateBasket, setShouldAnimateBasket] = useState(false)
   const [isFirstAdd, setIsFirstAdd] = useState(false)
-  const [uiSettings, setUiSettings] = useState({
-    sectionTitleSize: 22,
-    categoryTitleSize: 18,
-    itemNameSize: 16,
-    itemDescriptionSize: 14,
-    itemPriceSize: 16,
-    headerLogoSize: 32,
-    bottomNavSectionSize: 18,
-    bottomNavCategorySize: 15,
-  })
+  // Load UI settings from localStorage first to prevent flash
+  const getInitialUiSettings = () => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('ui-settings')
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved)
+          // Validate that all required fields exist
+          if (
+            typeof parsed.sectionTitleSize === 'number' &&
+            typeof parsed.categoryTitleSize === 'number' &&
+            typeof parsed.itemNameSize === 'number' &&
+            typeof parsed.itemDescriptionSize === 'number' &&
+            typeof parsed.itemPriceSize === 'number' &&
+            typeof parsed.headerLogoSize === 'number'
+          ) {
+            return {
+              sectionTitleSize: parsed.sectionTitleSize,
+              categoryTitleSize: parsed.categoryTitleSize,
+              itemNameSize: parsed.itemNameSize,
+              itemDescriptionSize: parsed.itemDescriptionSize,
+              itemPriceSize: parsed.itemPriceSize,
+              headerLogoSize: parsed.headerLogoSize,
+              bottomNavSectionSize: parsed.bottomNavSectionSize ?? 18,
+              bottomNavCategorySize: parsed.bottomNavCategorySize ?? 15,
+            }
+          }
+        } catch (e) {
+          console.error('Error parsing saved UI settings:', e)
+        }
+      }
+    }
+    // Default fallback
+    return {
+      sectionTitleSize: 22,
+      categoryTitleSize: 18,
+      itemNameSize: 16,
+      itemDescriptionSize: 14,
+      itemPriceSize: 16,
+      headerLogoSize: 32,
+      bottomNavSectionSize: 18,
+      bottomNavCategorySize: 15,
+    }
+  }
+
+  const [uiSettings, setUiSettings] = useState(getInitialUiSettings)
   
   // Refs for bottom navigation auto-scroll
   const categoryNavContainerRef = useRef<HTMLDivElement>(null)
@@ -208,6 +244,8 @@ function MenuPageContent() {
       .then((data) => {
         console.log('[DEBUG] Menu page - UI settings loaded:', data)
         setUiSettings(data)
+        // Save to localStorage to prevent flash on next page load
+        localStorage.setItem('ui-settings', JSON.stringify(data))
       })
       .catch((error) => {
         console.error('Error fetching UI settings:', error)
@@ -235,6 +273,8 @@ function MenuPageContent() {
         .then((data) => {
           console.log('[DEBUG] Menu page - UI settings refetched:', data)
           setUiSettings(data)
+          // Save to localStorage to prevent flash on next page load
+          localStorage.setItem('ui-settings', JSON.stringify(data))
         })
         .catch((error) => {
           console.error('Error fetching UI settings:', error)
