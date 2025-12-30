@@ -688,8 +688,8 @@ function MenuPageContent() {
                               : 'var(--auto-border, rgba(255, 255, 255, 0.2))',
                             boxShadow: 'none',
                             fontSize: 'var(--bottom-nav-category-size)',
-                            padding: '0.4em 0.8em',
-                            lineHeight: '1.2',
+                            padding: '0.25em 0.8em',
+                            lineHeight: '1.1',
                           }}
                           onMouseEnter={(e) => {
                             if (!isActive) {
@@ -710,7 +710,6 @@ function MenuPageContent() {
                           <span 
                             className="relative font-semibold whitespace-nowrap"
                             style={{ 
-                              fontSize: 'var(--bottom-nav-category-size)',
                               color: 'var(--auto-text-primary, #FFFFFF)',
                               display: 'flex',
                               alignItems: 'center',
