@@ -131,9 +131,8 @@ export default function WelcomePageClient({ restaurant }: WelcomePageClientProps
                       target.style.opacity = '1'
                     }, 100)
                   }}
-                  onError={(e) => {
+                  onError={() => {
                     // If video fails to load, fall back to image
-                    console.error('Video failed to load, falling back to image')
                     setBackgroundMimeType('image/jpeg')
                     setShouldLoadVideo(false)
                   }}

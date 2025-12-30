@@ -20,6 +20,7 @@ export default function WelcomeClient({ slug }: WelcomeClientProps) {
   const [posterImage, setPosterImage] = useState<string | null>(null)
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [videoLoadFailed, setVideoLoadFailed] = useState(false)
   
 
   useEffect(() => {
@@ -66,17 +67,6 @@ export default function WelcomeClient({ slug }: WelcomeClientProps) {
       }
       const data = await res.json()
       
-      // DEBUG: Log restaurant data to see what we received
-      console.log('[DEBUG] Welcome page - Restaurant data received:', {
-        hasLogo: !!data.logoMediaId,
-        hasBackground: !!data.welcomeBackgroundMediaId,
-        hasWelcomeText: !!data.welcomeTextEn,
-        logoMediaId: data.logoMediaId,
-        welcomeBackgroundMediaId: data.welcomeBackgroundMediaId,
-        welcomeTextEn: data.welcomeTextEn,
-        fullData: data,
-      })
-      
       // Ensure restaurant data is set even if media fields are null
       if (!data) {
         console.error('[ERROR] Welcome page - No restaurant data received')
@@ -91,6 +81,7 @@ export default function WelcomeClient({ slug }: WelcomeClientProps) {
         setShouldLoadVideo(false)
         setPosterImage(null)
         setBackgroundMimeType(null)
+        setVideoLoadFailed(false)
       }
       
       // Update restaurant data
@@ -238,8 +229,8 @@ export default function WelcomeClient({ slug }: WelcomeClientProps) {
         <div 
           className={`absolute inset-0 background-fade-in ${isLoaded ? 'animate-in' : ''}`}
         >
-          {/* Show video ONLY if we confirmed it's a video */}
-          {backgroundMimeType?.startsWith('video/') && shouldLoadVideo && !prefersReducedMotion ? (
+          {/* Show video ONLY if we confirmed it's a video and it hasn't failed to load */}
+          {backgroundMimeType?.startsWith('video/') && shouldLoadVideo && !prefersReducedMotion && !videoLoadFailed ? (
             <video
               ref={videoRef}
               key={`video-${restaurant.welcomeBackgroundMediaId}-${restaurant.updatedAt || Date.now()}`}
@@ -247,10 +238,9 @@ export default function WelcomeClient({ slug }: WelcomeClientProps) {
               muted
               playsInline
               loop
-              preload="auto"
+              preload="metadata"
               disablePictureInPicture
               controls={false}
-              crossOrigin="anonymous"
               poster={posterImage || undefined}
               className="w-full h-full object-cover absolute inset-0"
               style={{ 
@@ -276,14 +266,16 @@ export default function WelcomeClient({ slug }: WelcomeClientProps) {
                   v.play().catch(() => {})
                 }
               }}
-              onError={(e) => {
-                // Log error but don't change the media type - show what was uploaded
-                console.error('Video failed to load:', e)
+              onError={() => {
+                // Video failed to load, fallback to image
+                setVideoLoadFailed(true)
+                setBackgroundMimeType('image/jpeg')
+                setShouldLoadVideo(false)
               }}
             >
               <source 
                 src={`/assets/${restaurant.welcomeBackgroundMediaId}?v=${restaurant.updatedAt ? new Date(restaurant.updatedAt).getTime() : Date.now()}`} 
-                type="video/mp4" 
+                type={backgroundMimeType || 'video/mp4'} 
               />
             </video>
           ) : backgroundMimeType && !backgroundMimeType.startsWith('video/') ? (
