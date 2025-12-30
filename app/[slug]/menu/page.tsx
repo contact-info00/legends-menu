@@ -632,8 +632,8 @@ function MenuPageContent() {
                           : 'var(--auto-border, rgba(255, 255, 255, 0.2))',
                         boxShadow: 'none',
                         fontSize: 'var(--bottom-nav-section-size)',
-                        padding: '0.1em 0.8em',
-                        lineHeight: '1',
+                        padding: '0.25em 0.8em',
+                        lineHeight: '1.1',
                       }}
                       onMouseEnter={(e) => {
                         if (!isActive) {
