@@ -75,10 +75,13 @@ export function SearchDrawer({
         >
           <div className="flex items-center gap-3">
             <div className="relative flex-1">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/60" />
+              <SearchIcon 
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" 
+                style={{ color: 'rgba(255, 255, 255, 0.6)' }}
+              />
               <Input
                 type="text"
-                placeholder="Type a command or search…"
+                placeholder="Search menu items..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
