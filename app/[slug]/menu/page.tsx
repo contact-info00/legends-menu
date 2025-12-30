@@ -67,6 +67,7 @@ function MenuPageContent() {
   const [sections, setSections] = useState<Section[]>([])
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null)
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null)
+  const [isLoadingMenu, setIsLoadingMenu] = useState(true)
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
   const [isItemModalOpen, setIsItemModalOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -106,6 +107,7 @@ function MenuPageContent() {
     // Fetch data with retry
     const fetchMenu = async (retryCount = 0) => {
       try {
+        setIsLoadingMenu(true)
         const res = await fetch('/data/menu')
         if (!res.ok) {
           throw new Error(`Failed to fetch menu: ${res.status} ${res.statusText}`)
@@ -130,8 +132,29 @@ function MenuPageContent() {
         }
         setSections(sectionsData)
         
+        // Auto-select section: check localStorage first, then use first available
         if (sectionsData.length > 0) {
-          setActiveSectionId(sectionsData[0].id)
+          const storageKey = `menu-section-${slug}-${lang}`
+          const savedSectionId = localStorage.getItem(storageKey)
+          
+          // Check if saved section still exists in fetched sections
+          const savedSection = savedSectionId 
+            ? sectionsData.find((s: Section) => s.id === savedSectionId && s.isActive)
+            : null
+          
+          if (savedSection) {
+            setActiveSectionId(savedSection.id)
+          } else {
+            // Use first active section, sorted by sortOrder
+            const sortedSections = sectionsData
+              .filter((s: Section) => s.isActive)
+              .sort((a: Section, b: Section) => (a.sortOrder || 0) - (b.sortOrder || 0))
+            if (sortedSections.length > 0) {
+              setActiveSectionId(sortedSections[0].id)
+              // Save to localStorage
+              localStorage.setItem(storageKey, sortedSections[0].id)
+            }
+          }
           setActiveCategoryId(null) // Reset active category when sections load
         }
         
@@ -147,6 +170,7 @@ function MenuPageContent() {
           }
         })
         setAllItems(items)
+        setIsLoadingMenu(false)
       } catch (error) {
         console.error('Error fetching menu:', error)
         if (retryCount < 1) {
@@ -156,6 +180,7 @@ function MenuPageContent() {
         // Ensure sections is always an array even on error
         setSections([])
         setAllItems([])
+        setIsLoadingMenu(false)
         // Don't show error to user - page will just show empty state
       }
     }
@@ -219,7 +244,35 @@ function MenuPageContent() {
         detectOverflow()
       }, 500)
     }
-  }, [searchParams])
+  }, [searchParams, slug])
+
+  // Auto-select section when sections are loaded and no section is selected
+  useEffect(() => {
+    if (isLoadingMenu || sections.length === 0) return
+    
+    // If no section is selected, auto-select first available section
+    if (!activeSectionId) {
+      const sortedSections = sections
+        .filter((s: Section) => s.isActive)
+        .sort((a: Section, b: Section) => (a.sortOrder || 0) - (b.sortOrder || 0))
+      
+      if (sortedSections.length > 0) {
+        const storageKey = `menu-section-${slug}-${currentLang}`
+        const savedSectionId = localStorage.getItem(storageKey)
+        const savedSection = savedSectionId 
+          ? sortedSections.find((s: Section) => s.id === savedSectionId && s.isActive)
+          : null
+        
+        if (savedSection) {
+          setActiveSectionId(savedSection.id)
+        } else {
+          setActiveSectionId(sortedSections[0].id)
+          localStorage.setItem(storageKey, sortedSections[0].id)
+        }
+        setActiveCategoryId(null)
+      }
+    }
+  }, [sections, activeSectionId, isLoadingMenu, slug, currentLang])
 
   // Refetch UI settings when page becomes visible (after admin changes)
   useEffect(() => {
@@ -620,6 +673,9 @@ function MenuPageContent() {
                       onClick={() => {
                         setActiveSectionId(section.id)
                         setActiveCategoryId(null) // Reset active category when section changes
+                        // Save selection to localStorage
+                        const storageKey = `menu-section-${slug}-${currentLang}`
+                        localStorage.setItem(storageKey, section.id)
                       }}
                       className="flex-shrink-0 relative group"
                     >
@@ -759,7 +815,7 @@ function MenuPageContent() {
 
       <div className="pb-20 relative z-10 w-full overflow-x-hidden" style={{ paddingBottom: '180px' }}>
         {/* Items Grid - Grouped by Category */}
-        {!activeSection ? (
+        {isLoadingMenu ? null : !activeSection ? (
           <div className="flex items-center justify-center min-h-[50vh] px-4">
             <p className="text-white/70 text-center">No section selected. Please select a section from the navigation below.</p>
           </div>
