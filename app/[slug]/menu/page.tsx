@@ -163,44 +163,28 @@ function MenuPageContent() {
 
     const fetchRestaurant = async (retryCount = 0) => {
       try {
-        const res = await fetch(`/data/restaurant?slug=${slug}`, {
-          cache: 'no-store',
-        })
+        const res = await fetch(`/data/restaurant?slug=${slug}`)
         if (!res.ok) {
           if (res.status === 404) {
             // Restaurant not found - stop trying (middleware ensures only valid slugs reach here)
-            if (process.env.NODE_ENV === 'development') {
-              console.error('Restaurant not found for slug:', slug)
-            }
+            console.error('Restaurant not found for slug:', slug)
             return
           }
-          // Retry on 500 errors (server errors)
-          if (res.status === 500 && retryCount < 2) {
-            const delay = Math.min(500 * Math.pow(2, retryCount), 2000) // Exponential backoff
-            setTimeout(() => fetchRestaurant(retryCount + 1), delay)
-            return
-          }
-          throw new Error(`Failed to fetch: ${res.status}`)
+          throw new Error('Failed to fetch')
         }
         const data = await res.json()
         
         // DEBUG: Log restaurant data to see what we received
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[DEBUG] Menu page - Restaurant data received:', {
-            hasLogo: !!data.logoMediaId,
-            logoMediaId: data.logoMediaId,
-          })
-        }
+        console.log('[DEBUG] Menu page - Restaurant data received:', {
+          hasLogo: !!data.logoMediaId,
+          logoMediaId: data.logoMediaId,
+        })
         
         setRestaurant(data)
       } catch (error) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Error fetching restaurant:', error)
-        }
-        // Retry on network errors or other errors
-        if (retryCount < 2) {
-          const delay = Math.min(500 * Math.pow(2, retryCount), 2000) // Exponential backoff
-          setTimeout(() => fetchRestaurant(retryCount + 1), delay)
+        console.error('Error fetching restaurant:', error)
+        if (retryCount < 1) {
+          setTimeout(() => fetchRestaurant(retryCount + 1), 500)
         }
       }
     }
