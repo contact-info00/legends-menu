@@ -21,18 +21,8 @@ export function FloatingActionBar({
     <div className="relative px-2 sm:px-4 py-4 w-full overflow-x-hidden" style={{ zIndex: 10 }}>
       <div className="max-w-7xl mx-auto w-full">
         <div className="relative inline-block w-full max-w-full">
-          {/* Box container for icons */}
-          <div 
-            className="relative px-3 sm:px-6 py-3 backdrop-blur-sm rounded-xl border w-full"
-            style={{
-              backgroundColor: 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))',
-              borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
-              boxShadow: `0 0 20px var(--auto-primary-glow, rgba(128, 0, 32, 0.35)), 0 10px 25px -5px var(--auto-shadow-color, rgba(0, 0, 0, 0.3)), 0 4px 6px -2px var(--auto-shadow-color-light, rgba(0, 0, 0, 0.1))`,
-              overflow: 'visible',
-            }}
-          >
-            {/* Buttons - Horizontal layout */}
-            <div className="flex gap-1.5 sm:gap-2 items-center relative justify-between w-full" style={{ overflow: 'visible' }}>
+          {/* Buttons - Horizontal layout */}
+          <div className="flex gap-1.5 sm:gap-2 items-center relative justify-between w-full" style={{ overflow: 'visible' }}>
               {/* Search icon - larger box, icon on left with text */}
               <button
                 onClick={onSearchClick}
@@ -63,7 +53,7 @@ export function FloatingActionBar({
               <div className="flex gap-1.5 sm:gap-2 items-center flex-shrink-0" style={{ overflow: 'visible' }}>
                 <button
                   onClick={onFeedbackClick}
-                  className="p-1.5 rounded-lg transition-all backdrop-blur-sm border w-10 h-10 flex items-center justify-center"
+                  className="p-1.5 rounded-lg transition-all backdrop-blur-sm border w-8 h-8 flex items-center justify-center"
                   style={{
                     backgroundColor: 'var(--auto-surface-bg-2, rgba(255, 255, 255, 0.05))',
                     borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.2))',
@@ -83,7 +73,7 @@ export function FloatingActionBar({
                 >
                   <MessageSquare className="w-6 h-6" style={{ color: 'var(--auto-text-primary, #FFFFFF)' }} />
                 </button>
-                <div className="w-10 h-10" style={{ overflow: 'visible' }}>
+                <div className="w-8 h-8" style={{ overflow: 'visible' }}>
                   <LanguageSwitcher
                     currentLang={currentLang}
                     onLanguageChange={onLanguageChange}
@@ -91,7 +81,6 @@ export function FloatingActionBar({
                 </div>
               </div>
             </div>
-          </div>
         </div>
       </div>
     </div>
