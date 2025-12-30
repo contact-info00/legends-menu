@@ -115,21 +115,6 @@ function MenuPageContent() {
         const data = await res.json()
         // Ensure sections is always an array
         const sectionsData = Array.isArray(data?.sections) ? data.sections : []
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Menu data loaded:', { 
-            sectionsCount: sectionsData.length,
-            sections: sectionsData.map((s: Section) => ({
-              id: s.id,
-              name: s.nameEn,
-              categoriesCount: s.categories?.length || 0,
-              categories: s.categories?.map((c: Category) => ({
-                id: c.id,
-                name: c.nameEn,
-                itemsCount: c.items?.length || 0
-              }))
-            }))
-          })
-        }
         setSections(sectionsData)
         
         // Auto-select section: check localStorage first, then use first available
@@ -206,13 +191,6 @@ function MenuPageContent() {
           throw new Error('Failed to fetch')
         }
         const data = await res.json()
-        
-        // DEBUG: Log restaurant data to see what we received
-        console.log('[DEBUG] Menu page - Restaurant data received:', {
-          hasLogo: !!data.logoMediaId,
-          logoMediaId: data.logoMediaId,
-        })
-        
         setRestaurant(data)
       } catch (error) {
         console.error('Error fetching restaurant:', error)
@@ -239,7 +217,6 @@ function MenuPageContent() {
     })
       .then((res) => res.json())
       .then((data) => {
-        console.log('[DEBUG] Menu page - UI settings loaded:', data)
         setUiSettings(data)
       })
       .catch((error) => {
@@ -316,7 +293,6 @@ function MenuPageContent() {
       })
         .then((res) => res.json())
         .then((data) => {
-          console.log('[DEBUG] Menu page - UI settings refetched:', data)
           setUiSettings(data)
         })
         .catch((error) => {
@@ -586,17 +562,6 @@ function MenuPageContent() {
         .filter((group) => group.items.length > 0)
     : []
 
-  // Debug logging
-  useEffect(() => {
-    if (activeSection && process.env.NODE_ENV === 'development') {
-      console.log('Active section:', {
-        id: activeSection.id,
-        name: activeSection.nameEn,
-        categoriesCount: activeSection.categories?.length || 0,
-        itemsByCategoryCount: itemsByCategory.length
-      })
-    }
-  }, [activeSection, itemsByCategory])
 
   const handleCategoryClick = (categoryId: string) => {
     setActiveCategoryId(categoryId)
