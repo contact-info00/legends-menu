@@ -324,11 +324,13 @@ async function main() {
     create: {
       id: 'ui-settings-1',
       sectionTitleSize: 22,
-      categoryTitleSize: 18,
-      itemNameSize: 16,
+      categoryTitleSize: 16,
+      itemNameSize: 14,
       itemDescriptionSize: 14,
       itemPriceSize: 16,
       headerLogoSize: 32,
+      bottomNavSectionSize: 13,
+      bottomNavCategorySize: 13,
     },
   })
 

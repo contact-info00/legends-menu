@@ -23,13 +23,13 @@ export default function TypographyPage() {
   const slug = params.slug as string
   const [settings, setSettings] = useState<UiSettings>({
     sectionTitleSize: 22,
-    categoryTitleSize: 18,
-    itemNameSize: 16,
+    categoryTitleSize: 16,
+    itemNameSize: 14,
     itemDescriptionSize: 14,
     itemPriceSize: 16,
     headerLogoSize: 32,
-    bottomNavSectionSize: 18,
-    bottomNavCategorySize: 15,
+    bottomNavSectionSize: 13,
+    bottomNavCategorySize: 13,
   })
   const [inputValues, setInputValues] = useState<Record<string, string>>({})
   const [isLoading, setIsLoading] = useState(false)
@@ -52,8 +52,8 @@ export default function TypographyPage() {
           itemDescriptionSize: String(data.itemDescriptionSize),
           itemPriceSize: String(data.itemPriceSize),
           headerLogoSize: String(data.headerLogoSize || 32),
-          bottomNavSectionSize: String(data.bottomNavSectionSize || 18),
-          bottomNavCategorySize: String(data.bottomNavCategorySize || 15),
+          bottomNavSectionSize: String(data.bottomNavSectionSize || 13),
+          bottomNavCategorySize: String(data.bottomNavCategorySize || 13),
         })
       }
     } catch (error) {

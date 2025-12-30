@@ -78,13 +78,13 @@ function MenuPageContent() {
   const [isFirstAdd, setIsFirstAdd] = useState(false)
   const [uiSettings, setUiSettings] = useState({
     sectionTitleSize: 22,
-    categoryTitleSize: 18,
-    itemNameSize: 16,
+    categoryTitleSize: 16,
+    itemNameSize: 14,
     itemDescriptionSize: 14,
     itemPriceSize: 16,
     headerLogoSize: 32,
-    bottomNavSectionSize: 18,
-    bottomNavCategorySize: 15,
+    bottomNavSectionSize: 13,
+    bottomNavCategorySize: 13,
   })
   
   // Refs for bottom navigation auto-scroll

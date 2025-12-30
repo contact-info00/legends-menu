@@ -9,13 +9,13 @@ export const revalidate = 0
 // Default values
 const DEFAULT_SETTINGS = {
   sectionTitleSize: 22,
-  categoryTitleSize: 18,
-  itemNameSize: 16,
+  categoryTitleSize: 16,
+  itemNameSize: 14,
   itemDescriptionSize: 14,
   itemPriceSize: 16,
   headerLogoSize: 32,
-  bottomNavSectionSize: 18,
-  bottomNavCategorySize: 15,
+  bottomNavSectionSize: 13,
+  bottomNavCategorySize: 13,
 }
 
 export async function GET() {
@@ -148,7 +148,7 @@ export async function PUT(request: NextRequest) {
       if (!existingColumns.includes('bottomNavCategorySize')) {
         await prisma.$executeRaw`
           ALTER TABLE "UiSettings" 
-          ADD COLUMN "bottomNavCategorySize" INTEGER NOT NULL DEFAULT 15
+          ADD COLUMN "bottomNavCategorySize" INTEGER NOT NULL DEFAULT 13
         `
         console.log('Added missing column: bottomNavCategorySize')
       }
@@ -156,7 +156,7 @@ export async function PUT(request: NextRequest) {
       if (!existingColumns.includes('bottomNavSectionSize')) {
         await prisma.$executeRaw`
           ALTER TABLE "UiSettings" 
-          ADD COLUMN "bottomNavSectionSize" INTEGER NOT NULL DEFAULT 18
+          ADD COLUMN "bottomNavSectionSize" INTEGER NOT NULL DEFAULT 13
         `
         console.log('Added missing column: bottomNavSectionSize')
       }

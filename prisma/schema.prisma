@@ -115,13 +115,13 @@ model Media {
 model UiSettings {
   id                  String   @id @default("ui-settings-1")
   sectionTitleSize    Int      @default(22)
-  categoryTitleSize   Int      @default(18)
-  itemNameSize        Int      @default(16)
+  categoryTitleSize   Int      @default(16)
+  itemNameSize        Int      @default(14)
   itemDescriptionSize Int      @default(14)
   itemPriceSize       Int      @default(16)
   headerLogoSize      Int      @default(32)
-  bottomNavSectionSize Int     @default(18)
-  bottomNavCategorySize Int     @default(15)
+  bottomNavSectionSize Int     @default(13)
+  bottomNavCategorySize Int     @default(13)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }
