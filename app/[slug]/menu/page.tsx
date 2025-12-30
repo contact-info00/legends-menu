@@ -621,34 +621,51 @@ function MenuPageContent() {
                         setActiveSectionId(section.id)
                         setActiveCategoryId(null) // Reset active category when section changes
                       }}
-                      className="flex-shrink-0 rounded-lg font-medium whitespace-nowrap transition-colors duration-300 backdrop-blur-sm border flex items-center justify-center"
-                      style={{
-                        backgroundColor: isActive 
-                          ? 'var(--auto-lighter-surface, rgba(255, 255, 255, 0.15))' 
-                          : 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))',
-                        color: 'var(--auto-text-primary, #FFFFFF)',
-                        borderColor: isActive
-                          ? 'var(--auto-border, rgba(255, 255, 255, 0.3))'
-                          : 'var(--auto-border, rgba(255, 255, 255, 0.2))',
-                        boxShadow: 'none',
-                        fontSize: 'var(--bottom-nav-section-size)',
-                        padding: '0.25em 0.8em',
-                        lineHeight: '1.1',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isActive) {
-                          e.currentTarget.style.backgroundColor = 'var(--auto-surface-bg-2, rgba(255, 255, 255, 0.15))'
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isActive) {
-                          e.currentTarget.style.backgroundColor = 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))'
-                        } else {
-                          e.currentTarget.style.backgroundColor = 'var(--auto-lighter-surface, rgba(255, 255, 255, 0.15))'
-                        }
-                      }}
+                      className="flex-shrink-0 relative group"
                     >
-                      {getLocalizedText(section, currentLang)}
+                      {/* Section button with same structure as category */}
+                      <div 
+                        className="relative backdrop-blur-sm rounded-lg border transition-colors duration-300 flex items-center justify-center"
+                        style={{
+                          backgroundColor: isActive 
+                            ? 'var(--auto-lighter-surface, rgba(255, 255, 255, 0.15))' 
+                            : 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))',
+                          borderColor: isActive
+                            ? 'var(--auto-border, rgba(255, 255, 255, 0.3))'
+                            : 'var(--auto-border, rgba(255, 255, 255, 0.2))',
+                          boxShadow: 'none',
+                          fontSize: 'var(--bottom-nav-section-size)',
+                          padding: '0.25em 0.8em',
+                          lineHeight: '1.1',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isActive) {
+                            e.currentTarget.style.backgroundColor = 'var(--auto-surface-bg-2, rgba(255, 255, 255, 0.15))'
+                            e.currentTarget.style.borderColor = 'var(--auto-border, rgba(255, 255, 255, 0.3))'
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isActive) {
+                            e.currentTarget.style.backgroundColor = 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))'
+                            e.currentTarget.style.borderColor = 'var(--auto-border, rgba(255, 255, 255, 0.2))'
+                          } else {
+                            e.currentTarget.style.backgroundColor = 'var(--auto-lighter-surface, rgba(255, 255, 255, 0.15))'
+                            e.currentTarget.style.borderColor = 'var(--auto-border, rgba(255, 255, 255, 0.3))'
+                          }
+                        }}
+                      >
+                        <span 
+                          className="relative font-semibold whitespace-nowrap"
+                          style={{ 
+                            color: 'var(--auto-text-primary, #FFFFFF)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          {getLocalizedText(section, currentLang)}
+                        </span>
+                      </div>
                     </button>
                   )
                 })}
