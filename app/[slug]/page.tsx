@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+import { ensureRestaurantWelcomeBgMimeTypeColumn, ensureRestaurantSocialMediaColumns } from '@/lib/ensure-columns'
 import { WelcomeClient } from './welcome-client'
 import { WelcomeLogo } from './welcome-logo'
 import { WelcomeText } from './welcome-text'
@@ -21,7 +22,9 @@ export default async function WelcomePage({ params }: PageProps) {
   const { slug } = params
 
   try {
-    // Fetch restaurant data directly server-side (fast, no loading state)
+    await ensureRestaurantWelcomeBgMimeTypeColumn(prisma)
+    await ensureRestaurantSocialMediaColumns(prisma)
+
     const restaurant = await prisma.restaurant.findUnique({
       where: { slug },
       select: {
@@ -90,6 +93,6 @@ export default async function WelcomePage({ params }: PageProps) {
     )
   } catch (error) {
     console.error('[ERROR] Welcome page - Error fetching restaurant:', error)
-    notFound()
+    throw error
   }
 }
