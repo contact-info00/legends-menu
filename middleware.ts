@@ -4,6 +4,14 @@ import { isReservedSlug } from '@/lib/restaurant-utils'
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+  const host = request.headers.get('host') || ''
+
+  // Redirect www to apex domain (menuzin.com)
+  if (host === 'www.menuzin.com') {
+    const url = request.nextUrl.clone()
+    url.host = 'menuzin.com'
+    return NextResponse.redirect(url, 308)
+  }
 
   // 1) ALWAYS ALLOW: Next.js internal routes
   if (pathname.startsWith('/_next')) {
@@ -50,11 +58,14 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // 6) BLOCK: [slug]/admin routes (return 404, no redirect)
+  // 6) Redirect legacy /[slug]/admin routes to /[slug]/admin-portal
   const pathSegments = pathname.split('/').filter(Boolean)
   if (pathSegments.length >= 2 && pathSegments[1] === 'admin') {
-    // Block /[slug]/admin routes - only /[slug]/admin-portal is allowed
-    return new NextResponse(null, { status: 404 })
+    const rest = pathSegments.slice(2).join('/')
+    const redirectPath = rest
+      ? `/${pathSegments[0]}/admin-portal/${rest}`
+      : `/${pathSegments[0]}/admin-portal`
+    return NextResponse.redirect(new URL(redirectPath, request.url), 308)
   }
 
   // 7) Check for reserved slugs in first path segment
