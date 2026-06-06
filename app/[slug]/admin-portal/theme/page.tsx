@@ -90,6 +90,7 @@ export default function ThemePage() {
   const [uploadingMenuBg, setUploadingMenuBg] = useState(false)
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
   const [currency, setCurrency] = useState<'IQD' | 'USD'>('IQD')
+  const hasLoadedFromBootstrap = useRef(false)
 
   // Apply theme immediately before paint to prevent flash
   useLayoutEffect(() => {
@@ -99,18 +100,18 @@ export default function ThemePage() {
   }, [])
 
   useEffect(() => {
-    // Use bootstrap data if available, otherwise fetch
-    if (bootstrap?.theme) {
+    // Load from bootstrap only once on initial page load (avoid overwriting unsaved edits)
+    if (bootstrap?.theme && !hasLoadedFromBootstrap.current) {
+      hasLoadedFromBootstrap.current = true
       const themeData = { ...defaultTheme, ...bootstrap.theme }
       setTheme(themeData)
       setPreviewTheme(themeData)
       if (themeData.menuBackgroundR2Url) {
         setMenuBgPreview(themeData.menuBackgroundR2Url)
       }
-      // Apply immediately on load
       applyThemeToDocument(themeData)
-    } else if (!isLoadingBootstrap) {
-      // Only fetch if not loading (bootstrap might be loading)
+    } else if (!isLoadingBootstrap && !hasLoadedFromBootstrap.current) {
+      hasLoadedFromBootstrap.current = true
       fetchTheme()
     }
     

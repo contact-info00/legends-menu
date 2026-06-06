@@ -170,8 +170,12 @@ function MenuPageContent() {
 
   // Preload background image immediately when URL becomes available
   useEffect(() => {
-    if (!theme?.menuBackgroundR2Url) return
-    
+    if (!theme?.menuBackgroundR2Url) {
+      setBgLoaded(true)
+      return
+    }
+
+    setBgLoaded(false)
     // Preload the background image immediately using Image constructor
     // This starts the download before React renders the <img> element
     const img = new Image()
@@ -819,8 +823,10 @@ function MenuPageContent() {
         fetchRestaurantData()
       }
       if (e.key === 'theme-updated') {
-        // Admin panel saved theme (including menu background), refetch theme immediately
         fetchTheme()
+      }
+      if (e.key === 'restaurant-updated') {
+        fetchRestaurantData()
       }
     }
 
@@ -836,8 +842,11 @@ function MenuPageContent() {
     }
 
     const handleThemeUpdate = () => {
-      // Immediate fetch - no delay, also update background image
       fetchTheme()
+    }
+
+    const handleRestaurantUpdate = () => {
+      fetchRestaurantData()
     }
 
     // Periodic refresh removed - rely on storage events and visibility changes instead
@@ -849,6 +858,7 @@ function MenuPageContent() {
     window.addEventListener('typography-updated', handleTypographyUpdate)
     window.addEventListener('service-charge-updated', handleServiceChargeUpdate)
     window.addEventListener('theme-updated', handleThemeUpdate)
+    window.addEventListener('restaurant-updated', handleRestaurantUpdate)
 
     return () => {
       abortController.abort()
@@ -858,8 +868,9 @@ function MenuPageContent() {
       window.removeEventListener('typography-updated', handleTypographyUpdate)
       window.removeEventListener('service-charge-updated', handleServiceChargeUpdate)
       window.removeEventListener('theme-updated', handleThemeUpdate)
+      window.removeEventListener('restaurant-updated', handleRestaurantUpdate)
     }
-  }, [slug, fetchRestaurantData, fetchTheme]) // Include fetchTheme in dependencies
+  }, [slug, fetchRestaurantData, fetchTheme])
 
   // Set up Intersection Observer to track visible categories on scroll
   useEffect(() => {
@@ -1210,7 +1221,7 @@ function MenuPageContent() {
         />
       )}
       <MenuHeader
-        logoUrl={bgLoaded ? (restaurant?.logoR2Url || (restaurant?.logoMediaId ? `/assets/${restaurant.logoMediaId}` : undefined)) : undefined}
+        logoUrl={restaurant?.logoR2Url || (restaurant?.logoMediaId ? `/assets/${restaurant.logoMediaId}` : undefined)}
       />
 
       <FloatingActionBar

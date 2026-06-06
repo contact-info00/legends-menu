@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -90,34 +90,34 @@ export default function SettingsPage() {
   }
 
   const { bootstrap, isLoading, refresh } = useAdminBootstrap()
+  const hasLoadedFromBootstrap = useRef(false)
+
+  const applySettingsToState = (settingsData: RestaurantSettings) => {
+    setSettings((prev) => ({ ...prev, ...settingsData }))
+    setServiceChargeInput(settingsData.serviceChargePercent?.toString() || '0')
+    if (settingsData.logoR2Url) {
+      setLogoPreview(settingsData.logoR2Url)
+    } else if (settingsData.logoMediaId) {
+      setLogoPreview(`/assets/${settingsData.logoMediaId}`)
+    }
+    if (settingsData.footerLogoR2Url) {
+      setFooterLogoPreview(settingsData.footerLogoR2Url)
+    } else if (settingsData.footerLogoMediaId) {
+      setFooterLogoPreview(`/assets/${settingsData.footerLogoMediaId}`)
+    }
+    if (settingsData.welcomeBgR2Url) {
+      setBackgroundPreview(settingsData.welcomeBgR2Url)
+    } else if (settingsData.welcomeBackgroundMediaId) {
+      setBackgroundPreview(`/assets/${settingsData.welcomeBackgroundMediaId}`)
+    }
+  }
 
   useEffect(() => {
-    // Use bootstrap data if available, otherwise fetch
-    if (bootstrap?.settings) {
-      const settingsData = bootstrap.settings
-      setSettings(settingsData)
-      // Update service charge input field with current value
-      setServiceChargeInput(settingsData.serviceChargePercent?.toString() || '0')
-      // Set logo preview
-      if (settingsData.logoR2Url) {
-        setLogoPreview(settingsData.logoR2Url)
-      } else if (settingsData.logoMediaId) {
-        setLogoPreview(`/assets/${settingsData.logoMediaId}`)
-      }
-      // Set footer logo preview
-      if (settingsData.footerLogoR2Url) {
-        setFooterLogoPreview(settingsData.footerLogoR2Url)
-      } else if (settingsData.footerLogoMediaId) {
-        setFooterLogoPreview(`/assets/${settingsData.footerLogoMediaId}`)
-      }
-      // Set background preview (check mimeType to determine if video)
-      if (settingsData.welcomeBgR2Url) {
-        setBackgroundPreview(settingsData.welcomeBgR2Url)
-      } else if (settingsData.welcomeBackgroundMediaId) {
-        setBackgroundPreview(`/assets/${settingsData.welcomeBackgroundMediaId}`)
-      }
-    } else if (!isLoading) {
-      // Only fetch if not loading (bootstrap might be loading)
+    if (bootstrap?.settings && !hasLoadedFromBootstrap.current) {
+      hasLoadedFromBootstrap.current = true
+      applySettingsToState(bootstrap.settings)
+    } else if (!isLoading && !hasLoadedFromBootstrap.current) {
+      hasLoadedFromBootstrap.current = true
       fetchSettings()
     }
   }, [bootstrap, isLoading])
@@ -149,25 +149,7 @@ export default function SettingsPage() {
       }
       
       if (response.ok) {
-        setSettings(data)
-        // Update service charge input field with current value
-        setServiceChargeInput(data.serviceChargePercent?.toString() || '0')
-        // Use R2 URL if available, otherwise fall back to old media ID
-        if (data.logoR2Url) {
-          setLogoPreview(data.logoR2Url)
-        } else if (data.logoMediaId) {
-          setLogoPreview(`/assets/${data.logoMediaId}`)
-        }
-        if (data.footerLogoR2Url) {
-          setFooterLogoPreview(data.footerLogoR2Url)
-        } else if (data.footerLogoMediaId) {
-          setFooterLogoPreview(`/assets/${data.footerLogoMediaId}`)
-        }
-        if (data.welcomeBgR2Url) {
-          setBackgroundPreview(data.welcomeBgR2Url)
-        } else         if (data.welcomeBackgroundMediaId) {
-          setBackgroundPreview(`/assets/${data.welcomeBackgroundMediaId}`)
-        }
+        applySettingsToState(data)
         const fetchTime = performance.now() - startTime
         if (process.env.NODE_ENV === 'development') {
           console.log(`[PERF] Settings fetch (client): ${fetchTime.toFixed(2)}ms`)
@@ -230,8 +212,12 @@ export default function SettingsPage() {
       }
 
       if (updateResponse.ok) {
-        setSettings({ ...settings, logoR2Key: key, logoR2Url: publicUrl })
-        setLogoPreview(publicUrl)
+        applySettingsToState({ ...settings, logoR2Key: key, logoR2Url: publicUrl })
+        if (refresh) refresh()
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem('restaurant-updated', Date.now().toString())
+          window.dispatchEvent(new Event('restaurant-updated'))
+        }
         toast.success('Logo uploaded successfully!')
       } else {
         throw new Error(updateData.message || 'Failed to update logo')
@@ -293,8 +279,8 @@ export default function SettingsPage() {
       }
 
       if (updateResponse.ok) {
-        setSettings({ ...settings, footerLogoR2Key: key, footerLogoR2Url: publicUrl })
-        setFooterLogoPreview(publicUrl)
+        applySettingsToState({ ...settings, footerLogoR2Key: key, footerLogoR2Url: publicUrl })
+        if (refresh) refresh()
         toast.success('Footer logo uploaded successfully!')
       } else {
         throw new Error(updateData.message || 'Failed to update footer logo')
@@ -378,8 +364,8 @@ export default function SettingsPage() {
       }
 
       if (updateResponse.ok) {
-        setSettings({ ...settings, welcomeBgR2Key: key, welcomeBgR2Url: publicUrl, welcomeBgMimeType: file.type })
-        setBackgroundPreview(publicUrl)
+        applySettingsToState({ ...settings, welcomeBgR2Key: key, welcomeBgR2Url: publicUrl, welcomeBgMimeType: file.type })
+        if (refresh) refresh()
         toast.success('Background uploaded successfully!')
       } else {
         throw new Error(updateData.message || 'Failed to update background')
@@ -489,15 +475,17 @@ export default function SettingsPage() {
         if (response.ok) {
           toast.dismiss('save-settings')
           toast.success('Settings saved successfully!')
-          // Refresh settings to get updated data
           if (parsed) {
-            setSettings(parsed)
-            setServiceChargeInput(parsed.serviceChargePercent?.toString() || '0')
+            applySettingsToState(parsed)
           }
-          // Trigger menu page refresh if it's open (using localStorage event and custom event)
+          if (refresh) {
+            refresh()
+          }
           if (typeof window !== 'undefined') {
+            window.localStorage.setItem('restaurant-updated', Date.now().toString())
             window.localStorage.setItem('service-charge-updated', Date.now().toString())
             window.dispatchEvent(new Event('storage'))
+            window.dispatchEvent(new Event('restaurant-updated'))
             window.dispatchEvent(new Event('service-charge-updated'))
           }
         } else {

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { unstable_cache } from 'next/cache'
+import {
+  ensureRestaurantWelcomeBgMimeTypeColumn,
+  ensureRestaurantSocialMediaColumns,
+  ensureThemeColumns,
+} from '@/lib/ensure-columns'
 
 // Enable caching for public endpoint
 export const revalidate = 30 // Revalidate every 30 seconds (shorter for faster updates)
@@ -9,7 +14,10 @@ export const revalidate = 30 // Revalidate every 30 seconds (shorter for faster 
 
 // Helper function to fetch bootstrap data (will be cached)
 async function fetchBootstrapData(restaurantId: string) {
-  // Run all queries in parallel using the restaurant ID
+  await ensureRestaurantWelcomeBgMimeTypeColumn(prisma)
+  await ensureRestaurantSocialMediaColumns(prisma)
+  await ensureThemeColumns(prisma)
+
   const [theme, sectionsWithCategories, uiSettings] = await Promise.all([
     // Get theme (for menu background and colors)
     prisma.theme.findUnique({
@@ -128,8 +136,9 @@ export async function GET(
       return NextResponse.json({ error: 'Slug is required' }, { status: 400 })
     }
 
-    // OPTIMIZATION #1: Fetch restaurant ONCE (not 4 times)
-    // Include welcome page fields for faster welcome page loading
+    await ensureRestaurantWelcomeBgMimeTypeColumn(prisma)
+    await ensureRestaurantSocialMediaColumns(prisma)
+
     const restaurant = await prisma.restaurant.findUnique({
       where: { slug },
       select: {

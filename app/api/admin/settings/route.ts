@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { invalidateRestaurantCaches } from '@/lib/cache-invalidation'
 import { requireAdminSession, SessionExpiredError, deleteAdminSession } from '@/lib/auth'
 import { ensureRestaurantWelcomeBgMimeTypeColumn, ensureRestaurantSocialMediaColumns } from '@/lib/ensure-columns'
 import { unstable_cache } from 'next/cache'
@@ -314,6 +315,8 @@ export async function PUT(request: NextRequest) {
       where: { id: session.restaurantId },
       data: updateData,
     })
+
+    invalidateRestaurantCaches(session.restaurantId, updated.slug)
 
     // Safely access footerLogoMediaId - may not exist if migration hasn't run
     const updatedFooterLogoMediaId = (updated as any).footerLogoMediaId || null

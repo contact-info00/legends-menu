@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdminSession, deleteAdminSession, SessionExpiredError } from '@/lib/auth'
 import { ensureThemeColumns } from '@/lib/ensure-columns'
+import { invalidateRestaurantCaches } from '@/lib/cache-invalidation'
 import { z } from 'zod'
 
 const themeSchema = z.object({
@@ -228,6 +229,8 @@ export async function PUT(
     })
 
     console.log('Theme updated successfully for restaurant:', restaurant.id)
+
+    invalidateRestaurantCaches(restaurant.id, restaurant.slug)
 
     const themeResponse = theme as any
 

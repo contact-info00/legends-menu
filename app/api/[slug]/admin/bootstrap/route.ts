@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server'
 import { requireAdminSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { unstable_cache } from 'next/cache'
+import {
+  ensureRestaurantWelcomeBgMimeTypeColumn,
+  ensureRestaurantSocialMediaColumns,
+  ensureThemeColumns,
+} from '@/lib/ensure-columns'
 
 export const dynamic = 'force-dynamic'
 
 async function fetchBootstrapData(restaurantId: string) {
+  await ensureRestaurantWelcomeBgMimeTypeColumn(prisma)
+  await ensureRestaurantSocialMediaColumns(prisma)
+  await ensureThemeColumns(prisma)
   // Fetch all data in parallel
   const [restaurant, uiSettings, settings, theme, sections] = await Promise.all([
     prisma.restaurant.findUnique({
@@ -23,8 +30,15 @@ async function fetchBootstrapData(restaurantId: string) {
       select: {
         id: true,
         slug: true,
+        nameKu: true,
+        nameEn: true,
+        nameAr: true,
+        logoR2Key: true,
         logoR2Url: true,
         logoMediaId: true,
+        footerLogoR2Key: true,
+        footerLogoR2Url: true,
+        footerLogoMediaId: true,
         googleMapsUrl: true,
         phoneNumber: true,
         instagramUrl: true,
@@ -32,7 +46,9 @@ async function fetchBootstrapData(restaurantId: string) {
         tiktokUrl: true,
         serviceChargePercent: true,
         welcomeTextEn: true,
+        welcomeBgR2Key: true,
         welcomeBgR2Url: true,
+        welcomeBgMimeType: true,
         welcomeBackgroundMediaId: true,
         welcomeOverlayColor: true,
         welcomeOverlayOpacity: true,
@@ -140,17 +156,6 @@ async function fetchBootstrapData(restaurantId: string) {
   }
 }
 
-const getCachedBootstrap = unstable_cache(
-  async (restaurantId: string) => {
-    return fetchBootstrapData(restaurantId)
-  },
-  ['admin-bootstrap'],
-  {
-    revalidate: 10, // Cache for 10 seconds
-    tags: ['admin-bootstrap', 'menu', 'settings', 'ui-settings', 'theme'],
-  }
-)
-
 export async function GET(
   request: Request,
   { params }: { params: { slug: string } }
@@ -174,7 +179,7 @@ export async function GET(
       )
     }
 
-    const data = await getCachedBootstrap(session.restaurantId)
+    const data = await fetchBootstrapData(session.restaurantId)
 
     const fetchTime = Date.now() - startTime
     if (process.env.NODE_ENV === 'development') {
@@ -182,7 +187,7 @@ export async function GET(
     }
 
     const response = NextResponse.json(data)
-    response.headers.set('Cache-Control', 'public, s-maxage=15, stale-while-revalidate=60')
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
     
     return response
   } catch (error) {

@@ -3,6 +3,8 @@ export const dynamic = "force-dynamic"
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdminSession } from '@/lib/auth'
+import { ensureThemeColumns } from '@/lib/ensure-columns'
+import { invalidateRestaurantCaches } from '@/lib/cache-invalidation'
 import { z } from 'zod'
 
 const themeSchema = z.object({
@@ -21,6 +23,7 @@ const themeSchema = z.object({
 export async function GET(request: NextRequest) {
   const startTime = Date.now()
   try {
+    await ensureThemeColumns(prisma)
     const session = await requireAdminSession()
 
     // Get restaurant by session restaurantId to get its slug
@@ -136,7 +139,7 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    
+    await ensureThemeColumns(prisma)
     const session = await requireAdminSession()
 
     // Get restaurant by session restaurantId to get its slug
@@ -222,6 +225,8 @@ export async function PUT(request: NextRequest) {
     })
 
     console.log('Theme updated successfully for restaurant:', session.restaurantId)
+
+    invalidateRestaurantCaches(session.restaurantId, restaurant.slug)
 
     const themeResponse = theme as any
 
