@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { unstable_cache } from 'next/cache'
 
-export const revalidate = 300
+export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 

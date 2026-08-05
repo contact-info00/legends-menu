@@ -2,12 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { unstable_cache } from 'next/cache'
 
-// Enable caching for public endpoint
-export const revalidate = 30 // Revalidate every 30 seconds (shorter for faster updates)
+// Cached at runtime via unstable_cache + Cache-Control headers (not static route generation).
+export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
-
-
-// Removed 'force-dynamic' to enable caching
 
 // Helper function to fetch bootstrap data (will be cached)
 async function fetchBootstrapData(restaurantId: string) {

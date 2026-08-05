@@ -43,6 +43,7 @@ const getCachedMenuSections = unstable_cache(
   }
 )
 
+export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET() {
