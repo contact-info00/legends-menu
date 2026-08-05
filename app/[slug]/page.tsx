@@ -1,5 +1,4 @@
 import { notFound } from 'next/navigation'
-import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { WelcomeClient } from './welcome-client'
 import { WelcomeLogo } from './welcome-logo'
@@ -50,16 +49,7 @@ export default async function WelcomePage({ params }: PageProps) {
   const { slug } = params
 
   try {
-    const getCachedRestaurant = unstable_cache(
-      () => fetchWelcomeRestaurant(slug),
-      [`welcome-${slug}`],
-      {
-        tags: ['settings', `restaurant-slug-${slug}`, `welcome-${slug}`],
-        revalidate: 30,
-      }
-    )
-
-    const restaurant = await getCachedRestaurant()
+    const restaurant = await fetchWelcomeRestaurant(slug)
 
     if (!restaurant) {
       notFound()

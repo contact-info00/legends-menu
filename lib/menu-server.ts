@@ -255,5 +255,11 @@ export async function getMenuPageData(
     }
   )
 
-  return getCachedMenuPage()
+  const cached = await getCachedMenuPage()
+  if (cached) {
+    return cached
+  }
+
+  // Never trust a cached miss — re-query live DB before returning 404.
+  return loadMenuPageData(slug, langParam)
 }
