@@ -1,55 +1,82 @@
 import { PrismaClient } from '@prisma/client'
 
-/**
- * Ensures new columns exist in production without requiring an immediate migration.
- * Safe to run repeatedly; uses IF NOT EXISTS.
- */
-export async function ensureRestaurantWelcomeBgMimeTypeColumn(prisma: PrismaClient): Promise<void> {
+const globalForSchema = globalThis as unknown as {
+  schemaInitPromise?: Promise<void>
+}
+
+function isBuildTime(): boolean {
+  return (
+    process.env.NEXT_PHASE === 'phase-production-build' ||
+    process.env.npm_lifecycle_event === 'build'
+  )
+}
+
+async function runSchemaInitialization(prisma: PrismaClient): Promise<void> {
   try {
     await prisma.$executeRawUnsafe(
       'ALTER TABLE "Restaurant" ADD COLUMN IF NOT EXISTS "welcomeBgMimeType" TEXT;'
     )
   } catch (error) {
-    // Non-fatal: if this fails (e.g., insufficient permissions), normal code may still proceed
-    // and deployment can rely on standard migrations instead.
-    console.warn('[DB COMPAT] Failed to ensure welcomeBgMimeType column:', error)
+    console.warn('[DB INIT] Failed to ensure welcomeBgMimeType column:', error)
+  }
+
+  try {
+    await prisma.$executeRawUnsafe(
+      'ALTER TABLE "Restaurant" ADD COLUMN IF NOT EXISTS "instagramUrl" TEXT;'
+    )
+    await prisma.$executeRawUnsafe(
+      'ALTER TABLE "Restaurant" ADD COLUMN IF NOT EXISTS "snapchatUrl" TEXT;'
+    )
+    await prisma.$executeRawUnsafe(
+      'ALTER TABLE "Restaurant" ADD COLUMN IF NOT EXISTS "tiktokUrl" TEXT;'
+    )
+    await prisma.$executeRawUnsafe(
+      'ALTER TABLE "Restaurant" ADD COLUMN IF NOT EXISTS "serviceChargePercent" DOUBLE PRECISION DEFAULT 0;'
+    )
+  } catch (error) {
+    console.warn('[DB INIT] Failed to ensure Restaurant social media columns:', error)
+  }
+
+  try {
+    await prisma.$executeRawUnsafe(
+      'ALTER TABLE "Theme" ADD COLUMN IF NOT EXISTS "header_footer_bg_color" TEXT;'
+    )
+    await prisma.$executeRawUnsafe(
+      'ALTER TABLE "Theme" ADD COLUMN IF NOT EXISTS "glass_tint_color" TEXT;'
+    )
+  } catch (error) {
+    console.warn('[DB INIT] Failed to ensure Theme columns:', error)
+  }
+
+  try {
+    await prisma.$executeRawUnsafe(
+      'ALTER TABLE "UiSettings" ADD COLUMN IF NOT EXISTS "bottomNavCategorySize" INTEGER NOT NULL DEFAULT 13;'
+    )
+    await prisma.$executeRawUnsafe(
+      'ALTER TABLE "UiSettings" ADD COLUMN IF NOT EXISTS "bottomNavSectionSize" INTEGER NOT NULL DEFAULT 13;'
+    )
+  } catch (error) {
+    console.warn('[DB INIT] Failed to ensure UiSettings bottom nav columns:', error)
   }
 }
 
 /**
- * Ensures social media and service charge columns exist in Restaurant table.
- * Safe to run repeatedly; uses IF NOT EXISTS.
- * Must execute each ALTER TABLE statement separately (PostgreSQL limitation).
+ * Runs idempotent schema compatibility DDL once per server process.
+ * Called from lib/prisma.ts at startup — never from request handlers.
  */
-export async function ensureRestaurantSocialMediaColumns(prisma: PrismaClient): Promise<void> {
-  try {
-    // Execute each ALTER TABLE statement separately - PostgreSQL doesn't allow multiple commands in a prepared statement
-    await prisma.$executeRawUnsafe('ALTER TABLE "Restaurant" ADD COLUMN IF NOT EXISTS "instagramUrl" TEXT;')
-    await prisma.$executeRawUnsafe('ALTER TABLE "Restaurant" ADD COLUMN IF NOT EXISTS "snapchatUrl" TEXT;')
-    await prisma.$executeRawUnsafe('ALTER TABLE "Restaurant" ADD COLUMN IF NOT EXISTS "tiktokUrl" TEXT;')
-    await prisma.$executeRawUnsafe('ALTER TABLE "Restaurant" ADD COLUMN IF NOT EXISTS "serviceChargePercent" DOUBLE PRECISION DEFAULT 0;')
-  } catch (error) {
-    // Non-fatal: if this fails (e.g., insufficient permissions), normal code may still proceed
-    // and deployment can rely on standard migrations instead.
-    console.warn('[DB COMPAT] Failed to ensure social media columns:', error)
+export function initializeSchemaOnce(prisma: PrismaClient): Promise<void> {
+  if (globalForSchema.schemaInitPromise) {
+    return globalForSchema.schemaInitPromise
   }
-}
 
-/**
- * Ensures new theme columns exist in Theme table.
- * Safe to run repeatedly; uses IF NOT EXISTS.
- * Must execute each ALTER TABLE statement separately (PostgreSQL limitation).
- */
-export async function ensureThemeColumns(prisma: PrismaClient): Promise<void> {
-  try {
-    // Execute each ALTER TABLE statement separately - PostgreSQL doesn't allow multiple commands in a prepared statement
-    await prisma.$executeRawUnsafe('ALTER TABLE "Theme" ADD COLUMN IF NOT EXISTS "header_footer_bg_color" TEXT;')
-    await prisma.$executeRawUnsafe('ALTER TABLE "Theme" ADD COLUMN IF NOT EXISTS "glass_tint_color" TEXT;')
-  } catch (error) {
-    // Non-fatal: if this fails (e.g., insufficient permissions), normal code may still proceed
-    // and deployment can rely on standard migrations instead.
-    console.warn('[DB COMPAT] Failed to ensure theme columns:', error)
+  if (isBuildTime() || !process.env.DATABASE_URL) {
+    globalForSchema.schemaInitPromise = Promise.resolve()
+    return globalForSchema.schemaInitPromise
   }
+
+  globalForSchema.schemaInitPromise = runSchemaInitialization(prisma).catch((error) => {
+    console.error('[DB INIT] Schema initialization failed:', error)
+  })
+
+  return globalForSchema.schemaInitPromise
 }
-
-

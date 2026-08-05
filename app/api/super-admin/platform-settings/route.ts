@@ -1,9 +1,10 @@
-export const dynamic = "force-dynamic"
-
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSuperAdminSession } from '@/lib/auth'
+import { invalidatePlatformSettingsCache } from '@/lib/cache-invalidation'
 import { z } from 'zod'
+
+export const dynamic = 'force-dynamic'
 
 const updatePlatformSettingsSchema = z.object({
   footerLogoR2Key: z.string().optional().nullable(),
@@ -114,6 +115,8 @@ export async function PUT(request: NextRequest) {
       footerLogoR2Key: updated.footerLogoR2Key,
       footerLogoR2Url: updated.footerLogoR2Url,
     })
+
+    invalidatePlatformSettingsCache()
 
     return NextResponse.json({
       ok: true,

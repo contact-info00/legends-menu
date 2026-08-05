@@ -1,74 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import {
+  DEFAULT_THEME,
+  getCachedThemeForSlug,
+  THEME_CACHE_HEADERS,
+} from '@/lib/theme-server'
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+export const revalidate = 30
+
+function resolveSlug(request: NextRequest): string | null {
+  const { searchParams } = new URL(request.url)
+  let slug = searchParams.get('slug')
+
+  if (!slug) {
+    const referer = request.headers.get('referer')
+    if (referer) {
+      const refererUrl = new URL(referer)
+      const pathParts = refererUrl.pathname.split('/').filter(Boolean)
+      if (pathParts.length > 0 && pathParts[0] !== 'super-admin' && pathParts[0] !== 'admin') {
+        slug = pathParts[0]
+      }
+    }
+  }
+
+  return slug
+}
 
 export async function GET(request: NextRequest) {
   try {
-    // Get slug from query parameter or referer header
-    const { searchParams } = new URL(request.url)
-    let slug = searchParams.get('slug')
-    
-    // If no slug in query, try to extract from referer
+    const slug = resolveSlug(request)
+
     if (!slug) {
-      const referer = request.headers.get('referer')
-      if (referer) {
-        const refererUrl = new URL(referer)
-        const pathParts = refererUrl.pathname.split('/').filter(Boolean)
-        if (pathParts.length > 0 && pathParts[0] !== 'super-admin' && pathParts[0] !== 'admin') {
-          slug = pathParts[0]
-        }
-      }
+      return NextResponse.json({ theme: DEFAULT_THEME }, { headers: THEME_CACHE_HEADERS })
     }
 
-    // If still no slug, return default theme
-    if (!slug) {
-      return NextResponse.json({
-        theme: {
-          appBg: '#400810',
-        },
-      })
-    }
-
-    // Resolve restaurant by slug
-    const restaurant = await prisma.restaurant.findUnique({
-      where: { slug },
-      select: { id: true },
-    })
-
-    if (!restaurant) {
-      return NextResponse.json({
-        theme: {
-          appBg: '#400810',
-        },
-      })
-    }
-
-    // Get theme for this restaurant
-    let theme = await prisma.theme.findUnique({
-      where: { restaurantId: restaurant.id },
-    })
-
-    // If theme doesn't exist, create it with defaults
-    if (!theme) {
-      theme = await prisma.theme.create({
-        data: {
-          restaurantId: restaurant.id,
-          appBg: '#400810',
-        },
-      })
-    }
-
-    return NextResponse.json({ theme })
+    const result = await getCachedThemeForSlug(slug)
+    return NextResponse.json(result ?? { theme: DEFAULT_THEME }, { headers: THEME_CACHE_HEADERS })
   } catch (error) {
     console.error('Error fetching theme:', error)
-    // Return a default theme if there's an error
-    return NextResponse.json({
-      theme: {
-        appBg: '#400810',
-      },
-    })
+    return NextResponse.json({ theme: DEFAULT_THEME }, { headers: THEME_CACHE_HEADERS })
   }
 }
-

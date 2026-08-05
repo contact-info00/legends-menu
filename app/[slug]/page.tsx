@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
+import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
-import { ensureRestaurantWelcomeBgMimeTypeColumn, ensureRestaurantSocialMediaColumns } from '@/lib/ensure-columns'
 import { WelcomeClient } from './welcome-client'
 import { WelcomeLogo } from './welcome-logo'
 import { WelcomeText } from './welcome-text'
@@ -9,8 +9,8 @@ import { WelcomeLanguageButtons } from './welcome-language-buttons'
 import { SocialMediaIcons } from '@/components/social-media-icons'
 import { RestaurantData } from '@/lib/get-restaurant-data'
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+// ISR: welcome content changes infrequently; admin saves trigger tag invalidation.
+export const revalidate = 30
 
 interface PageProps {
   params: {
@@ -18,37 +18,47 @@ interface PageProps {
   }
 }
 
+async function fetchWelcomeRestaurant(slug: string) {
+  return prisma.restaurant.findUnique({
+    where: { slug },
+    select: {
+      id: true,
+      nameKu: true,
+      nameEn: true,
+      nameAr: true,
+      logoMediaId: true,
+      logoR2Url: true,
+      welcomeBgR2Url: true,
+      welcomeBgMimeType: true,
+      welcomeOverlayColor: true,
+      welcomeOverlayOpacity: true,
+      welcomeTextEn: true,
+      googleMapsUrl: true,
+      phoneNumber: true,
+      instagramUrl: true,
+      snapchatUrl: true,
+      tiktokUrl: true,
+      welcomeBackgroundMediaId: true,
+      serviceChargePercent: true,
+      updatedAt: true,
+    },
+  })
+}
+
 export default async function WelcomePage({ params }: PageProps) {
   const { slug } = params
 
   try {
-    await ensureRestaurantWelcomeBgMimeTypeColumn(prisma)
-    await ensureRestaurantSocialMediaColumns(prisma)
+    const getCachedRestaurant = unstable_cache(
+      () => fetchWelcomeRestaurant(slug),
+      [`welcome-${slug}`],
+      {
+        tags: ['settings', `restaurant-slug-${slug}`, `welcome-${slug}`],
+        revalidate: 30,
+      }
+    )
 
-    const restaurant = await prisma.restaurant.findUnique({
-      where: { slug },
-      select: {
-        id: true,
-        nameKu: true,
-        nameEn: true,
-        nameAr: true,
-        logoMediaId: true,
-        logoR2Url: true,
-        welcomeBgR2Url: true,
-        welcomeBgMimeType: true,
-        welcomeOverlayColor: true,
-        welcomeOverlayOpacity: true,
-        welcomeTextEn: true,
-        googleMapsUrl: true,
-        phoneNumber: true,
-        instagramUrl: true,
-        snapchatUrl: true,
-        tiktokUrl: true,
-        welcomeBackgroundMediaId: true,
-        serviceChargePercent: true,
-        updatedAt: true,
-      },
-    })
+    const restaurant = await getCachedRestaurant()
 
     if (!restaurant) {
       notFound()

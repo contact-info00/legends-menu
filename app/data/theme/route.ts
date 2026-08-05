@@ -1,136 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { ensureThemeColumns } from '@/lib/ensure-columns'
+import {
+  DEFAULT_THEME,
+  getCachedThemeForSlug,
+  THEME_CACHE_HEADERS,
+  THEME_NO_STORE_HEADERS,
+} from '@/lib/theme-server'
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+export const revalidate = 30
+
+function resolveSlug(request: NextRequest): string | null {
+  const { searchParams } = new URL(request.url)
+  let slug = searchParams.get('slug')
+
+  if (!slug) {
+    const referer = request.headers.get('referer')
+    if (referer) {
+      const refererUrl = new URL(referer)
+      const pathParts = refererUrl.pathname.split('/').filter(Boolean)
+      if (pathParts.length > 0 && pathParts[0] !== 'super-admin' && pathParts[0] !== 'admin') {
+        slug = pathParts[0]
+      }
+    }
+  }
+
+  return slug
+}
 
 export async function GET(request: NextRequest) {
   try {
-    // Ensure DB columns exist in production before querying
-    await ensureThemeColumns(prisma)
-    
-    // Get slug from query parameter or referer header
-    const { searchParams } = new URL(request.url)
-    let slug = searchParams.get('slug')
-    
-    // If no slug in query, try to extract from referer
+    const slug = resolveSlug(request)
+
     if (!slug) {
-      const referer = request.headers.get('referer')
-      if (referer) {
-        const refererUrl = new URL(referer)
-        const pathParts = refererUrl.pathname.split('/').filter(Boolean)
-        if (pathParts.length > 0 && pathParts[0] !== 'super-admin' && pathParts[0] !== 'admin') {
-          slug = pathParts[0]
-        }
-      }
+      return NextResponse.json({ theme: DEFAULT_THEME }, { headers: THEME_CACHE_HEADERS })
     }
 
-    // If still no slug, return default theme
-    if (!slug) {
-      return NextResponse.json(
-        {
-          theme: {
-            appBg: '#400810', // Default background
-            menuBackgroundR2Key: null,
-            menuBackgroundR2Url: null,
-            itemNameTextColor: null,
-            itemPriceTextColor: null,
-            itemDescriptionTextColor: null,
-            bottomNavSectionNameColor: null,
-            categoryNameColor: null,
-            headerFooterBgColor: null,
-            glassTintColor: null,
-          },
-        },
-        {
-          headers: {
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-          },
-        }
-      )
-    }
+    const result = await getCachedThemeForSlug(slug)
 
-    // Resolve restaurant by slug
-    const restaurant = await prisma.restaurant.findUnique({
-      where: { slug },
-      select: { id: true },
-    })
-
-    // Return 404 if restaurant doesn't exist (deleted)
-    if (!restaurant) {
+    if (!result) {
       return NextResponse.json(
         { error: 'Restaurant not found' },
-        {
-          status: 404,
-          headers: {
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-          },
-        }
+        { status: 404, headers: THEME_NO_STORE_HEADERS }
       )
     }
 
-    // Use upsert to ensure theme always exists (never fail due to missing theme)
-    const theme = await prisma.theme.upsert({
-      where: { restaurantId: restaurant.id },
-      update: {}, // No update needed if exists
-      create: {
-        restaurantId: restaurant.id,
-        appBg: '#400810', // Default background
-      },
-    })
-
-    // Safely access new fields that may not exist yet
-    const themeResponse = theme as any
-
-    return NextResponse.json(
-      { theme: {
-        id: theme.id,
-        appBg: theme.appBg,
-        menuBackgroundR2Key: themeResponse.menuBackgroundR2Key || null,
-        menuBackgroundR2Url: themeResponse.menuBackgroundR2Url || null,
-        itemNameTextColor: themeResponse.itemNameTextColor || null,
-        itemPriceTextColor: themeResponse.itemPriceTextColor || null,
-        itemDescriptionTextColor: themeResponse.itemDescriptionTextColor || null,
-        bottomNavSectionNameColor: themeResponse.bottomNavSectionNameColor || null,
-        categoryNameColor: themeResponse.categoryNameColor || null,
-        headerFooterBgColor: themeResponse.headerFooterBgColor || null,
-        glassTintColor: themeResponse.glassTintColor || null,
-        restaurantId: theme.restaurantId,
-        createdAt: theme.createdAt,
-        updatedAt: theme.updatedAt,
-      } },
-      {
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        },
-      }
-    )
+    return NextResponse.json(result, { headers: THEME_CACHE_HEADERS })
   } catch (error) {
     console.error('Error fetching theme:', error)
-    // Return a default theme if there's an error
-    return NextResponse.json(
-      {
-        theme: {
-          appBg: '#400810', // Default background
-          menuBackgroundR2Key: null,
-          menuBackgroundR2Url: null,
-          itemNameTextColor: null,
-          itemPriceTextColor: null,
-          itemDescriptionTextColor: null,
-          bottomNavSectionNameColor: null,
-          categoryNameColor: null,
-          headerFooterBgColor: null,
-          glassTintColor: null,
-        },
-      },
-      {
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        },
-      }
-    )
+    return NextResponse.json({ theme: DEFAULT_THEME }, { headers: THEME_CACHE_HEADERS })
   }
 }
-
-

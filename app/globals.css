@@ -256,40 +256,41 @@ nav.sticky {
   animation: popupFade 2s ease-out forwards;
 }
 
-/* Welcome page fade-in animation - 3 seconds from 0% to 100% opacity */
+/* Welcome page content — short entrance, always interactive */
+@keyframes welcomeIntroIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes welcomeFadeIn {
-  0% {
+  from {
     opacity: 0;
   }
-  100% {
+  to {
     opacity: 1;
   }
 }
 
 .welcome-fade-in {
   opacity: 0;
-  pointer-events: auto; /* Allow clicking during animation */
+  pointer-events: auto;
 }
 
 .welcome-fade-in.animate-in {
-  animation: welcomeFadeIn 6s ease-in-out forwards;
-  pointer-events: auto; /* Ensure components remain clickable */
-}
-
-/* Welcome intro content - hidden initially, fades in after 5 seconds */
-.welcome-intro-content {
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(6px);
-  pointer-events: none;
-  transition: opacity 3000ms ease, visibility 3000ms ease, transform 3000ms ease;
-}
-
-.welcome-intro-content.welcome-intro-visible {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
+  animation: welcomeFadeIn 250ms ease-out forwards;
   pointer-events: auto;
+}
+
+.welcome-intro-content {
+  visibility: visible;
+  pointer-events: auto;
+  animation: welcomeIntroIn 200ms ease-out forwards;
 }
 
 /* Hide scrollbar on welcome page */
@@ -305,22 +306,19 @@ nav.sticky {
 
 /* Respect reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
-  .welcome-intro-content {
-    transition: none;
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-    pointer-events: auto;
+  .welcome-intro-content,
+  .welcome-fade-in.animate-in {
+    animation: none;
   }
 }
 
-/* Background fade-in animation - 4 seconds with smooth transition */
+/* Background fade-in — decorative only, does not block interaction */
 .background-fade-in {
   opacity: 0;
 }
 
 .background-fade-in.animate-in {
-  animation: welcomeFadeIn 4s ease-in-out forwards;
+  animation: welcomeFadeIn 300ms ease-out forwards;
 }
 
 /* Language dropdown animation */
@@ -342,7 +340,7 @@ nav.sticky {
 /* Ensure video and image inside background container also fade smoothly */
 .background-media-fade {
   opacity: 0;
-  transition: opacity 4s ease-in-out;
+  transition: opacity 300ms ease-out;
 }
 
 .background-fade-in.animate-in .background-media-fade {

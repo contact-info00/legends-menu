@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdminSession } from '@/lib/auth'
+import { invalidateRestaurantCaches } from '@/lib/cache-invalidation'
 
 export const dynamic = "force-dynamic"
 
@@ -163,38 +164,6 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Check if bottomNav columns exist, and add them if missing
-    try {
-      const columnCheck = await prisma.$queryRaw<Array<{ column_name: string }>>`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'UiSettings' 
-        AND column_name IN ('bottomNavSectionSize', 'bottomNavCategorySize')
-      `
-      
-      const existingColumns = columnCheck.map(row => row.column_name)
-      
-      // Add missing columns if they don't exist
-      if (!existingColumns.includes('bottomNavCategorySize')) {
-        await prisma.$executeRaw`
-          ALTER TABLE "UiSettings" 
-          ADD COLUMN "bottomNavCategorySize" INTEGER NOT NULL DEFAULT 13
-        `
-        console.log('Added missing column: bottomNavCategorySize')
-      }
-      
-      if (!existingColumns.includes('bottomNavSectionSize')) {
-        await prisma.$executeRaw`
-          ALTER TABLE "UiSettings" 
-          ADD COLUMN "bottomNavSectionSize" INTEGER NOT NULL DEFAULT 13
-        `
-        console.log('Added missing column: bottomNavSectionSize')
-      }
-    } catch (columnError: any) {
-      // If column check fails, log but continue (columns might already exist)
-      console.warn('Column check/creation failed, continuing with update:', columnError?.message)
-    }
-
     // Get or create settings for this restaurant
     let uiSettings
     try {
@@ -341,7 +310,9 @@ export async function PUT(request: NextRequest) {
     
     // Debug: Log response
     console.log('[DEBUG] PUT /api/admin/ui-settings - Response data:', JSON.stringify(responseData, null, 2))
-    
+
+    invalidateRestaurantCaches(session.restaurantId)
+
     return NextResponse.json(responseData)
   } catch (error: any) {
     console.error('Error updating UI settings:', error)

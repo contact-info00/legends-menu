@@ -1,5 +1,3 @@
-'use client'
-
 interface MenuHeaderProps {
   logoUrl?: string
 }
@@ -27,9 +25,9 @@ export function MenuHeader({ logoUrl }: MenuHeaderProps) {
               maxWidth: '100%',
               aspectRatio: 'auto'
             }}
-            loading="lazy"
+            loading="eager"
             decoding="async"
-            fetchPriority="low"
+            fetchPriority="high"
           />
         ) : (
           <div 

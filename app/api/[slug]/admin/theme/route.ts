@@ -3,7 +3,6 @@ export const dynamic = "force-dynamic"
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdminSession, deleteAdminSession, SessionExpiredError } from '@/lib/auth'
-import { ensureThemeColumns } from '@/lib/ensure-columns'
 import { invalidateRestaurantCaches } from '@/lib/cache-invalidation'
 import { z } from 'zod'
 
@@ -25,9 +24,6 @@ export async function GET(
   { params }: { params: { slug: string } }
 ) {
   try {
-    // Ensure DB columns exist in production before querying
-    await ensureThemeColumns(prisma)
-
     const slug = params.slug
     if (!slug) {
       return NextResponse.json({ ok: false, error: 'Slug is required' }, { status: 400 })
@@ -127,9 +123,6 @@ export async function PUT(
   { params }: { params: { slug: string } }
 ) {
   try {
-    // Ensure DB columns exist in production before updating
-    await ensureThemeColumns(prisma)
-
     const slug = params.slug
     if (!slug) {
       return NextResponse.json({ ok: false, error: 'Slug is required' }, { status: 400 })

@@ -1,5 +1,3 @@
-'use client'
-
 interface PoweredByFooterProps {
   footerLogoUrl?: string | null
 }

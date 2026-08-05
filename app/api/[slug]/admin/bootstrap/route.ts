@@ -1,18 +1,10 @@
 import { NextResponse } from 'next/server'
 import { requireAdminSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import {
-  ensureRestaurantWelcomeBgMimeTypeColumn,
-  ensureRestaurantSocialMediaColumns,
-  ensureThemeColumns,
-} from '@/lib/ensure-columns'
 
 export const dynamic = 'force-dynamic'
 
 async function fetchBootstrapData(restaurantId: string) {
-  await ensureRestaurantWelcomeBgMimeTypeColumn(prisma)
-  await ensureRestaurantSocialMediaColumns(prisma)
-  await ensureThemeColumns(prisma)
   // Fetch all data in parallel
   const [restaurant, uiSettings, settings, theme, sections] = await Promise.all([
     prisma.restaurant.findUnique({

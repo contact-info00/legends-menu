@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { initializeSchemaOnce } from './ensure-columns'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
@@ -88,6 +89,9 @@ export const prisma = globalForPrisma.prisma ?? createPrismaClient()
 // Always set global in both dev and production to prevent multiple instances
 if (!globalForPrisma.prisma) {
   globalForPrisma.prisma = prisma
+  if (typeof window === 'undefined') {
+    void initializeSchemaOnce(prisma)
+  }
 }
 
 // Graceful shutdown (development only)

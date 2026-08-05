@@ -2340,7 +2340,7 @@ export default function MenuBuilderPage() {
                       <div className="flex flex-col items-center justify-center pt-3 pb-4 sm:pt-5 sm:pb-6">
                         <Upload className="w-6 h-6 sm:w-8 sm:h-8 mb-1 sm:mb-2 admin-body" />
                         <p className="text-xs sm:text-sm admin-body">Click to upload image</p>
-                        <p className="text-[10px] sm:text-xs text-gray-500 mt-1">PNG, JPG, WEBP (max 5MB)</p>
+                        <p className="text-[10px] sm:text-xs text-gray-500 mt-1">PNG, JPG, WEBP — auto-optimized on upload</p>
                       </div>
                     )}
                     <input

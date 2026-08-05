@@ -3,6 +3,16 @@ import { getAdminSession } from '@/lib/auth'
 import { getR2Client, generateR2Key, getR2PublicUrl } from '@/lib/r2-client'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { z } from 'zod'
+import {
+  type MediaScope,
+  isOptimizableImage,
+  isVideoContentType,
+  optimizeImage,
+  replaceKeyExtension,
+  validateWelcomeVideo,
+  MAX_RAW_IMAGE_UPLOAD_BYTES,
+  MAX_WELCOME_VIDEO_BYTES,
+} from '@/lib/media-optimization'
 
 const uploadSchema = z.object({
   scope: z.enum(['logo', 'footerLogo', 'welcomeBg', 'menuBg', 'itemImage', 'categoryImage', 'platformFooterLogo']),
@@ -14,45 +24,32 @@ const uploadSchema = z.object({
  * Infer Content-Type from file extension if not provided
  */
 function inferContentType(fileName: string, providedType?: string): string {
-  // If provided type is valid, use it
   if (providedType && providedType !== 'application/octet-stream' && providedType !== '') {
     return providedType
   }
 
-  // Infer from extension
   const ext = fileName.toLowerCase().split('.').pop() || ''
   const extensionMap: Record<string, string> = {
-    // Images
     jpg: 'image/jpeg',
     jpeg: 'image/jpeg',
     png: 'image/png',
     webp: 'image/webp',
     gif: 'image/gif',
     svg: 'image/svg+xml',
-    // Videos
     mp4: 'video/mp4',
     webm: 'video/webm',
     mov: 'video/quicktime',
   }
 
-  const inferredType = extensionMap[ext]
-  if (inferredType) {
-    return inferredType
-  }
-
-  // Default fallback
-  return 'application/octet-stream'
+  return extensionMap[ext] || 'application/octet-stream'
 }
 
 export async function POST(request: NextRequest) {
-  // Server-side only check
   if (typeof window !== 'undefined') {
     return NextResponse.json({ error: 'This endpoint is server-only' }, { status: 403 })
   }
 
   try {
-    console.log('[R2 UPLOAD PROXY] Upload endpoint called')
-
     const formData = await request.formData()
     const file = formData.get('file') as File
     const scope = formData.get('scope') as string
@@ -63,9 +60,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
-    // Check authentication (admin for restaurant media, super admin for platform media)
     const isPlatformScope = scope === 'platformFooterLogo'
-    
+
     if (isPlatformScope) {
       const { getSuperAdminSession } = await import('@/lib/auth')
       const isAuthenticated = await getSuperAdminSession()
@@ -79,13 +75,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // For platformFooterLogo, restaurantId is not required
-    // For other scopes, restaurantId is required
     if (!isPlatformScope && !restaurantId) {
       return NextResponse.json({ error: 'restaurantId is required for this scope' }, { status: 400 })
     }
 
-    // Validate input
     const validation = uploadSchema.safeParse({
       scope,
       restaurantId: restaurantId || undefined,
@@ -99,37 +92,44 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate file type
+    const contentType = inferContentType(file.name, file.type)
     const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
     const ALLOWED_VIDEO_TYPES = ['video/mp4']
     const ALLOWED_TYPES = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES]
 
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    if (!ALLOWED_TYPES.includes(contentType)) {
       return NextResponse.json(
         { error: 'Invalid content type. Only JPEG, PNG, WebP images and MP4 videos are allowed.' },
         { status: 400 }
       )
     }
 
-    // Validate file size (5MB for images, 20MB for videos)
-    const MAX_IMAGE_SIZE = 5 * 1024 * 1024
-    const MAX_VIDEO_SIZE = 20 * 1024 * 1024
-    const isImage = ALLOWED_IMAGE_TYPES.includes(file.type)
-    const maxSize = isImage ? MAX_IMAGE_SIZE : MAX_VIDEO_SIZE
+    const isImage = isOptimizableImage(contentType)
+    const isVideo = isVideoContentType(contentType)
 
-    if (file.size > maxSize) {
+    if (isVideo && validation.data.scope !== 'welcomeBg') {
       return NextResponse.json(
-        { error: `File size exceeds limit. Max ${isImage ? '5MB' : '20MB'}.` },
+        { error: 'Videos are only allowed for welcome backgrounds.' },
         { status: 400 }
       )
     }
 
-    // Generate R2 key with versioning for immutable caching
+    const maxRawSize = isImage ? MAX_RAW_IMAGE_UPLOAD_BYTES : MAX_WELCOME_VIDEO_BYTES
+    if (file.size > maxRawSize) {
+      return NextResponse.json(
+        {
+          error: isImage
+            ? `Image file exceeds ${MAX_RAW_IMAGE_UPLOAD_BYTES / (1024 * 1024)}MB upload limit.`
+            : `Video must be under ${MAX_WELCOME_VIDEO_BYTES / (1024 * 1024)}MB. Compress before uploading.`,
+        },
+        { status: 400 }
+      )
+    }
+
     let key: string
     if (isPlatformScope) {
-      // Platform footer logo: platform/footer/{timestamp}-{random}-{filename}
       const timestamp = Date.now()
-      const random = Math.random().toString(36).substring(2, 9) // 7 random chars for uniqueness
+      const random = Math.random().toString(36).substring(2, 9)
       const safeFileName = file.name
         .replace(/[^a-zA-Z0-9.-]/g, '-')
         .toLowerCase()
@@ -139,43 +139,62 @@ export async function POST(request: NextRequest) {
       key = generateR2Key(validation.data.scope, validation.data.restaurantId!, file.name, validation.data.itemId)
     }
 
-    // Infer Content-Type with fallback
-    const contentType = inferContentType(file.name, file.type)
-
-    // Convert file to buffer
     const arrayBuffer = await file.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
+    let buffer = Buffer.from(arrayBuffer)
+    let uploadContentType = contentType
+    let originalSize = buffer.length
+    let optimizedSize = buffer.length
+    let videoRecommendation: string | undefined
 
-    // Upload to R2 with immutable caching headers
+    if (isImage) {
+      const optimized = await optimizeImage(buffer, validation.data.scope as MediaScope, contentType)
+      buffer = Buffer.from(optimized.buffer)
+      uploadContentType = optimized.contentType
+      originalSize = optimized.originalSize
+      optimizedSize = optimized.optimizedSize
+      key = replaceKeyExtension(key, optimized.extension)
+
+      console.log('[R2 UPLOAD] Image optimized', {
+        scope: validation.data.scope,
+        originalSize,
+        optimizedSize,
+        savings: `${Math.round((1 - optimizedSize / originalSize) * 100)}%`,
+        dimensions: `${optimized.width}×${optimized.height}`,
+      })
+    } else if (isVideo) {
+      const videoCheck = validateWelcomeVideo(buffer)
+      if (!videoCheck.valid) {
+        return NextResponse.json({ error: videoCheck.error }, { status: 400 })
+      }
+      videoRecommendation = videoCheck.recommendation
+    }
+
     const client = getR2Client()
     const command = new PutObjectCommand({
       Bucket: process.env.R2_BUCKET_NAME!,
       Key: key,
       Body: buffer,
-      ContentType: contentType,
-      CacheControl: 'public, max-age=31536000, immutable', // 1 year immutable cache
+      ContentType: uploadContentType,
+      CacheControl: 'public, max-age=31536000, immutable',
     })
 
     await client.send(command)
 
-    // Generate public URL
     const publicUrl = getR2PublicUrl(key)
-
-    console.log('[R2 UPLOAD] ✅ Upload successful')
-    console.log('[R2 UPLOAD] Key:', key)
-    console.log('[R2 UPLOAD] ContentType:', contentType)
-    console.log('[R2 UPLOAD] Public URL:', publicUrl)
 
     return NextResponse.json({
       key,
       publicUrl,
+      contentType: uploadContentType,
+      originalSize,
+      optimizedSize,
+      ...(videoRecommendation ? { recommendation: videoRecommendation } : {}),
     })
   } catch (error) {
-    console.error('[R2 UPLOAD PROXY] ❌ Error uploading file:', error)
+    console.error('[R2 UPLOAD PROXY] Error uploading file:', error)
     return NextResponse.json(
       { error: 'Failed to upload file' },
       { status: 500 }
     )
   }
 }
-

@@ -1,33 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAdminSession } from '@/lib/auth'
-import { z } from 'zod'
+import {
+  type MediaScope,
+  isOptimizableImage,
+  isVideoContentType,
+  optimizeImage,
+  validateWelcomeVideo,
+  MAX_RAW_IMAGE_UPLOAD_BYTES,
+  MAX_WELCOME_VIDEO_BYTES,
+} from '@/lib/media-optimization'
 
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5MB
-const MAX_VIDEO_SIZE = 20 * 1024 * 1024 // 20MB
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const ALLOWED_VIDEO_TYPES = ['video/mp4']
 const ALLOWED_MIME_TYPES = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES]
 
-const uploadSchema = z.object({
-  file: z.instanceof(File).refine(
-    (file) => {
-      const isImage = ALLOWED_IMAGE_TYPES.includes(file.type)
-      const isVideo = ALLOWED_VIDEO_TYPES.includes(file.type)
-      if (isImage) return file.size <= MAX_IMAGE_SIZE
-      if (isVideo) return file.size <= MAX_VIDEO_SIZE
-      return false
-    },
-    'File size must be less than 5MB for images or 20MB for videos'
-  ).refine(
-    (file) => ALLOWED_MIME_TYPES.includes(file.type),
-    'Only JPEG, PNG, WebP images and MP4 videos are allowed'
-  ),
-})
+const LEGACY_SCOPE_MAP: Record<string, MediaScope> = {
+  logo: 'logo',
+  footerLogo: 'footerLogo',
+  welcomeBg: 'welcomeBg',
+  menuBg: 'menuBg',
+  itemImage: 'itemImage',
+  categoryImage: 'categoryImage',
+}
 
 export async function POST(request: NextRequest) {
   try {
-    // Check admin authentication
     const isAuthenticated = await getAdminSession()
     if (!isAuthenticated) {
       return new NextResponse('Unauthorized', { status: 401 })
@@ -35,37 +33,73 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData()
     const file = formData.get('file') as File
+    const scopeParam = (formData.get('scope') as string | null) || 'welcomeBg'
 
     if (!file) {
       return new NextResponse('No file provided', { status: 400 })
     }
 
-    // Validate file
-    const validation = uploadSchema.safeParse({ file })
-    if (!validation.success) {
+    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
       return NextResponse.json(
-        { error: validation.error.errors[0].message },
+        { error: 'Only JPEG, PNG, WebP images and MP4 videos are allowed' },
         { status: 400 }
       )
     }
 
-    // Convert file to buffer
-    const arrayBuffer = await file.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
+    const isImage = isOptimizableImage(file.type)
+    const isVideo = isVideoContentType(file.type)
+    const maxSize = isImage ? MAX_RAW_IMAGE_UPLOAD_BYTES : MAX_WELCOME_VIDEO_BYTES
 
-    // Save to database
+    if (file.size > maxSize) {
+      return NextResponse.json(
+        {
+          error: isImage
+            ? `Image must be under ${MAX_RAW_IMAGE_UPLOAD_BYTES / (1024 * 1024)}MB`
+            : `Video must be under ${MAX_WELCOME_VIDEO_BYTES / (1024 * 1024)}MB`,
+        },
+        { status: 400 }
+      )
+    }
+
+    const arrayBuffer = await file.arrayBuffer()
+    let buffer = Buffer.from(arrayBuffer)
+    let mimeType = file.type
+    let storedSize = buffer.length
+    let originalSize = buffer.length
+    let optimizedSize = buffer.length
+
+    if (isImage) {
+      const scope = LEGACY_SCOPE_MAP[scopeParam] || 'welcomeBg'
+      const optimized = await optimizeImage(buffer, scope, file.type)
+      buffer = Buffer.from(optimized.buffer)
+      mimeType = optimized.contentType
+      storedSize = optimized.optimizedSize
+      originalSize = optimized.originalSize
+      optimizedSize = optimized.optimizedSize
+    } else if (isVideo) {
+      const videoCheck = validateWelcomeVideo(buffer)
+      if (!videoCheck.valid) {
+        return NextResponse.json({ error: videoCheck.error }, { status: 400 })
+      }
+    }
+
     const media = await prisma.media.create({
       data: {
-        mimeType: file.type,
+        mimeType,
         bytes: buffer,
-        size: file.size,
+        size: storedSize,
       },
     })
 
-    return NextResponse.json({ id: media.id, mimeType: media.mimeType, size: media.size })
+    return NextResponse.json({
+      id: media.id,
+      mimeType: media.mimeType,
+      size: media.size,
+      originalSize,
+      optimizedSize,
+    })
   } catch (error) {
     console.error('Error uploading media:', error)
     return new NextResponse('Internal server error', { status: 500 })
   }
 }
-

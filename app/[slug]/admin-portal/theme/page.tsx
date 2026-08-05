@@ -711,7 +711,7 @@ export default function ThemePage() {
                       <div className="flex flex-col items-center justify-center pt-3 pb-4">
                         <Upload className="w-6 h-6 mb-2" style={{ color: '#475569' }} />
                         <p className="text-sm" style={{ color: '#475569' }}>Click to upload background</p>
-                        <p className="text-xs mt-1" style={{ color: '#94A3B8' }}>PNG, JPG, WEBP (max 10MB)</p>
+                        <p className="text-xs mt-1" style={{ color: '#94A3B8' }}>PNG, JPG, WEBP — auto-optimized on upload</p>
                       </div>
                     )}
                     <input

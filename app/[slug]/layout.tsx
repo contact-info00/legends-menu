@@ -1,8 +1,9 @@
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+import { getCachedThemeForSlug } from '@/lib/theme-server'
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+// Slug existence check is safe to cache briefly; deleted restaurants may 404 for up to 60s.
+export const revalidate = 60
 
 interface LayoutProps {
   children: React.ReactNode
@@ -24,10 +25,24 @@ export default async function SlugLayout({ children, params }: LayoutProps) {
       notFound()
     }
 
-    return <>{children}</>
+    const themePayload = await getCachedThemeForSlug(slug)
+    const themeScript = themePayload
+      ? `window.__INITIAL_THEME__=${JSON.stringify(themePayload)};`
+      : ''
+
+    return (
+      <>
+        {themeScript ? (
+          <script
+            dangerouslySetInnerHTML={{ __html: themeScript }}
+            suppressHydrationWarning
+          />
+        ) : null}
+        {children}
+      </>
+    )
   } catch (error) {
     console.error('[ERROR] Layout - Error checking restaurant:', error)
     throw error
   }
 }
-

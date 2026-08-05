@@ -312,9 +312,9 @@ export default function SettingsPage() {
         return
       }
 
-      // R2 supports larger files, but we'll keep reasonable limits
-      const maxImageSize = 10 * 1024 * 1024 // 10MB for images
-      const maxVideoSize = 100 * 1024 * 1024 // 100MB for videos
+      // Raw upload limits — images are optimized server-side before storage
+      const maxImageSize = 15 * 1024 * 1024 // 15MB raw image upload
+      const maxVideoSize = 10 * 1024 * 1024 // 10MB MP4 (1080p max)
       const maxSize = isVideo ? maxVideoSize : maxImageSize
       
       if (file.size > maxSize) {
@@ -339,7 +339,8 @@ export default function SettingsPage() {
         throw new Error(errorData.error || 'Failed to upload background')
       }
 
-      const { key, publicUrl } = await uploadResponse.json()
+      const { key, publicUrl, contentType, recommendation } = await uploadResponse.json()
+      const storedMimeType = contentType || file.type
 
       // Save R2 key/URL and mimeType to database
       const updateResponse = await fetch('/api/admin/settings', {
@@ -350,7 +351,7 @@ export default function SettingsPage() {
           ...settings,
           welcomeBgR2Key: key,
           welcomeBgR2Url: publicUrl,
-          welcomeBgMimeType: file.type, // Store the mimeType
+          welcomeBgMimeType: storedMimeType,
           slug,
         }),
       })
@@ -364,9 +365,9 @@ export default function SettingsPage() {
       }
 
       if (updateResponse.ok) {
-        applySettingsToState({ ...settings, welcomeBgR2Key: key, welcomeBgR2Url: publicUrl, welcomeBgMimeType: file.type })
+        applySettingsToState({ ...settings, welcomeBgR2Key: key, welcomeBgR2Url: publicUrl, welcomeBgMimeType: storedMimeType })
         if (refresh) refresh()
-        toast.success('Background uploaded successfully!')
+        toast.success(recommendation ? `Background uploaded. ${recommendation}` : 'Background uploaded successfully!')
       } else {
         throw new Error(updateData.message || 'Failed to update background')
       }
@@ -590,7 +591,7 @@ export default function SettingsPage() {
                       <div className="flex flex-col items-center justify-center pt-5 pb-6">
                         <Upload className="w-8 h-8 mb-2" style={{ color: '#475569' }} />
                         <p className="text-sm" style={{ color: '#475569' }}>Click to upload logo</p>
-                        <p className="text-xs mt-1" style={{ color: '#94A3B8' }}>PNG, JPG, WEBP (max 5MB)</p>
+                        <p className="text-xs mt-1" style={{ color: '#94A3B8' }}>PNG, JPG, WEBP — auto-optimized on upload</p>
                       </div>
                     )}
                     <input
@@ -852,7 +853,7 @@ export default function SettingsPage() {
                       <div className="flex flex-col items-center justify-center pt-5 pb-6">
                         <Upload className="w-8 h-8 mb-2" style={{ color: '#475569' }} />
                         <p className="text-sm" style={{ color: '#475569' }}>Click to upload background</p>
-                        <p className="text-xs mt-1" style={{ color: '#94A3B8' }}>PNG, JPG, WEBP, MP4 (max 4MB)</p>
+                        <p className="text-xs mt-1" style={{ color: '#94A3B8' }}>PNG, JPG, WEBP (auto-optimized) or MP4 (max 10MB, 1080p)</p>
                       </div>
                     )}
                     <input

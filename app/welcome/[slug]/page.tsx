@@ -1,8 +1,10 @@
 import { notFound } from 'next/navigation'
+import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import WelcomePageClient from './welcome-client'
 
-export const dynamic = 'force-dynamic'
+// Legacy welcome route — ISR aligned with primary /[slug] welcome page.
+export const revalidate = 30
 
 interface PageProps {
   params: {
@@ -13,41 +15,50 @@ interface PageProps {
 export default async function WelcomePage({ params }: PageProps) {
   const { slug } = params
 
-  // Fetch restaurant data server-side
-  const restaurant = await prisma.restaurant.findUnique({
-    where: { slug },
-    select: {
-      id: true,
-      slug: true,
-      nameKu: true,
-      nameEn: true,
-      nameAr: true,
-      logoMediaId: true,
-      welcomeBackgroundMediaId: true,
-      welcomeOverlayColor: true,
-      welcomeOverlayOpacity: true,
-      welcomeTextEn: true,
-      googleMapsUrl: true,
-      phoneNumber: true,
-      instagramUrl: true,
-      snapchatUrl: true,
-      tiktokUrl: true,
-      logo: {
+  const getCachedRestaurant = unstable_cache(
+    () =>
+      prisma.restaurant.findUnique({
+        where: { slug },
         select: {
           id: true,
-          mimeType: true,
-          size: true,
+          slug: true,
+          nameKu: true,
+          nameEn: true,
+          nameAr: true,
+          logoMediaId: true,
+          welcomeBackgroundMediaId: true,
+          welcomeOverlayColor: true,
+          welcomeOverlayOpacity: true,
+          welcomeTextEn: true,
+          googleMapsUrl: true,
+          phoneNumber: true,
+          instagramUrl: true,
+          snapchatUrl: true,
+          tiktokUrl: true,
+          logo: {
+            select: {
+              id: true,
+              mimeType: true,
+              size: true,
+            },
+          },
+          welcomeBackground: {
+            select: {
+              id: true,
+              mimeType: true,
+              size: true,
+            },
+          },
         },
-      },
-      welcomeBackground: {
-        select: {
-          id: true,
-          mimeType: true,
-          size: true,
-        },
-      },
-    },
-  })
+      }),
+    [`welcome-legacy-${slug}`],
+    {
+      tags: ['settings', `restaurant-slug-${slug}`, `welcome-${slug}`],
+      revalidate: 30,
+    }
+  )
+
+  const restaurant = await getCachedRestaurant()
 
   if (!restaurant) {
     notFound()

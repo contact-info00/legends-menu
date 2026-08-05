@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { ensureRestaurantWelcomeBgMimeTypeColumn, ensureRestaurantSocialMediaColumns } from '@/lib/ensure-columns'
 import { unstable_cache } from 'next/cache'
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+export const revalidate = 300
 
 // Load fallback data from database (updated by admin panel)
 const getFallbackData = async (slug: string) => {
@@ -132,10 +130,6 @@ export async function GET(request: NextRequest) {
     if (process.env.NODE_ENV === 'development') {
       console.log('[DEBUG] /data/restaurant - Received slug:', slug)
     }
-
-    // Ensure columns exist before querying (handles missing migrations gracefully)
-    await ensureRestaurantWelcomeBgMimeTypeColumn(prisma)
-    await ensureRestaurantSocialMediaColumns(prisma)
 
     // Helper function to fetch restaurant data (will be cached)
     async function fetchRestaurantData(slugParam: string): Promise<any> {
@@ -301,9 +295,9 @@ export async function GET(request: NextRequest) {
     // Use cached function to fetch restaurant data
     const cachedFetch = unstable_cache(
       async () => fetchRestaurantData(slug),
-      [`restaurant-data-by-slug-${slug}`],
+      [`restaurant-data-slug-${slug}`],
       {
-        tags: [`restaurant-slug-${slug}`],
+        tags: ['restaurant-data', 'settings', `restaurant-slug-${slug}`, `restaurant-data-slug-${slug}`],
         revalidate: 300, // Cache for 5 minutes
       }
     )

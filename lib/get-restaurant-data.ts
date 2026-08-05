@@ -1,5 +1,4 @@
 import { prisma } from '@/lib/prisma'
-import { ensureRestaurantWelcomeBgMimeTypeColumn, ensureRestaurantSocialMediaColumns } from '@/lib/ensure-columns'
 
 export interface RestaurantData {
   id: string
@@ -47,10 +46,6 @@ export interface RestaurantData {
 
 export async function getRestaurantData(slug: string): Promise<RestaurantData | null> {
   try {
-    // Ensure new columns exist in production before querying
-    await ensureRestaurantWelcomeBgMimeTypeColumn(prisma)
-    await ensureRestaurantSocialMediaColumns(prisma)
-
     let restaurant: any = null
     
     try {

@@ -1,9 +1,75 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 
-// Enable caching for public endpoint (shorter cache for items)
-export const revalidate = 30 // Revalidate every 30 seconds
-export const dynamic = 'force-dynamic'
+export const revalidate = 30
+
+const CACHE_HEADERS = {
+  'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+}
+
+const ITEM_SELECT = {
+  id: true,
+  nameKu: true,
+  nameEn: true,
+  nameAr: true,
+  descriptionKu: true,
+  descriptionEn: true,
+  descriptionAr: true,
+  price: true,
+  imageR2Url: true,
+  imageMediaId: true,
+  sortOrder: true,
+  isActive: true,
+  categoryId: true,
+} as const
+
+async function fetchMenuItems(
+  slug: string,
+  categoryId: string | null,
+  sectionId: string | null
+) {
+  const restaurant = await prisma.restaurant.findUnique({
+    where: { slug },
+    select: { id: true },
+  })
+
+  if (!restaurant) {
+    return null
+  }
+
+  if (categoryId) {
+    const items = await prisma.item.findMany({
+      where: {
+        restaurantId: restaurant.id,
+        categoryId,
+        isActive: true,
+      },
+      select: ITEM_SELECT,
+      orderBy: { sortOrder: 'asc' },
+    })
+    return { items }
+  }
+
+  if (sectionId) {
+    const items = await prisma.item.findMany({
+      where: {
+        restaurantId: restaurant.id,
+        isActive: true,
+        category: {
+          sectionId,
+          isActive: true,
+          restaurantId: restaurant.id,
+        },
+      },
+      select: ITEM_SELECT,
+      orderBy: { sortOrder: 'asc' },
+    })
+    return { items }
+  }
+
+  return { items: [] }
+}
 
 export async function GET(
   request: NextRequest,
@@ -19,13 +85,26 @@ export async function GET(
       return NextResponse.json({ error: 'Slug is required' }, { status: 400 })
     }
 
-    // Resolve restaurant by slug
-    const restaurant = await prisma.restaurant.findUnique({
-      where: { slug },
-      select: { id: true },
-    })
+    if (categoryId && sectionId) {
+      return NextResponse.json(
+        { error: 'Provide either categoryId or sectionId, not both' },
+        { status: 400 }
+      )
+    }
 
-    if (!restaurant) {
+    const cacheKey = `menu-items-${slug}-${categoryId || 'all'}-${sectionId || 'none'}`
+    const getCachedItems = unstable_cache(
+      () => fetchMenuItems(slug, categoryId, sectionId),
+      [cacheKey],
+      {
+        tags: ['menu-items', 'menu', `restaurant-slug-${slug}`],
+        revalidate: 30,
+      }
+    )
+
+    const result = await getCachedItems()
+
+    if (!result) {
       return NextResponse.json(
         { error: 'Restaurant not found' },
         {
@@ -37,76 +116,7 @@ export async function GET(
       )
     }
 
-    // Build where clause based on filters
-    const whereClause: any = {
-      restaurantId: restaurant.id,
-      isActive: true,
-    }
-
-    if (categoryId) {
-      whereClause.categoryId = categoryId
-    } else if (sectionId) {
-      // Get all category IDs for this section
-      const section = await prisma.section.findUnique({
-        where: { id: sectionId },
-        select: {
-          categories: {
-            where: {
-              restaurantId: restaurant.id,
-              isActive: true,
-            },
-            select: { id: true },
-          },
-        },
-      })
-      if (section?.categories?.length) {
-        whereClause.categoryId = {
-          in: section.categories.map((c) => c.id),
-        }
-      } else {
-        // No categories in section, return empty
-        return NextResponse.json(
-          { items: [] },
-          {
-            headers: {
-              'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
-            },
-          }
-        )
-      }
-    }
-
-    // Fetch items for the category/section
-    const items = await prisma.item.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        nameKu: true,
-        nameEn: true,
-        nameAr: true,
-        descriptionKu: true,
-        descriptionEn: true,
-        descriptionAr: true,
-        price: true,
-        imageR2Url: true,
-        imageMediaId: true,
-        sortOrder: true,
-        isActive: true,
-        categoryId: true,
-      },
-      orderBy: {
-        sortOrder: 'asc',
-      },
-    })
-
-    return NextResponse.json(
-      { items: items || [] },
-      {
-        headers: {
-          'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
-        },
-      }
-    )
+    return NextResponse.json(result, { headers: CACHE_HEADERS })
   } catch (error) {
     console.error('Error fetching menu items:', error)
     return NextResponse.json(

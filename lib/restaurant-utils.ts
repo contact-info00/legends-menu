@@ -1,5 +1,4 @@
 import { prisma } from '@/lib/prisma'
-import { ensureRestaurantWelcomeBgMimeTypeColumn, ensureRestaurantSocialMediaColumns } from '@/lib/ensure-columns'
 
 const RESERVED_SLUGS = [
   'super-admin',
@@ -52,10 +51,6 @@ export function validateSlug(slug: string): { valid: boolean; error?: string } {
 
 export async function getRestaurantBySlug(slug: string) {
   try {
-    // Ensure columns exist before querying (handles missing migrations gracefully)
-    await ensureRestaurantWelcomeBgMimeTypeColumn(prisma)
-    await ensureRestaurantSocialMediaColumns(prisma)
-
     try {
       return await prisma.restaurant.findUnique({
         where: { slug },

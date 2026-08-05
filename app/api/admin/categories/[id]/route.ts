@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic"
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdminSession } from '@/lib/auth'
-import { revalidateTag } from 'next/cache'
+import { invalidateMenuDataCaches } from '@/lib/cache-invalidation'
 
 export async function PATCH(
   request: NextRequest,
@@ -34,7 +34,7 @@ export async function PATCH(
     })
 
     // Invalidate cache so menu page reflects changes immediately
-    revalidateTag('menu')
+    invalidateMenuDataCaches(session.restaurantId)
 
     return NextResponse.json(category)
   } catch (error) {
@@ -78,7 +78,7 @@ export async function DELETE(
     })
 
     // Invalidate cache so menu page reflects changes immediately
-    revalidateTag('menu')
+    invalidateMenuDataCaches(session.restaurantId)
 
     return NextResponse.json({ success: true })
   } catch (error) {

@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
-// Force dynamic rendering to prevent caching
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+export const revalidate = 30
 
-// Default UI settings values (for UiSettings table)
 const DEFAULT_UI_SETTINGS = {
   sectionTitleSize: 22,
   categoryTitleSize: 16,
@@ -16,22 +14,104 @@ const DEFAULT_UI_SETTINGS = {
   headerLogoSize: 32,
   bottomNavSectionSize: 13,
   bottomNavCategorySize: 13,
-  currency: 'IQD', // Default currency
+  currency: 'IQD',
 }
 
-// Default response values (includes all fields returned to frontend)
 const DEFAULT_RESPONSE = {
   ...DEFAULT_UI_SETTINGS,
   serviceChargePercent: 0,
   headerFooterBgColor: null,
   glassTintColor: null,
-  currency: 'IQD',
+}
+
+const PUBLIC_CACHE_HEADERS = {
+  'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+}
+
+const NO_STORE_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+  Pragma: 'no-cache',
+  Expires: '0',
 }
 
 const querySchema = z.object({
   slug: z.string().min(1).optional(),
   restaurantId: z.string().min(1).optional(),
 })
+
+async function fetchUiSettingsForRestaurant(slug: string | null, restaurantId: string | null) {
+  let restaurant
+  if (restaurantId) {
+    restaurant = await prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+      select: { id: true, serviceChargePercent: true },
+    })
+  } else if (slug) {
+    restaurant = await prisma.restaurant.findUnique({
+      where: { slug },
+      select: { id: true, serviceChargePercent: true },
+    })
+  }
+
+  if (!restaurant) {
+    return null
+  }
+
+  let settings
+  try {
+    settings = await prisma.uiSettings.findUnique({
+      where: { restaurantId: restaurant.id },
+    })
+  } catch (findError: any) {
+    if (findError?.code === 'P2021' || findError?.code === 'P2022') {
+      try {
+        settings = await prisma.uiSettings.create({
+          data: {
+            restaurantId: restaurant.id,
+            ...DEFAULT_UI_SETTINGS,
+          },
+        })
+      } catch {
+        return DEFAULT_RESPONSE
+      }
+    } else {
+      throw findError
+    }
+  }
+
+  if (!settings) {
+    try {
+      settings = await prisma.uiSettings.create({
+        data: {
+          restaurantId: restaurant.id,
+          ...DEFAULT_UI_SETTINGS,
+        },
+      })
+    } catch {
+      return DEFAULT_RESPONSE
+    }
+  }
+
+  const theme = await prisma.theme.findUnique({
+    where: { restaurantId: restaurant.id },
+    select: { headerFooterBgColor: true, glassTintColor: true },
+  })
+
+  return {
+    sectionTitleSize: settings.sectionTitleSize,
+    categoryTitleSize: settings.categoryTitleSize,
+    itemNameSize: settings.itemNameSize,
+    itemDescriptionSize: settings.itemDescriptionSize,
+    itemPriceSize: settings.itemPriceSize,
+    headerLogoSize: settings.headerLogoSize,
+    bottomNavSectionSize: (settings as any).bottomNavSectionSize ?? DEFAULT_UI_SETTINGS.bottomNavSectionSize,
+    bottomNavCategorySize: (settings as any).bottomNavCategorySize ?? DEFAULT_UI_SETTINGS.bottomNavCategorySize,
+    currency: (settings as any).currency ?? DEFAULT_UI_SETTINGS.currency,
+    serviceChargePercent: restaurant.serviceChargePercent ?? 0,
+    headerFooterBgColor: theme?.headerFooterBgColor ?? null,
+    glassTintColor: theme?.glassTintColor ?? null,
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -41,7 +121,6 @@ export async function GET(request: NextRequest) {
       restaurantId: searchParams.get('restaurantId'),
     }
 
-    // Validate query parameters
     const validation = querySchema.safeParse(query)
     if (!validation.success || (!query.slug && !query.restaurantId)) {
       return NextResponse.json(
@@ -50,130 +129,34 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Resolve restaurant by slug or restaurantId
-    let restaurant
-    if (query.restaurantId) {
-      restaurant = await prisma.restaurant.findUnique({
-        where: { id: query.restaurantId },
-        select: { id: true, serviceChargePercent: true },
-      })
-    } else {
-      restaurant = await prisma.restaurant.findUnique({
-        where: { slug: query.slug! },
-        select: { id: true, serviceChargePercent: true },
-    })
-    }
+    const cacheKey = query.restaurantId
+      ? `ui-settings-restaurant-${query.restaurantId}`
+      : `ui-settings-slug-${query.slug}`
 
-    // Return 404 if restaurant doesn't exist
-    if (!restaurant) {
+    const getCachedUiSettings = unstable_cache(
+      () => fetchUiSettingsForRestaurant(query.slug, query.restaurantId),
+      [cacheKey],
+      {
+        tags: ['ui-settings', query.slug ? `restaurant-slug-${query.slug}` : `restaurant-${query.restaurantId}`],
+        revalidate: 30,
+      }
+    )
+
+    const settings = await getCachedUiSettings()
+
+    if (!settings) {
       return NextResponse.json(
         { error: 'Restaurant not found' },
-        {
-          status: 404,
-          headers: {
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-            'Pragma': 'no-cache',
-            'Expires': '0',
-          },
-        }
+        { status: 404, headers: NO_STORE_HEADERS }
       )
     }
 
-    // Get UI settings for this restaurant only
-    let settings
-    try {
-      settings = await prisma.uiSettings.findUnique({
-        where: { restaurantId: restaurant.id },
-      })
-    } catch (findError: any) {
-      // If findUnique fails, create defaults for this restaurant
-      if (findError?.code === 'P2021' || findError?.code === 'P2022') {
-        console.warn('UiSettings table or columns missing, creating defaults for restaurant:', restaurant.id)
-        try {
-          settings = await prisma.uiSettings.create({
-            data: {
-              restaurantId: restaurant.id,
-              ...DEFAULT_UI_SETTINGS,
-            },
-          })
-        } catch (createError) {
-          console.error('Error creating UiSettings:', createError)
-          // Return defaults if create fails
-          return NextResponse.json(DEFAULT_RESPONSE, {
-            headers: {
-              'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-              'Pragma': 'no-cache',
-              'Expires': '0',
-            },
-          })
-        }
-      } else {
-        throw findError
-      }
-    }
-    
-    const noCacheHeaders = {
-      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-      'Pragma': 'no-cache',
-      'Expires': '0',
-    }
-
-    if (!settings) {
-      // Create default settings for this restaurant if they don't exist
-      try {
-        settings = await prisma.uiSettings.create({
-          data: {
-            restaurantId: restaurant.id,
-            ...DEFAULT_UI_SETTINGS,
-          },
-        })
-      } catch (createError) {
-        console.error('Error creating UiSettings:', createError)
-        // Return defaults if create fails
-        return NextResponse.json(DEFAULT_RESPONSE, {
-          headers: noCacheHeaders,
-        })
-      }
-    }
-
-    // Get theme for headerFooterBgColor and glassTintColor
-    const theme = await prisma.theme.findUnique({
-      where: { restaurantId: restaurant.id },
-      select: { headerFooterBgColor: true, glassTintColor: true },
-    })
-
-    const responseData = {
-      sectionTitleSize: settings.sectionTitleSize,
-      categoryTitleSize: settings.categoryTitleSize,
-      itemNameSize: settings.itemNameSize,
-      itemDescriptionSize: settings.itemDescriptionSize,
-      itemPriceSize: settings.itemPriceSize,
-      headerLogoSize: settings.headerLogoSize,
-      bottomNavSectionSize: (settings as any).bottomNavSectionSize ?? DEFAULT_UI_SETTINGS.bottomNavSectionSize,
-      bottomNavCategorySize: (settings as any).bottomNavCategorySize ?? DEFAULT_UI_SETTINGS.bottomNavCategorySize,
-      currency: (settings as any).currency ?? DEFAULT_UI_SETTINGS.currency,
-      serviceChargePercent: restaurant.serviceChargePercent ?? 0,
-      headerFooterBgColor: theme?.headerFooterBgColor ?? null,
-      glassTintColor: theme?.glassTintColor ?? null,
-    }
-    
-    return NextResponse.json(responseData, {
-      headers: noCacheHeaders,
-    })
+    return NextResponse.json(settings, { headers: PUBLIC_CACHE_HEADERS })
   } catch (error: any) {
-    // Only log errors in development to reduce noise
     if (process.env.NODE_ENV === 'development') {
-    console.error('Error fetching UI settings:', error)
+      console.error('Error fetching UI settings:', error)
     }
-    
-    // Return defaults on error
-    return NextResponse.json(DEFAULT_RESPONSE, {
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-      },
-    })
+
+    return NextResponse.json(DEFAULT_RESPONSE, { headers: PUBLIC_CACHE_HEADERS })
   }
 }
-
