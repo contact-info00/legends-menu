@@ -1,4 +1,5 @@
 import { unstable_cache } from 'next/cache'
+import type { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 export const DEFAULT_THEME = {
@@ -81,6 +82,24 @@ async function fetchThemeForSlug(slug: string): Promise<ThemePayload | null> {
       updatedAt: theme.updatedAt,
     },
   }
+}
+
+/** Resolve restaurant slug from theme API query or referer path. */
+export function resolveThemeSlugFromRequest(request: NextRequest): string | null {
+  let slug = request.nextUrl.searchParams.get('slug')
+
+  if (!slug) {
+    const referer = request.headers.get('referer')
+    if (referer) {
+      const refererUrl = new URL(referer)
+      const pathParts = refererUrl.pathname.split('/').filter(Boolean)
+      if (pathParts.length > 0 && pathParts[0] !== 'super-admin' && pathParts[0] !== 'admin') {
+        slug = pathParts[0]
+      }
+    }
+  }
+
+  return slug
 }
 
 /** Server-side cached theme lookup — shared by /data/theme and [slug]/layout. */

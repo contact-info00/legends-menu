@@ -2,33 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   DEFAULT_THEME,
   getCachedThemeForSlug,
+  resolveThemeSlugFromRequest,
   THEME_CACHE_HEADERS,
   THEME_NO_STORE_HEADERS,
 } from '@/lib/theme-server'
 
-export const revalidate = 30
-
-function resolveSlug(request: NextRequest): string | null {
-  const { searchParams } = new URL(request.url)
-  let slug = searchParams.get('slug')
-
-  if (!slug) {
-    const referer = request.headers.get('referer')
-    if (referer) {
-      const refererUrl = new URL(referer)
-      const pathParts = refererUrl.pathname.split('/').filter(Boolean)
-      if (pathParts.length > 0 && pathParts[0] !== 'super-admin' && pathParts[0] !== 'admin') {
-        slug = pathParts[0]
-      }
-    }
-  }
-
-  return slug
-}
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    const slug = resolveSlug(request)
+    const slug = resolveThemeSlugFromRequest(request)
 
     if (!slug) {
       return NextResponse.json({ theme: DEFAULT_THEME }, { headers: THEME_CACHE_HEADERS })

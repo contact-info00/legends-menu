@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-export const revalidate = 60 // Revalidate every 60 seconds (public endpoint, safe to cache)
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
     // Require slug parameter - no fallback
-    const { searchParams } = new URL(request.url)
-    const slug = searchParams.get('slug')
+    const slug = request.nextUrl.searchParams.get('slug')
 
     if (!slug) {
       return NextResponse.json({ error: 'Slug parameter is required' }, { status: 400 })

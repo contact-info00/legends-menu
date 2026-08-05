@@ -3,7 +3,7 @@ import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
-export const revalidate = 30
+export const dynamic = 'force-dynamic'
 
 const DEFAULT_UI_SETTINGS = {
   sectionTitleSize: 22,
@@ -115,7 +115,7 @@ async function fetchUiSettingsForRestaurant(slug: string | null, restaurantId: s
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
+    const searchParams = request.nextUrl.searchParams
     const query = {
       slug: searchParams.get('slug'),
       restaurantId: searchParams.get('restaurantId'),

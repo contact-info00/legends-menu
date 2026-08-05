@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// Temporary debug endpoint - remove or add admin auth after fixing
-export async function GET() {
-  try {
-    // Only allow in development or with admin auth
-    if (process.env.NODE_ENV === 'production') {
-      // In production, you might want to add admin auth here
-      // For now, we'll allow it but log access
-      console.warn('⚠️ Debug endpoint /api/restaurants/slugs accessed in production')
-    }
+export const dynamic = 'force-dynamic'
 
+/** Dev-only helper — disabled in production builds and runtime. */
+export async function GET() {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
+  try {
     const restaurants = await prisma.restaurant.findMany({
       select: {
         id: true,
@@ -42,4 +41,3 @@ export async function GET() {
     )
   }
 }
-
