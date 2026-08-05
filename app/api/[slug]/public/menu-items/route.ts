@@ -3,6 +3,8 @@ import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 
 export const revalidate = 30
+export const runtime = 'nodejs'
+
 
 const CACHE_HEADERS = {
   'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',

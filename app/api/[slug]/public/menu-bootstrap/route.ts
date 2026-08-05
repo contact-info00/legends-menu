@@ -4,6 +4,8 @@ import { unstable_cache } from 'next/cache'
 
 // Enable caching for public endpoint
 export const revalidate = 30 // Revalidate every 30 seconds (shorter for faster updates)
+export const runtime = 'nodejs'
+
 
 // Removed 'force-dynamic' to enable caching
 

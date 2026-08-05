@@ -4,6 +4,8 @@ import { requireAdminSession } from '@/lib/auth'
 import { invalidateRestaurantCaches } from '@/lib/cache-invalidation'
 
 export const dynamic = "force-dynamic"
+export const runtime = 'nodejs'
+
 
 // Default values
 const DEFAULT_SETTINGS = {

@@ -11,6 +11,7 @@ import { RestaurantData } from '@/lib/get-restaurant-data'
 
 // ISR: welcome content changes infrequently; admin saves trigger tag invalidation.
 export const revalidate = 30
+export const runtime = 'nodejs'
 
 interface PageProps {
   params: {

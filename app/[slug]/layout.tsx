@@ -4,6 +4,7 @@ import { getCachedThemeForSlug } from '@/lib/theme-server'
 
 // Slug existence check is safe to cache briefly; deleted restaurants may 404 for up to 60s.
 export const revalidate = 60
+export const runtime = 'nodejs'
 
 interface LayoutProps {
   children: React.ReactNode

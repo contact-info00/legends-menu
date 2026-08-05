@@ -26,6 +26,8 @@ export const viewport: Viewport = {
   userScalable: true,
 }
 
+export const runtime = 'nodejs'
+
 export default async function RootLayout({
   children,
 }: {

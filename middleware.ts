@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { isReservedSlug } from '@/lib/restaurant-utils'
+import { isReservedSlug } from '@/lib/slug-validation'
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl

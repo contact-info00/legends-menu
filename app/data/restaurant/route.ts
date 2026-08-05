@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { unstable_cache } from 'next/cache'
 
 export const revalidate = 300
+export const runtime = 'nodejs'
+
 
 // Load fallback data from database (updated by admin panel)
 const getFallbackData = async (slug: string) => {

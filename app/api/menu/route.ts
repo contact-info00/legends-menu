@@ -43,6 +43,8 @@ const getCachedMenuSections = unstable_cache(
   }
 )
 
+export const runtime = 'nodejs'
+
 export async function GET() {
   try {
     const sections = await getCachedMenuSections()

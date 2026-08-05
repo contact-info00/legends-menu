@@ -1,6 +1,12 @@
 import { PrismaClient } from '@prisma/client'
 import { initializeSchemaOnce } from './ensure-columns'
 
+if (process.env.NEXT_RUNTIME === 'edge') {
+  throw new Error(
+    'PrismaClient cannot run in Edge Runtime. Import prisma only from Node.js route handlers, pages, or layouts.'
+  )
+}
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }

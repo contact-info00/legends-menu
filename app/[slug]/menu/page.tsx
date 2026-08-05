@@ -5,6 +5,7 @@ import { parseMenuLanguage } from '@/lib/menu-types'
 import { MenuPageClient } from './menu-client'
 
 export const revalidate = 30
+export const runtime = 'nodejs'
 
 interface MenuPageProps {
   params: {

@@ -13,6 +13,8 @@ const feedbackSchema = z.object({
   comment: z.string().nullable().optional(),
 })
 
+export const runtime = 'nodejs'
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()

@@ -5,6 +5,8 @@ import { requireAdminSession, SessionExpiredError, deleteAdminSession } from '@/
 import { unstable_cache } from 'next/cache'
 
 export const dynamic = "force-dynamic"
+export const runtime = 'nodejs'
+
 
 export async function GET(request: NextRequest) {
   const startTime = Date.now()

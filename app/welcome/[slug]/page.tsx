@@ -5,6 +5,7 @@ import WelcomePageClient from './welcome-client'
 
 // Legacy welcome route — ISR aligned with primary /[slug] welcome page.
 export const revalidate = 30
+export const runtime = 'nodejs'
 
 interface PageProps {
   params: {

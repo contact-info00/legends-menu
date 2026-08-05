@@ -5,6 +5,8 @@ import { invalidatePlatformSettingsCache } from '@/lib/cache-invalidation'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 
 const updatePlatformSettingsSchema = z.object({
   footerLogoR2Key: z.string().optional().nullable(),
