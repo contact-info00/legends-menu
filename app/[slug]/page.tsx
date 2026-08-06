@@ -91,7 +91,12 @@ export default async function WelcomePage({ params }: PageProps) {
       <WelcomeClient restaurant={restaurantData}>
         <WelcomeLogo restaurant={restaurantData} isLoaded={true} />
         <WelcomeText restaurant={restaurantData} isLoaded={true} />
-        <WelcomeLanguageButtons slug={slug} logoUrl={logoUrl} isLoaded={true} />
+        <WelcomeLanguageButtons
+          slug={slug}
+          logoUrl={logoUrl}
+          overlayColor={restaurantData.welcomeOverlayColor}
+          isLoaded={true}
+        />
         <WelcomeContact restaurant={restaurantData} isLoaded={true} />
         <SocialMediaIcons restaurant={restaurantData} isLoaded={true} />
       </WelcomeClient>

@@ -26,10 +26,18 @@ function preloadImage(url: string): Promise<void> {
  * Warm menu data, RSC payload, and critical images before navigating from welcome.
  * Resolves when preload finishes or MAX_PRELOAD_MS is reached.
  */
-export async function preloadMenuForNavigation(slug: string, lang: Language): Promise<void> {
+export async function preloadMenuForNavigation(
+  slug: string,
+  lang: Language,
+  onProgress?: (value: number) => void
+): Promise<void> {
+  const report = (value: number) => onProgress?.(Math.min(1, Math.max(0, value)))
+
   const menuPath = `/${slug}/menu?lang=${lang}`
 
   const preloadWork = async () => {
+    report(0.05)
+
     const pageFetch = fetch(menuPath, {
       credentials: 'same-origin',
       headers: {
@@ -43,6 +51,8 @@ export async function preloadMenuForNavigation(slug: string, lang: Language): Pr
       pageFetch,
       fetch('/api/platform-settings', { credentials: 'same-origin' }).catch(() => null),
     ])
+
+    report(0.35)
 
     let bootstrap: BootstrapResponse | null = null
     if (bootstrapRes.ok) {
@@ -77,8 +87,21 @@ export async function preloadMenuForNavigation(slug: string, lang: Language): Pr
       }
     }
 
-    await Promise.all(imageUrls.map(preloadImage))
+    report(0.65)
+
+    if (imageUrls.length > 0) {
+      let loaded = 0
+      await Promise.all(
+        imageUrls.map(async (url) => {
+          await preloadImage(url)
+          loaded += 1
+          report(0.65 + (loaded / imageUrls.length) * 0.35)
+        })
+      )
+    }
+
+    report(1)
   }
 
-  await Promise.race([preloadWork(), delay(MAX_PRELOAD_MS)])
+  await Promise.race([preloadWork(), delay(MAX_PRELOAD_MS).then(() => report(1))])
 }

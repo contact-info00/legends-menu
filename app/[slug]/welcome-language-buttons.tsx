@@ -6,10 +6,15 @@ import { preloadMenuForNavigation } from '@/lib/preload-menu-client'
 import { useState, useEffect, useRef } from 'react'
 
 const POP_ANIM_MS = 450
+const RING_SIZE = 112
+const RING_STROKE = 2.5
+const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
 
 interface WelcomeLanguageButtonsProps {
   slug: string
   logoUrl: string | null
+  overlayColor: string
   isLoaded: boolean
 }
 
@@ -19,9 +24,14 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-export function WelcomeLanguageButtons({ slug, logoUrl }: WelcomeLanguageButtonsProps) {
+export function WelcomeLanguageButtons({
+  slug,
+  logoUrl,
+  overlayColor,
+}: WelcomeLanguageButtonsProps) {
   const router = useRouter()
   const [popupPhase, setPopupPhase] = useState<PopupPhase>('idle')
+  const [loadProgress, setLoadProgress] = useState(0)
   const cancelledRef = useRef(false)
 
   useEffect(() => {
@@ -32,11 +42,13 @@ export function WelcomeLanguageButtons({ slug, logoUrl }: WelcomeLanguageButtons
   }, [])
 
   const finishTransition = async (menuPath: string) => {
+    setLoadProgress(1)
     setPopupPhase('exit')
     await delay(POP_ANIM_MS)
     if (cancelledRef.current) return
     router.push(menuPath)
     setPopupPhase('idle')
+    setLoadProgress(0)
   }
 
   const handleLanguageSelect = async (lang: Language) => {
@@ -62,6 +74,7 @@ export function WelcomeLanguageButtons({ slug, logoUrl }: WelcomeLanguageButtons
       return
     }
 
+    setLoadProgress(0)
     setPopupPhase('enter')
     await delay(POP_ANIM_MS)
     if (cancelledRef.current) return
@@ -69,9 +82,9 @@ export function WelcomeLanguageButtons({ slug, logoUrl }: WelcomeLanguageButtons
     setPopupPhase('hold')
 
     try {
-      await preloadMenuForNavigation(slug, lang)
+      await preloadMenuForNavigation(slug, lang, setLoadProgress)
     } catch {
-      // Continue to menu after preload attempt
+      setLoadProgress(1)
     }
 
     if (cancelledRef.current) return
@@ -79,21 +92,57 @@ export function WelcomeLanguageButtons({ slug, logoUrl }: WelcomeLanguageButtons
   }
 
   const isTransitioning = popupPhase !== 'idle'
+  const progressOffset = RING_CIRCUMFERENCE * (1 - loadProgress)
+  const ringCenter = RING_SIZE / 2
 
   return (
     <>
       {isTransitioning && logoUrl && (
-        <div className="welcome-logo-popup-overlay" aria-live="polite" aria-busy="true">
+        <div
+          className="welcome-logo-popup-overlay"
+          style={{ backgroundColor: overlayColor || '#000000' }}
+          aria-live="polite"
+          aria-busy="true"
+        >
           <div className={`welcome-logo-popup welcome-logo-popup--${popupPhase}`}>
-            <div className="welcome-logo-popup__loader-wrap">
-              {popupPhase !== 'exit' && (
-                <div className="welcome-logo-popup__ring" aria-hidden="true" />
-              )}
+            <div className="welcome-logo-popup__stack">
               <img
                 src={logoUrl}
                 alt="Restaurant Logo"
                 className="welcome-logo-popup__image"
               />
+              {popupPhase !== 'exit' && (
+                <svg
+                  className="welcome-logo-popup__ring-svg"
+                  width={RING_SIZE}
+                  height={RING_SIZE}
+                  viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
+                  aria-hidden="true"
+                >
+                  <circle
+                    cx={ringCenter}
+                    cy={ringCenter}
+                    r={RING_RADIUS}
+                    fill="none"
+                    stroke="rgba(255, 255, 255, 0.22)"
+                    strokeWidth={RING_STROKE}
+                    strokeDasharray="5 7"
+                  />
+                  <circle
+                    cx={ringCenter}
+                    cy={ringCenter}
+                    r={RING_RADIUS}
+                    fill="none"
+                    stroke="rgba(255, 255, 255, 0.95)"
+                    strokeWidth={RING_STROKE}
+                    strokeLinecap="round"
+                    strokeDasharray={RING_CIRCUMFERENCE}
+                    strokeDashoffset={progressOffset}
+                    transform={`rotate(180 ${ringCenter} ${ringCenter})`}
+                    className="welcome-logo-popup__ring-progress"
+                  />
+                </svg>
+              )}
             </div>
           </div>
         </div>
