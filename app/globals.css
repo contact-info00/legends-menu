@@ -483,11 +483,10 @@ nav.sticky {
 
 /* Welcome page box glow effect */
 .welcome-box-glow {
-  box-shadow: 
-    0 0 12px var(--auto-primary-glow, rgba(64, 8, 16, 0.3)),
-    0 0 24px var(--auto-primary-glow-subtle, rgba(64, 8, 16, 0.22)),
-    0 0 36px var(--auto-primary-glow-subtle, rgba(64, 8, 16, 0.16)),
-    0 0 48px var(--auto-primary-glow-subtle, rgba(64, 8, 16, 0.1)),
+  box-shadow:
+    0 0 8px var(--auto-primary-glow, rgba(64, 8, 16, 0.2)),
+    0 0 16px var(--auto-primary-glow-subtle, rgba(64, 8, 16, 0.14)),
+    0 0 24px var(--auto-primary-glow-subtle, rgba(64, 8, 16, 0.09)),
     0 4px 6px -1px var(--auto-shadow-color, rgba(0, 0, 0, 0.3));
 }
 
