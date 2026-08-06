@@ -90,7 +90,6 @@ export default async function WelcomePage({ params }: PageProps) {
 
     const themePayload = await getCachedThemeForSlug(slug)
     const appBg = themePayload?.theme.appBg || DEFAULT_THEME.appBg
-    const welcomeBgUrl = restaurant.welcomeBgR2Url || null
 
     return (
       <WelcomeClient restaurant={restaurantData}>
@@ -100,9 +99,6 @@ export default async function WelcomePage({ params }: PageProps) {
           slug={slug}
           logoUrl={logoUrl}
           appBg={appBg}
-          welcomeBgUrl={welcomeBgUrl}
-          overlayColor={restaurantData.welcomeOverlayColor}
-          overlayOpacity={restaurantData.welcomeOverlayOpacity}
           isLoaded={true}
         />
         <WelcomeContact restaurant={restaurantData} isLoaded={true} />

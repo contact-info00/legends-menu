@@ -11,9 +11,6 @@ interface WelcomeLanguageButtonsProps {
   slug: string
   logoUrl: string | null
   appBg: string
-  welcomeBgUrl: string | null
-  overlayColor: string
-  overlayOpacity: number
   isLoaded: boolean
 }
 
@@ -27,9 +24,6 @@ export function WelcomeLanguageButtons({
   slug,
   logoUrl,
   appBg,
-  welcomeBgUrl,
-  overlayColor,
-  overlayOpacity,
 }: WelcomeLanguageButtonsProps) {
   const router = useRouter()
   const [popupPhase, setPopupPhase] = useState<PopupPhase>('idle')
@@ -98,27 +92,12 @@ export function WelcomeLanguageButtons({
   return (
     <>
       {isTransitioning && logoUrl && (
-        <div className="welcome-logo-popup-overlay" aria-live="polite" aria-busy="true">
-          <div
-            className="welcome-logo-popup-overlay__bg"
-            style={{ backgroundColor: appBg }}
-          />
-          {welcomeBgUrl && (
-            <img
-              src={welcomeBgUrl}
-              alt=""
-              aria-hidden="true"
-              className="welcome-logo-popup-overlay__media"
-            />
-          )}
-          <div
-            className="welcome-logo-popup-overlay__tint"
-            style={{
-              backgroundColor: overlayColor || '#000000',
-              opacity: overlayOpacity ?? 0.5,
-            }}
-          />
-
+        <div
+          className="welcome-logo-popup-overlay"
+          style={{ backgroundColor: appBg }}
+          aria-live="polite"
+          aria-busy="true"
+        >
           <div className={`welcome-logo-popup welcome-logo-popup--${popupPhase}`}>
             <div className="welcome-logo-popup__stack">
               <img
