@@ -346,7 +346,22 @@ nav.sticky {
   animation: welcomePopupOverlayIn 300ms ease-out forwards;
 }
 
+.welcome-logo-popup-overlay__bg,
+.welcome-logo-popup-overlay__media,
+.welcome-logo-popup-overlay__tint {
+  position: absolute;
+  inset: 0;
+}
+
+.welcome-logo-popup-overlay__media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .welcome-logo-popup {
+  position: relative;
+  z-index: 1;
   will-change: transform, opacity;
 }
 
@@ -363,18 +378,34 @@ nav.sticky {
   max-width: min(70vw, 220px);
   object-fit: contain;
   filter: drop-shadow(0 10px 28px rgba(0, 0, 0, 0.45));
-  margin-bottom: -1.75rem;
+}
+
+.welcome-logo-popup__progress-line {
   position: relative;
-  z-index: 2;
+  width: min(12rem, 72vw);
+  height: 2px;
+  margin-top: 1.25rem;
 }
 
-.welcome-logo-popup__ring-svg {
-  display: block;
-  overflow: visible;
+.welcome-logo-popup__progress-track {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.28) 0,
+    rgba(255, 255, 255, 0.28) 8px,
+    transparent 8px,
+    transparent 14px
+  );
 }
 
-.welcome-logo-popup__ring-progress {
-  transition: stroke-dashoffset 0.35s ease;
+.welcome-logo-popup__progress-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  transition: width 0.35s ease;
 }
 
 .welcome-logo-popup--enter {
@@ -400,7 +431,7 @@ nav.sticky {
   .welcome-logo-popup-overlay,
   .welcome-logo-popup--enter,
   .welcome-logo-popup--exit,
-  .welcome-logo-popup__ring-progress {
+  .welcome-logo-popup__progress-fill {
     animation: none;
     transition: none;
   }

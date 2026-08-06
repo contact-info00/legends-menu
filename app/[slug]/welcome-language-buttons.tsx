@@ -6,15 +6,14 @@ import { preloadMenuForNavigation } from '@/lib/preload-menu-client'
 import { useState, useEffect, useRef } from 'react'
 
 const POP_ANIM_MS = 450
-const RING_SIZE = 112
-const RING_STROKE = 2.5
-const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
 
 interface WelcomeLanguageButtonsProps {
   slug: string
   logoUrl: string | null
+  appBg: string
+  welcomeBgUrl: string | null
   overlayColor: string
+  overlayOpacity: number
   isLoaded: boolean
 }
 
@@ -27,7 +26,10 @@ function delay(ms: number): Promise<void> {
 export function WelcomeLanguageButtons({
   slug,
   logoUrl,
+  appBg,
+  welcomeBgUrl,
   overlayColor,
+  overlayOpacity,
 }: WelcomeLanguageButtonsProps) {
   const router = useRouter()
   const [popupPhase, setPopupPhase] = useState<PopupPhase>('idle')
@@ -92,18 +94,31 @@ export function WelcomeLanguageButtons({
   }
 
   const isTransitioning = popupPhase !== 'idle'
-  const progressOffset = RING_CIRCUMFERENCE * (1 - loadProgress)
-  const ringCenter = RING_SIZE / 2
 
   return (
     <>
       {isTransitioning && logoUrl && (
-        <div
-          className="welcome-logo-popup-overlay"
-          style={{ backgroundColor: overlayColor || '#000000' }}
-          aria-live="polite"
-          aria-busy="true"
-        >
+        <div className="welcome-logo-popup-overlay" aria-live="polite" aria-busy="true">
+          <div
+            className="welcome-logo-popup-overlay__bg"
+            style={{ backgroundColor: appBg }}
+          />
+          {welcomeBgUrl && (
+            <img
+              src={welcomeBgUrl}
+              alt=""
+              aria-hidden="true"
+              className="welcome-logo-popup-overlay__media"
+            />
+          )}
+          <div
+            className="welcome-logo-popup-overlay__tint"
+            style={{
+              backgroundColor: overlayColor || '#000000',
+              opacity: overlayOpacity ?? 0.5,
+            }}
+          />
+
           <div className={`welcome-logo-popup welcome-logo-popup--${popupPhase}`}>
             <div className="welcome-logo-popup__stack">
               <img
@@ -112,36 +127,13 @@ export function WelcomeLanguageButtons({
                 className="welcome-logo-popup__image"
               />
               {popupPhase !== 'exit' && (
-                <svg
-                  className="welcome-logo-popup__ring-svg"
-                  width={RING_SIZE}
-                  height={RING_SIZE}
-                  viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
-                  aria-hidden="true"
-                >
-                  <circle
-                    cx={ringCenter}
-                    cy={ringCenter}
-                    r={RING_RADIUS}
-                    fill="none"
-                    stroke="rgba(255, 255, 255, 0.22)"
-                    strokeWidth={RING_STROKE}
-                    strokeDasharray="5 7"
+                <div className="welcome-logo-popup__progress-line" aria-hidden="true">
+                  <div className="welcome-logo-popup__progress-track" />
+                  <div
+                    className="welcome-logo-popup__progress-fill"
+                    style={{ width: `${loadProgress * 100}%` }}
                   />
-                  <circle
-                    cx={ringCenter}
-                    cy={ringCenter}
-                    r={RING_RADIUS}
-                    fill="none"
-                    stroke="rgba(255, 255, 255, 0.95)"
-                    strokeWidth={RING_STROKE}
-                    strokeLinecap="round"
-                    strokeDasharray={RING_CIRCUMFERENCE}
-                    strokeDashoffset={progressOffset}
-                    transform={`rotate(180 ${ringCenter} ${ringCenter})`}
-                    className="welcome-logo-popup__ring-progress"
-                  />
-                </svg>
+                </div>
               )}
             </div>
           </div>

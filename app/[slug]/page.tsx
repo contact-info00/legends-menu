@@ -7,6 +7,7 @@ import { WelcomeContact } from './welcome-contact'
 import { WelcomeLanguageButtons } from './welcome-language-buttons'
 import { SocialMediaIcons } from '@/components/social-media-icons'
 import { RestaurantData } from '@/lib/get-restaurant-data'
+import { getCachedThemeForSlug, DEFAULT_THEME } from '@/lib/theme-server'
 
 // ISR: welcome content changes infrequently; admin saves trigger tag invalidation.
 export const revalidate = 30
@@ -87,6 +88,10 @@ export default async function WelcomePage({ params }: PageProps) {
       restaurant.logoR2Url ||
       (restaurant.logoMediaId ? `/assets/${restaurant.logoMediaId}` : null)
 
+    const themePayload = await getCachedThemeForSlug(slug)
+    const appBg = themePayload?.theme.appBg || DEFAULT_THEME.appBg
+    const welcomeBgUrl = restaurant.welcomeBgR2Url || null
+
     return (
       <WelcomeClient restaurant={restaurantData}>
         <WelcomeLogo restaurant={restaurantData} isLoaded={true} />
@@ -94,7 +99,10 @@ export default async function WelcomePage({ params }: PageProps) {
         <WelcomeLanguageButtons
           slug={slug}
           logoUrl={logoUrl}
+          appBg={appBg}
+          welcomeBgUrl={welcomeBgUrl}
           overlayColor={restaurantData.welcomeOverlayColor}
+          overlayOpacity={restaurantData.welcomeOverlayOpacity}
           isLoaded={true}
         />
         <WelcomeContact restaurant={restaurantData} isLoaded={true} />
