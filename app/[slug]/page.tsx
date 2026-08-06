@@ -83,11 +83,15 @@ export default async function WelcomePage({ params }: PageProps) {
       updatedAt: restaurant.updatedAt || new Date(),
     }
 
+    const logoUrl =
+      restaurant.logoR2Url ||
+      (restaurant.logoMediaId ? `/assets/${restaurant.logoMediaId}` : null)
+
     return (
       <WelcomeClient restaurant={restaurantData}>
         <WelcomeLogo restaurant={restaurantData} isLoaded={true} />
         <WelcomeText restaurant={restaurantData} isLoaded={true} />
-        <WelcomeLanguageButtons slug={slug} isLoaded={true} />
+        <WelcomeLanguageButtons slug={slug} logoUrl={logoUrl} isLoaded={true} />
         <WelcomeContact restaurant={restaurantData} isLoaded={true} />
         <SocialMediaIcons restaurant={restaurantData} isLoaded={true} />
       </WelcomeClient>
