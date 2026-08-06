@@ -8,7 +8,7 @@ import { X, Copy, Check, Palette, Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { HexColorPicker } from 'react-colorful'
 import { generateColorScheme, normalizeToHex } from '@/lib/color-utils'
-import { useAdminBootstrap } from '../admin-context'
+import { useAdminBootstrap, useAdminRestaurantId, useAdminReady } from '../admin-context'
 import { SettingsSkeleton } from '../components/admin-skeleton'
 
 interface ThemeColors {
@@ -79,6 +79,9 @@ export default function ThemePage() {
   const params = useParams()
   const slug = params.slug as string
   const { bootstrap, isLoading: isLoadingBootstrap, refresh: refreshBootstrap } = useAdminBootstrap()
+  const sessionRestaurantId = useAdminRestaurantId()
+  const isAdminReady = useAdminReady()
+  const restaurantId = sessionRestaurantId
   const [theme, setTheme] = useState<ThemeColors>(getInitialTheme())
   const [previewTheme, setPreviewTheme] = useState<ThemeColors>(getInitialTheme())
   const [isLoading, setIsLoading] = useState(false)
@@ -88,7 +91,6 @@ export default function ThemePage() {
   const colorPickerRef = useRef<HTMLDivElement>(null)
   const [menuBgPreview, setMenuBgPreview] = useState<string | null>(null)
   const [uploadingMenuBg, setUploadingMenuBg] = useState(false)
-  const [restaurantId, setRestaurantId] = useState<string | null>(null)
   const [currency, setCurrency] = useState<'IQD' | 'USD'>('IQD')
   const hasLoadedFromBootstrap = useRef(false)
 
@@ -100,7 +102,10 @@ export default function ThemePage() {
   }, [])
 
   useEffect(() => {
-    // Load from bootstrap only once on initial page load (avoid overwriting unsaved edits)
+    if (!isAdminReady) {
+      return
+    }
+
     if (bootstrap?.theme && !hasLoadedFromBootstrap.current) {
       hasLoadedFromBootstrap.current = true
       const themeData = { ...defaultTheme, ...bootstrap.theme }
@@ -112,38 +117,15 @@ export default function ThemePage() {
       applyThemeToDocument(themeData)
     } else if (!isLoadingBootstrap && !hasLoadedFromBootstrap.current) {
       hasLoadedFromBootstrap.current = true
-      fetchTheme()
+      void fetchTheme()
     }
-    
-    // Use bootstrap settings for restaurant ID
-    if (bootstrap?.settings?.id) {
-      setRestaurantId(bootstrap.settings.id)
-    } else {
-      // Fetch restaurant ID for menu background upload
-      const fetchRestaurantId = async () => {
-        try {
-          const response = await fetch('/api/admin/settings')
-          if (response.ok) {
-            const data = await response.json()
-            if (data.id) {
-              setRestaurantId(data.id)
-            }
-          }
-        } catch (error) {
-          console.error('Error fetching restaurant ID:', error)
-        }
-      }
-      fetchRestaurantId()
-    }
-    
-    // Use bootstrap UI settings for currency
+
     if (bootstrap?.uiSettings?.currency) {
       const currencyValue = bootstrap.uiSettings.currency
       if (currencyValue === 'IQD' || currencyValue === 'USD') {
         setCurrency(currencyValue)
       }
     } else {
-      // Fetch currency from UI settings
       const fetchCurrency = async () => {
         try {
           const response = await fetch('/api/admin/ui-settings', {
@@ -159,9 +141,9 @@ export default function ThemePage() {
           console.error('Error fetching currency:', error)
         }
       }
-      fetchCurrency()
+      void fetchCurrency()
     }
-  }, [bootstrap, isLoadingBootstrap])
+  }, [bootstrap, isLoadingBootstrap, isAdminReady])
 
   const fetchTheme = async () => {
     try {
@@ -282,27 +264,8 @@ export default function ThemePage() {
   }
 
   const handleMenuBackgroundUpload = async (file: File) => {
-    // Fetch restaurant ID if not already loaded (lazy fetch for mobile)
-    let currentRestaurantId = restaurantId
-    if (!currentRestaurantId) {
-      try {
-        const response = await fetch('/api/admin/settings', {
-          credentials: 'include',
-        })
-        if (response.ok) {
-          const data = await response.json()
-          if (data.id) {
-            currentRestaurantId = data.id
-            setRestaurantId(data.id)
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching restaurant ID:', error)
-      }
-    }
-    
-    if (!currentRestaurantId) {
-      toast.error('Restaurant ID not found. Please refresh the page and try again.')
+    if (!restaurantId) {
+      toast.error('Restaurant information is still loading. Please wait and try again.')
       return
     }
 
@@ -325,10 +288,11 @@ export default function ThemePage() {
       const formData = new FormData()
       formData.append('file', file)
       formData.append('scope', 'menuBg')
-      formData.append('restaurantId', currentRestaurantId)
+      formData.append('restaurantId', restaurantId)
 
       const uploadResponse = await fetch('/api/r2/upload', {
         method: 'POST',
+        credentials: 'include',
         body: formData,
       })
 

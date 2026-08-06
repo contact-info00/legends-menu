@@ -19,6 +19,7 @@ export default function SuperAdminLoginPage() {
     try {
       const response = await fetch('/api/super-admin/login', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pin }),
       })

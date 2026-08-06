@@ -33,17 +33,8 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const stepStarted = Date.now()
-  console.log('[SSR root-layout] step=ui-settings start')
-
-  let uiSettings
-  try {
-    uiSettings = await getUiSettings()
-    console.log(`[SSR root-layout] step=ui-settings ok ms=${Date.now() - stepStarted}`)
-  } catch (error) {
-    console.error('[SSR root-layout] step=ui-settings failed', error)
-    throw error
-  }
+  // Fetch UI settings server-side
+  const uiSettings = await getUiSettings()
   
   // Create blocking script to set CSS variables immediately
   const uiSettingsScript = `

@@ -150,10 +150,45 @@ export function useAdmin() {
 
 // Helper hook for pages that need bootstrap data
 export function useAdminBootstrap() {
-  const { bootstrap, isLoadingBootstrap, mutateBootstrap } = useAdmin()
+  const {
+    bootstrap,
+    isLoadingBootstrap,
+    isLoadingSession,
+    session,
+    mutateBootstrap,
+  } = useAdmin()
   return {
     bootstrap,
-    isLoading: isLoadingBootstrap,
+    session,
+    isLoading: isLoadingSession || isLoadingBootstrap,
+    isLoadingSession,
+    isLoadingBootstrap,
     refresh: mutateBootstrap,
   }
+}
+
+/** Restaurant ID once session + bootstrap have settled. */
+export function useAdminRestaurantId(): string | null {
+  const { session, bootstrap, isLoadingSession, isLoadingBootstrap } = useAdmin()
+
+  if (isLoadingSession || isLoadingBootstrap) {
+    return null
+  }
+
+  return (
+    session?.restaurantId ??
+    bootstrap?.settings?.id ??
+    bootstrap?.restaurant?.id ??
+    null
+  )
+}
+
+/** True when admin is authenticated and restaurant context is available. */
+export function useAdminReady(): boolean {
+  const restaurantId = useAdminRestaurantId()
+  const { session, isLoadingSession } = useAdmin()
+  if (isLoadingSession) {
+    return false
+  }
+  return Boolean(session?.authenticated && restaurantId)
 }

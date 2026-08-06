@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import toast from 'react-hot-toast'
 import { formatPrice } from '@/lib/utils'
-import { useAdminBootstrap } from '../admin-context'
+import { useAdminBootstrap, useAdminRestaurantId, useAdminReady } from '../admin-context'
 import { MenuBuilderSkeleton } from '../components/admin-skeleton'
 import {
   DndContext,
@@ -73,7 +73,9 @@ export default function MenuBuilderPage() {
   const router = useRouter()
   const params = useParams()
   const slug = params.slug as string
-  const [restaurantId, setRestaurantId] = useState<string | null>(null)
+  const sessionRestaurantId = useAdminRestaurantId()
+  const isAdminReady = useAdminReady()
+  const restaurantId = sessionRestaurantId
   const [sections, setSections] = useState<Section[]>([])
   const [isLoadingMenu, setIsLoadingMenu] = useState(true)
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
@@ -158,20 +160,16 @@ export default function MenuBuilderPage() {
   const { bootstrap, isLoading: isLoadingBootstrap } = useAdminBootstrap()
 
   useEffect(() => {
-    // Use bootstrap data for restaurant ID and currency immediately
-    if (bootstrap?.settings?.id) {
-      setRestaurantId(bootstrap.settings.id)
-    } else {
-      fetchRestaurantId()
+    if (!isAdminReady) {
+      return
     }
-    
+
     if (bootstrap?.uiSettings?.currency) {
       const currencyValue = bootstrap.uiSettings.currency
       if (currencyValue === 'IQD' || currencyValue === 'USD') {
         setCurrency(currencyValue)
       }
     } else {
-      // Fetch currency from UI settings
       const fetchCurrency = async () => {
         try {
           const response = await fetch('/api/admin/ui-settings', {
@@ -187,29 +185,14 @@ export default function MenuBuilderPage() {
           console.error('Error fetching currency:', error)
         }
       }
-      fetchCurrency()
+      void fetchCurrency()
     }
-    
-    // Fetch menu data (always fetch fresh data for menu builder)
-    fetchMenuData()
-  }, [bootstrap])
+
+    void fetchMenuData()
+  }, [bootstrap, isAdminReady])
   
   // Create formatPrice wrapper with currency
   const formatPriceWithCurrency = (price: number) => formatPrice(price, currency)
-
-  const fetchRestaurantId = async () => {
-    try {
-      const response = await fetch(`/api/admin/settings?slug=${slug}`)
-      if (response.ok) {
-        const data = await response.json()
-        if (data.id) {
-          setRestaurantId(data.id)
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching restaurant ID:', error)
-    }
-  }
 
   // Lock body scroll when Add Item modal is open
   useEffect(() => {
@@ -320,7 +303,7 @@ export default function MenuBuilderPage() {
 
   const handleImageUpload = async (file: File, type: 'category' | 'item', id: string) => {
     if (!restaurantId) {
-      toast.error('Restaurant ID not found')
+      toast.error('Restaurant information is still loading. Please wait and try again.')
       return
     }
 
@@ -338,6 +321,7 @@ export default function MenuBuilderPage() {
 
       const uploadResponse = await fetch('/api/r2/upload', {
         method: 'POST',
+        credentials: 'include',
         body: formData,
       })
 
@@ -761,7 +745,7 @@ export default function MenuBuilderPage() {
   const handleAddItem = async (e: React.FormEvent, categoryId: string) => {
     e.preventDefault()
     if (!restaurantId) {
-      toast.error('Restaurant ID not found')
+      toast.error('Restaurant information is still loading. Please wait and try again.')
       return
     }
 
@@ -821,6 +805,7 @@ export default function MenuBuilderPage() {
 
               const uploadResponse = await fetch('/api/r2/upload', {
                 method: 'POST',
+                credentials: 'include',
                 body: formData,
               })
 
@@ -979,7 +964,7 @@ export default function MenuBuilderPage() {
   const handleUpdateItem = async (e: React.FormEvent, itemId: string) => {
     e.preventDefault()
     if (!restaurantId) {
-      toast.error('Restaurant ID not found')
+      toast.error('Restaurant information is still loading. Please wait and try again.')
       return
     }
 
@@ -1013,6 +998,7 @@ export default function MenuBuilderPage() {
 
             const uploadResponse = await fetch('/api/r2/upload', {
               method: 'POST',
+              credentials: 'include',
               body: formData,
             })
 

@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Upload, X } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { useAdminBootstrap } from '../admin-context'
+import { useAdminBootstrap, useAdminRestaurantId, useAdminReady } from '../admin-context'
 import { SettingsSkeleton } from '../components/admin-skeleton'
 
 interface RestaurantSettings {
@@ -61,12 +61,9 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
-  const [footerLogoFile, setFooterLogoFile] = useState<File | null>(null)
-  const [footerLogoPreview, setFooterLogoPreview] = useState<string | null>(null)
   const [backgroundFile, setBackgroundFile] = useState<File | null>(null)
   const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null)
   const [uploadingLogo, setUploadingLogo] = useState(false)
-  const [uploadingFooterLogo, setUploadingFooterLogo] = useState(false)
   const [uploadingBackground, setUploadingBackground] = useState(false)
   // Helper function to handle restaurant mismatch error
   const handleMismatchError = async (response: Response, errorData: any): Promise<boolean> => {
@@ -90,7 +87,20 @@ export default function SettingsPage() {
   }
 
   const { bootstrap, isLoading, refresh } = useAdminBootstrap()
-  const hasLoadedFromBootstrap = useRef(false)
+  const sessionRestaurantId = useAdminRestaurantId()
+  const isAdminReady = useAdminReady()
+
+  const resolveRestaurantId = (): string | null => {
+    return settings.id ?? sessionRestaurantId
+  }
+
+  const requireRestaurantId = (): string | null => {
+    const id = resolveRestaurantId()
+    if (!id) {
+      toast.error('Restaurant information is still loading. Please wait and try again.')
+    }
+    return id
+  }
 
   const applySettingsToState = (settingsData: RestaurantSettings) => {
     setSettings((prev) => ({ ...prev, ...settingsData }))
@@ -100,11 +110,6 @@ export default function SettingsPage() {
     } else if (settingsData.logoMediaId) {
       setLogoPreview(`/assets/${settingsData.logoMediaId}`)
     }
-    if (settingsData.footerLogoR2Url) {
-      setFooterLogoPreview(settingsData.footerLogoR2Url)
-    } else if (settingsData.footerLogoMediaId) {
-      setFooterLogoPreview(`/assets/${settingsData.footerLogoMediaId}`)
-    }
     if (settingsData.welcomeBgR2Url) {
       setBackgroundPreview(settingsData.welcomeBgR2Url)
     } else if (settingsData.welcomeBackgroundMediaId) {
@@ -113,14 +118,15 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
-    if (bootstrap?.settings && !hasLoadedFromBootstrap.current) {
-      hasLoadedFromBootstrap.current = true
-      applySettingsToState(bootstrap.settings)
-    } else if (!isLoading && !hasLoadedFromBootstrap.current) {
-      hasLoadedFromBootstrap.current = true
-      fetchSettings()
+    if (!isAdminReady) {
+      return
     }
-  }, [bootstrap, isLoading])
+    if (bootstrap?.settings) {
+      applySettingsToState(bootstrap.settings)
+      return
+    }
+    void fetchSettings()
+  }, [isAdminReady, bootstrap?.settings])
 
   const fetchSettings = async () => {
     const startTime = performance.now()
@@ -165,21 +171,21 @@ export default function SettingsPage() {
   }
 
   const handleLogoUpload = async (file: File) => {
-    if (!settings.id) {
-      toast.error('Restaurant ID not found')
+    const restaurantId = requireRestaurantId()
+    if (!restaurantId) {
       return
     }
 
     setUploadingLogo(true)
     try {
-      // Upload via server-side proxy (avoids CORS issues)
       const formData = new FormData()
       formData.append('file', file)
       formData.append('scope', 'logo')
-      formData.append('restaurantId', settings.id)
+      formData.append('restaurantId', restaurantId)
 
       const uploadResponse = await fetch('/api/r2/upload', {
         method: 'POST',
+        credentials: 'include',
         body: formData,
       })
 
@@ -231,72 +237,9 @@ export default function SettingsPage() {
     }
   }
 
-  const handleFooterLogoUpload = async (file: File) => {
-    if (!settings.id) {
-      toast.error('Restaurant ID not found')
-      return
-    }
-
-    setUploadingFooterLogo(true)
-    try {
-      // Upload via server-side proxy (avoids CORS issues)
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('scope', 'footerLogo')
-      formData.append('restaurantId', settings.id)
-
-      const uploadResponse = await fetch('/api/r2/upload', {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.json().catch(() => ({ error: 'Unknown error' }))
-        throw new Error(errorData.error || 'Failed to upload footer logo')
-      }
-
-      const { key, publicUrl } = await uploadResponse.json()
-
-      // Save R2 key/URL to database
-      const updateResponse = await fetch('/api/admin/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          ...settings,
-          footerLogoR2Key: key,
-          footerLogoR2Url: publicUrl,
-          slug,
-        }),
-      })
-
-      const updateData = await updateResponse.json().catch(() => ({}))
-      
-      // Check for mismatch error
-      const handled = await handleMismatchError(updateResponse, updateData)
-      if (handled) {
-        return
-      }
-
-      if (updateResponse.ok) {
-        applySettingsToState({ ...settings, footerLogoR2Key: key, footerLogoR2Url: publicUrl })
-        if (refresh) refresh()
-        toast.success('Footer logo uploaded successfully!')
-      } else {
-        throw new Error(updateData.message || 'Failed to update footer logo')
-      }
-    } catch (error: any) {
-      console.error('Error uploading footer logo:', error)
-      toast.error(error.message || 'Failed to upload footer logo')
-    } finally {
-      setUploadingFooterLogo(false)
-      setFooterLogoFile(null)
-    }
-  }
-
   const handleBackgroundUpload = async (file: File) => {
-    if (!settings.id) {
-      toast.error('Restaurant ID not found')
+    const restaurantId = requireRestaurantId()
+    if (!restaurantId) {
       return
     }
 
@@ -327,10 +270,11 @@ export default function SettingsPage() {
       const formData = new FormData()
       formData.append('file', file)
       formData.append('scope', 'welcomeBg')
-      formData.append('restaurantId', settings.id)
+      formData.append('restaurantId', restaurantId)
 
       const uploadResponse = await fetch('/api/r2/upload', {
         method: 'POST',
+        credentials: 'include',
         body: formData,
       })
 
@@ -393,19 +337,6 @@ export default function SettingsPage() {
     }
   }
 
-  const handleFooterLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setFooterLogoFile(file)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setFooterLogoPreview(reader.result as string)
-      }
-      reader.readAsDataURL(file)
-      handleFooterLogoUpload(file)
-    }
-  }
-
   const handleBackgroundChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -436,8 +367,6 @@ export default function SettingsPage() {
           // Explicitly include R2 fields - if they're null in state, send null to clear them
           logoR2Key: settings.logoR2Key ?? null,
           logoR2Url: settings.logoR2Url ?? null,
-          footerLogoR2Key: settings.footerLogoR2Key ?? null,
-          footerLogoR2Url: settings.footerLogoR2Url ?? null,
           welcomeBgR2Key: settings.welcomeBgR2Key ?? null,
           welcomeBgR2Url: settings.welcomeBgR2Url ?? null,
           welcomeBgMimeType: settings.welcomeBgMimeType ?? null,
@@ -503,7 +432,7 @@ export default function SettingsPage() {
   }
 
   // Show skeleton while loading bootstrap data
-  if (isLoading && !bootstrap?.settings) {
+  if (isLoading && !isAdminReady) {
     return <SettingsSkeleton />
   }
 

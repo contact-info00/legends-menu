@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Upload, LogOut, UserPlus, Key, Image as ImageIcon, Trash2, Users, Building2, Plus, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { fetchJson } from '@/lib/fetch-json'
+import { useSuperAdminAuth } from './super-admin-auth-context'
 
 interface Restaurant {
   id: string
@@ -27,6 +29,7 @@ interface Admin {
 
 export default function SuperAdminPage() {
   const router = useRouter()
+  const { isAuthenticated } = useSuperAdminAuth()
 
   const [footerLogoFile, setFooterLogoFile] = useState<File | null>(null)
   const [footerLogoPreview, setFooterLogoPreview] = useState<string | null>(null)
@@ -35,6 +38,7 @@ export default function SuperAdminPage() {
 
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
   const [loadingRestaurants, setLoadingRestaurants] = useState(true)
+  const [restaurantsError, setRestaurantsError] = useState<string | null>(null)
   const [newRestaurantSlug, setNewRestaurantSlug] = useState('')
   const [newRestaurantNameEn, setNewRestaurantNameEn] = useState('')
   const [newRestaurantNameKu, setNewRestaurantNameKu] = useState('')
@@ -52,63 +56,86 @@ export default function SuperAdminPage() {
   const [deletingAdminId, setDeletingAdminId] = useState<string | null>(null)
   const [deletingRestaurantId, setDeletingRestaurantId] = useState<string | null>(null)
   const [deletingRestaurantSlug, setDeletingRestaurantSlug] = useState<string | null>(null)
+  const [adminsError, setAdminsError] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchRestaurants()
-    fetchFooterLogo()
-  }, [])
-
-  useEffect(() => {
-    if (selectedRestaurantId) {
-      fetchAdmins(selectedRestaurantId)
-    } else {
-      setAdmins([])
-      setLoadingAdmins(false)
-    }
-  }, [selectedRestaurantId])
-
-  const fetchRestaurants = async () => {
-    try {
-      const response = await fetch('/api/super-admin/restaurants')
-      if (response.ok) {
-        const data = await response.json()
-        setRestaurants(data.restaurants || [])
+  const fetchRestaurants = useCallback(async () => {
+    const result = await fetchJson<{ restaurants: Restaurant[] }>(
+      '/api/super-admin/restaurants'
+    )
+    if (!result.ok) {
+      setRestaurantsError(result.error)
+      setRestaurants([])
+      if (result.status === 401) {
+        router.push('/super-admin/login')
       }
-    } catch (error) {
-      console.error('Error fetching restaurants:', error)
+      return
+    }
+    setRestaurantsError(null)
+    setRestaurants(result.data.restaurants || [])
+  }, [router])
+
+  const fetchAdmins = useCallback(async (restaurantId: string) => {
+    setLoadingAdmins(true)
+    setAdminsError(null)
+    const result = await fetchJson<{ admins: Admin[] }>(
+      `/api/super-admin/admins?restaurantId=${encodeURIComponent(restaurantId)}`
+    )
+    if (!result.ok) {
+      setAdminsError(result.error)
+      setAdmins([])
+      if (result.status === 401) {
+        router.push('/super-admin/login')
+      }
+      setLoadingAdmins(false)
+      return
+    }
+    setAdmins(result.data.admins || [])
+    setLoadingAdmins(false)
+  }, [router])
+
+  const fetchFooterLogo = useCallback(async () => {
+    const result = await fetchJson<{ footerLogoR2Url?: string | null }>(
+      '/api/super-admin/platform-settings'
+    )
+    if (!result.ok) {
+      if (result.status === 401) {
+        router.push('/super-admin/login')
+      }
+      return
+    }
+    if (result.data.footerLogoR2Url) {
+      setFooterLogoPreview(result.data.footerLogoR2Url)
+    }
+  }, [router])
+
+  const loadDashboard = useCallback(async () => {
+    setLoadingRestaurants(true)
+    try {
+      await Promise.all([fetchRestaurants(), fetchFooterLogo()])
     } finally {
       setLoadingRestaurants(false)
     }
-  }
+  }, [fetchRestaurants, fetchFooterLogo])
 
-  const fetchAdmins = async (restaurantId: string) => {
-    setLoadingAdmins(true)
-    try {
-      const response = await fetch(`/api/super-admin/admins?restaurantId=${restaurantId}`)
-      if (response.ok) {
-        const data = await response.json()
-        setAdmins(data.admins || [])
-      }
-    } catch (error) {
-      console.error('Error fetching admins:', error)
-    } finally {
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return
+    }
+    void loadDashboard()
+  }, [isAuthenticated, loadDashboard])
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return
+    }
+    if (selectedRestaurantId) {
+      void fetchAdmins(selectedRestaurantId)
+    } else {
+      setAdmins([])
+      setAdminsError(null)
       setLoadingAdmins(false)
     }
-  }
-
-  const fetchFooterLogo = async () => {
-    try {
-      const response = await fetch('/api/super-admin/platform-settings')
-      if (response.ok) {
-        const data = await response.json()
-        if (data.footerLogoR2Url) {
-          setFooterLogoPreview(data.footerLogoR2Url)
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching footer logo:', error)
-    }
-  }
+  }, [selectedRestaurantId, isAuthenticated, fetchAdmins])
 
   const handleFooterLogoUpload = async (file: File) => {
     setUploadingFooterLogo(true)
@@ -133,6 +160,7 @@ export default function SuperAdminPage() {
 
       const uploadResponse = await fetch('/api/r2/upload', {
         method: 'POST',
+        credentials: 'include',
         body: formData,
       })
 
@@ -151,6 +179,7 @@ export default function SuperAdminPage() {
       // Update platform settings with key and URL
       const updateResponse = await fetch('/api/super-admin/platform-settings', {
         method: 'PUT',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           footerLogoR2Key: key,
@@ -214,6 +243,7 @@ export default function SuperAdminPage() {
     try {
       const response = await fetch('/api/super-admin/restaurants', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           slug: newRestaurantSlug,
@@ -257,6 +287,7 @@ export default function SuperAdminPage() {
     try {
       const response = await fetch('/api/super-admin/admins', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           restaurantId: selectedRestaurantId,
@@ -290,6 +321,7 @@ export default function SuperAdminPage() {
     try {
       const response = await fetch('/api/super-admin/admins', {
         method: 'PUT',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           adminId,
@@ -325,6 +357,7 @@ export default function SuperAdminPage() {
     try {
       const response = await fetch('/api/super-admin/admins', {
         method: 'DELETE',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ adminId }),
       })
@@ -382,6 +415,7 @@ export default function SuperAdminPage() {
     try {
       const response = await fetch(`/api/super-admin/restaurants/${slug}`, {
         method: 'DELETE',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
       })
 
@@ -580,8 +614,10 @@ export default function SuperAdminPage() {
           </div>
           {loadingRestaurants ? (
             <p className="text-gray-400">Loading...</p>
+          ) : restaurantsError ? (
+            <p className="text-red-400">{restaurantsError}</p>
           ) : restaurants.length === 0 ? (
-            <p className="text-gray-400">No restaurants found</p>
+            <p className="text-gray-400">No restaurants exist yet. Create one above.</p>
           ) : (
             <div className="space-y-2">
               {restaurants.map((restaurant) => (
@@ -679,7 +715,7 @@ export default function SuperAdminPage() {
                 {creatingAdmin ? 'Creating...' : 'Create Admin PIN'}
               </Button>
               <p className="text-xs text-gray-400 text-center">
-                Admin can login at: menuzin.com/{selectedRestaurant?.slug}/admin
+                Admin can login at: menuzin.com/{selectedRestaurant?.slug}/admin-portal
               </p>
             </form>
           )}
@@ -694,6 +730,8 @@ export default function SuperAdminPage() {
             </div>
             {loadingAdmins ? (
               <p className="text-gray-400">Loading...</p>
+            ) : adminsError ? (
+              <p className="text-red-400">{adminsError}</p>
             ) : admins.length === 0 ? (
               <p className="text-gray-400">No admin accounts found for this restaurant</p>
             ) : (

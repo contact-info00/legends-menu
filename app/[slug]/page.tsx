@@ -47,19 +47,11 @@ async function fetchWelcomeRestaurant(slug: string) {
 
 export default async function WelcomePage({ params }: PageProps) {
   const { slug } = params
-  const pageStarted = Date.now()
-  console.log(`[SSR /[slug]/page] slug=${slug} start`)
 
   try {
-    const fetchStarted = Date.now()
-    console.log(`[SSR /[slug]/page] step=restaurant-fetch start slug=${slug}`)
     const restaurant = await fetchWelcomeRestaurant(slug)
-    console.log(
-      `[SSR /[slug]/page] step=restaurant-fetch ok slug=${slug} found=${Boolean(restaurant)} ms=${Date.now() - fetchStarted}`
-    )
 
     if (!restaurant) {
-      console.log(`[SSR /[slug]/page] step=notFound slug=${slug}`)
       notFound()
     }
 
@@ -91,7 +83,6 @@ export default async function WelcomePage({ params }: PageProps) {
       updatedAt: restaurant.updatedAt || new Date(),
     }
 
-    console.log(`[SSR /[slug]/page] step=render ok slug=${slug} ms=${Date.now() - pageStarted}`)
     return (
       <WelcomeClient restaurant={restaurantData}>
         <WelcomeLogo restaurant={restaurantData} isLoaded={true} />
@@ -102,7 +93,7 @@ export default async function WelcomePage({ params }: PageProps) {
       </WelcomeClient>
     )
   } catch (error) {
-    console.error(`[SSR /[slug]/page] failed slug=${slug} ms=${Date.now() - pageStarted}`, error)
+    console.error('[ERROR] Welcome page - Error fetching restaurant:', error)
     throw error
   }
 }

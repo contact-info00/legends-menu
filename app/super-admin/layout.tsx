@@ -1,10 +1,9 @@
-import { SuperAdminAuthWrapper } from './auth-wrapper'
+import { SuperAdminAuthProvider } from './super-admin-auth-context'
 
 export default function SuperAdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  return <SuperAdminAuthWrapper>{children}</SuperAdminAuthWrapper>
+  return <SuperAdminAuthProvider>{children}</SuperAdminAuthProvider>
 }
-
