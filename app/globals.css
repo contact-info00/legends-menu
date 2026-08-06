@@ -343,14 +343,37 @@ nav.sticky {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: #000000;
   animation: welcomePopupOverlayIn 300ms ease-out forwards;
 }
 
 .welcome-logo-popup {
   will-change: transform, opacity;
+}
+
+.welcome-logo-popup__loader-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 9.5rem;
+  height: 9.5rem;
+}
+
+.welcome-logo-popup__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.12);
+  border-top-color: rgba(255, 255, 255, 0.95);
+  border-right-color: rgba(255, 255, 255, 0.45);
+  animation: welcomeLogoSpinner 0.9s linear infinite;
+}
+
+@keyframes welcomeLogoSpinner {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .welcome-logo-popup--enter {
@@ -367,9 +390,11 @@ nav.sticky {
 }
 
 .welcome-logo-popup__image {
-  height: 7rem;
+  position: relative;
+  z-index: 1;
+  height: 6.5rem;
   width: auto;
-  max-width: min(80vw, 280px);
+  max-width: min(70vw, 220px);
   object-fit: contain;
   filter: drop-shadow(0 10px 28px rgba(0, 0, 0, 0.45));
 }
@@ -383,7 +408,8 @@ nav.sticky {
 
   .welcome-logo-popup-overlay,
   .welcome-logo-popup--enter,
-  .welcome-logo-popup--exit {
+  .welcome-logo-popup--exit,
+  .welcome-logo-popup__ring {
     animation: none;
   }
 }

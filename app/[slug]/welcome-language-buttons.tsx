@@ -85,11 +85,16 @@ export function WelcomeLanguageButtons({ slug, logoUrl }: WelcomeLanguageButtons
       {isTransitioning && logoUrl && (
         <div className="welcome-logo-popup-overlay" aria-live="polite" aria-busy="true">
           <div className={`welcome-logo-popup welcome-logo-popup--${popupPhase}`}>
-            <img
-              src={logoUrl}
-              alt="Restaurant Logo"
-              className="welcome-logo-popup__image"
-            />
+            <div className="welcome-logo-popup__loader-wrap">
+              {popupPhase !== 'exit' && (
+                <div className="welcome-logo-popup__ring" aria-hidden="true" />
+              )}
+              <img
+                src={logoUrl}
+                alt="Restaurant Logo"
+                className="welcome-logo-popup__image"
+              />
+            </div>
           </div>
         </div>
       )}
