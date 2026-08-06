@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getR2Client } from '@/lib/r2-client'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 /**
  * Server-side verification endpoint
  * Checks R2 configuration and connectivity

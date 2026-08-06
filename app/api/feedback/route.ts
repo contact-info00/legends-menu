@@ -13,6 +13,7 @@ const feedbackSchema = z.object({
   comment: z.string().nullable().optional(),
 })
 
+export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {

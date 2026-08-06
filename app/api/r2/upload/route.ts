@@ -14,6 +14,9 @@ import {
   MAX_WELCOME_VIDEO_BYTES,
 } from '@/lib/media-optimization'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 const uploadSchema = z.object({
   scope: z.enum(['logo', 'footerLogo', 'welcomeBg', 'menuBg', 'itemImage', 'categoryImage', 'platformFooterLogo']),
   restaurantId: z.string().optional(),

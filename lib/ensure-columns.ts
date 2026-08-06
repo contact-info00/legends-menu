@@ -12,6 +12,9 @@ function isBuildTime(): boolean {
 }
 
 async function runSchemaInitialization(prisma: PrismaClient): Promise<void> {
+  const started = Date.now()
+  console.log('[DB INIT] Starting runtime schema compatibility DDL')
+
   try {
     await prisma.$executeRawUnsafe(
       'ALTER TABLE "Restaurant" ADD COLUMN IF NOT EXISTS "welcomeBgMimeType" TEXT;'
@@ -31,7 +34,7 @@ async function runSchemaInitialization(prisma: PrismaClient): Promise<void> {
       'ALTER TABLE "Restaurant" ADD COLUMN IF NOT EXISTS "tiktokUrl" TEXT;'
     )
     await prisma.$executeRawUnsafe(
-      'ALTER TABLE "Restaurant" ADD COLUMN IF NOT EXISTS "serviceChargePercent" DOUBLE PRECISION DEFAULT 0;'
+      'ALTER TABLE "Restaurant" ADD COLUMN IF NOT EXISTS "service_charge_percent" DOUBLE PRECISION DEFAULT 0;'
     )
   } catch (error) {
     console.warn('[DB INIT] Failed to ensure Restaurant social media columns:', error)
@@ -58,6 +61,8 @@ async function runSchemaInitialization(prisma: PrismaClient): Promise<void> {
   } catch (error) {
     console.warn('[DB INIT] Failed to ensure UiSettings bottom nav columns:', error)
   }
+
+  console.log(`[DB INIT] Schema compatibility DDL finished in ${Date.now() - started}ms`)
 }
 
 /**
@@ -69,7 +74,12 @@ export function initializeSchemaOnce(prisma: PrismaClient): Promise<void> {
     return globalForSchema.schemaInitPromise
   }
 
-  if (isBuildTime() || !process.env.DATABASE_URL) {
+  // Production deploys use Prisma migrations; runtime DDL on serverless cold starts
+  // blocks the single pooled connection and causes SSR timeouts (HTTP 500).
+  if (isBuildTime() || !process.env.DATABASE_URL || process.env.VERCEL === '1') {
+    if (process.env.VERCEL === '1') {
+      console.log('[DB INIT] Skipping runtime DDL on Vercel (migrations are source of truth)')
+    }
     globalForSchema.schemaInitPromise = Promise.resolve()
     return globalForSchema.schemaInitPromise
   }

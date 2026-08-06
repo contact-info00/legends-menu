@@ -24,6 +24,7 @@ const LEGACY_SCOPE_MAP: Record<string, MediaScope> = {
   categoryImage: 'categoryImage',
 }
 
+export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {

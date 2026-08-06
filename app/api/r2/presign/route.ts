@@ -3,6 +3,9 @@ import { getAdminSession } from '@/lib/auth'
 import { generatePresignedUrl, generateR2Key, getR2PublicUrl } from '@/lib/r2-client'
 import { z } from 'zod'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 const presignSchema = z.object({
   fileName: z.string().min(1),
   contentType: z.string().min(1),
