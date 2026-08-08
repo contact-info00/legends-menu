@@ -282,6 +282,10 @@ export function MenuPageClient({ slug, initialLang, initialData }: MenuPageClien
     }
   }, [slug]) // Dependency on slug
 
+  useEffect(() => {
+    setCurrentLang(initialLang)
+  }, [initialLang])
+
   useLayoutEffect(() => {
     localStorage.setItem('language', initialLang)
 
@@ -666,6 +670,7 @@ export function MenuPageClient({ slug, initialLang, initialData }: MenuPageClien
   const handleLanguageChange = (lang: Language) => {
     setCurrentLang(lang)
     localStorage.setItem('language', lang)
+    router.replace(`/${slug}/menu?lang=${lang}`, { scroll: false })
   }
 
   // Memoize handlers to prevent ItemCard re-renders
