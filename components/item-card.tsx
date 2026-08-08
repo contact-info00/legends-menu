@@ -146,7 +146,7 @@ function ItemCardComponent({ item, currentLang, onItemClick, onAddToBasket, quan
           margin: 0,
         }}>
           <h3 
-            className="font-semibold mb-1 line-clamp-1 break-words"
+            className="font-semibold mb-1 min-w-0 w-full truncate"
             style={{ 
               color: 'var(--item-name-text-color, var(--auto-text-primary, #FFFFFF))',
               fontSize: 'var(--menu-item-name-size)'

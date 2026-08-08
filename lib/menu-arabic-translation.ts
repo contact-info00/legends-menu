@@ -172,6 +172,40 @@ export async function buildCategoryUpdateData(
   } as Record<string, unknown>
 }
 
+async function resolveItemNameArabic(
+  nameEn: string,
+  existing?: { nameEn: string; nameAr: string }
+): Promise<string> {
+  const arabic = await resolveArabicFields(
+    [{ englishKey: 'nameEn', arabicKey: 'nameAr', english: nameEn }],
+    existing
+  )
+
+  if (!arabic.nameAr?.trim()) {
+    throw new AzureTranslatorError()
+  }
+
+  return arabic.nameAr
+}
+
+async function resolveItemDescriptionArabic(
+  descriptionEn: string | null | undefined,
+  existing?: { descriptionEn: string | null; descriptionAr: string | null }
+): Promise<string | null> {
+  const arabic = await resolveArabicFields(
+    [
+      {
+        englishKey: 'descriptionEn',
+        arabicKey: 'descriptionAr',
+        english: descriptionEn ?? '',
+      },
+    ],
+    existing
+  )
+
+  return arabic.descriptionAr ?? null
+}
+
 export async function buildItemCreateData(data: {
   categoryId: string
   nameKu: string
@@ -185,29 +219,17 @@ export async function buildItemCreateData(data: {
   sortOrder?: number
   isActive?: boolean
 }) {
-  const arabic = await resolveArabicFields(
-    [
-      { englishKey: 'nameEn', arabicKey: 'nameAr', english: data.nameEn },
-      {
-        englishKey: 'descriptionEn',
-        arabicKey: 'descriptionAr',
-        english: data.descriptionEn ?? '',
-      },
-    ]
-  )
-
-  if (!arabic.nameAr?.trim()) {
-    throw new AzureTranslatorError()
-  }
+  const nameAr = await resolveItemNameArabic(data.nameEn)
+  const descriptionAr = await resolveItemDescriptionArabic(data.descriptionEn)
 
   return {
     categoryId: data.categoryId,
     nameKu: data.nameKu,
     nameEn: data.nameEn,
-    nameAr: arabic.nameAr,
+    nameAr,
     descriptionKu: data.descriptionKu ?? null,
     descriptionEn: data.descriptionEn ?? null,
-    descriptionAr: arabic.descriptionAr ?? null,
+    descriptionAr,
     price: data.price,
     imageMediaId: data.imageMediaId,
     sortOrder: data.sortOrder,
@@ -239,9 +261,12 @@ export async function buildItemUpdateData(
       ? (sanitized.descriptionEn as string | null)
       : existing.descriptionEn
 
-  const arabic = await resolveArabicFields(
+  const nameArabic = await resolveArabicFields(
+    [{ englishKey: 'nameEn', arabicKey: 'nameAr', english: nameEn }],
+    existing
+  )
+  const descriptionArabic = await resolveArabicFields(
     [
-      { englishKey: 'nameEn', arabicKey: 'nameAr', english: nameEn },
       {
         englishKey: 'descriptionEn',
         arabicKey: 'descriptionAr',
@@ -257,8 +282,10 @@ export async function buildItemUpdateData(
     ...(sanitized.descriptionEn !== undefined
       ? { descriptionEn: sanitized.descriptionEn as string | null }
       : {}),
-    ...(arabic.nameAr !== undefined ? { nameAr: arabic.nameAr } : {}),
-    ...(arabic.descriptionAr !== undefined ? { descriptionAr: arabic.descriptionAr } : {}),
+    ...(nameArabic.nameAr !== undefined ? { nameAr: nameArabic.nameAr } : {}),
+    ...(descriptionArabic.descriptionAr !== undefined
+      ? { descriptionAr: descriptionArabic.descriptionAr }
+      : {}),
   } as Record<string, unknown>
 }
 
