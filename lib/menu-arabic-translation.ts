@@ -10,6 +10,36 @@ function normalizeEnglish(value: string | null | undefined): string {
   return (value ?? '').trim()
 }
 
+function isMissingArabicTranslation(
+  arabicValue: string | null | undefined,
+  englishValue: string | null | undefined
+): boolean {
+  const arabic = (arabicValue ?? '').trim()
+  if (!arabic) {
+    return true
+  }
+
+  const english = normalizeEnglish(englishValue)
+  if (!english) {
+    return false
+  }
+
+  return arabic.toLowerCase() === english.toLowerCase()
+}
+
+function assertValidItemNameArabic(nameEn: string, nameAr: string): string {
+  const trimmed = nameAr.trim()
+  if (!trimmed) {
+    throw new AzureTranslatorError()
+  }
+
+  if (trimmed.toLowerCase() === normalizeEnglish(nameEn).toLowerCase()) {
+    throw new AzureTranslatorError()
+  }
+
+  return trimmed
+}
+
 export function englishTextChanged(
   incoming: string | null | undefined,
   existing: string | null | undefined
@@ -35,9 +65,13 @@ async function resolveArabicFields(
     const existingEnglish = normalizeEnglish(existing?.[pair.englishKey])
     const incomingEnglish = normalizeEnglish(pair.english)
     const isCreate = existing === undefined
+    const existingArabic =
+      pair.arabicKey === 'nameAr' ? existing?.nameAr : existing?.descriptionAr
+    const arabicNeedsTranslation =
+      !isCreate && isMissingArabicTranslation(existingArabic, existingEnglish)
     const shouldTranslate = isCreate
       ? incomingEnglish.length > 0
-      : englishTextChanged(incomingEnglish, existingEnglish)
+      : englishTextChanged(incomingEnglish, existingEnglish) || arabicNeedsTranslation
 
     if (!shouldTranslate) {
       if (!isCreate && pair.arabicKey === 'nameAr') {
@@ -185,7 +219,7 @@ async function resolveItemNameArabic(
     throw new AzureTranslatorError()
   }
 
-  return arabic.nameAr
+  return assertValidItemNameArabic(nameEn, arabic.nameAr)
 }
 
 async function resolveItemDescriptionArabic(

@@ -20,6 +20,7 @@ import {
   THEME_UPDATED_EVENT,
 } from '@/lib/theme-client'
 import type { MenuPageInitialData, MenuItem, MenuSection, MenuCategory } from '@/lib/menu-types'
+import { parseMenuLanguage } from '@/lib/menu-types'
 
 interface BasketItem {
   id: string
@@ -285,6 +286,17 @@ export function MenuPageClient({ slug, initialLang, initialData }: MenuPageClien
   useEffect(() => {
     setCurrentLang(initialLang)
   }, [initialLang])
+
+  useEffect(() => {
+    const syncLangFromUrl = () => {
+      const urlLang = parseMenuLanguage(new URLSearchParams(window.location.search).get('lang'))
+      setCurrentLang(urlLang)
+    }
+
+    syncLangFromUrl()
+    window.addEventListener('popstate', syncLangFromUrl)
+    return () => window.removeEventListener('popstate', syncLangFromUrl)
+  }, [slug])
 
   useLayoutEffect(() => {
     localStorage.setItem('language', initialLang)

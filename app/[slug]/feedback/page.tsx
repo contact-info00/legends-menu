@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Language } from '@/lib/i18n'
+import { Language, languages } from '@/lib/i18n'
 
 const emojis = ['😍', '😊', '😐', '😕', '😢']
 
@@ -26,10 +26,12 @@ export default function FeedbackPage() {
 
   useEffect(() => {
     const savedLang = localStorage.getItem('language')
-    if (savedLang) {
+    if (savedLang && languages.some((language) => language.code === savedLang)) {
       setCurrentLang(savedLang as Language)
     }
   }, [])
+
+  const menuPath = `/${slug}/menu?lang=${currentLang}`
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -56,7 +58,7 @@ export default function FeedbackPage() {
       if (response.ok) {
         alert('Thank you for your feedback!')
         // Use client-side routing to preserve state
-        router.push(`/${slug}/menu`)
+        router.push(menuPath)
       } else {
         alert('Failed to submit feedback. Please try again.')
       }
@@ -103,7 +105,7 @@ export default function FeedbackPage() {
           }}
         >
           <Link
-            href={`/${slug}/menu`}
+            href={menuPath}
             className="mb-4 text-sm sm:text-base transition-colors inline-block"
             style={{ color: 'var(--auto-text-secondary, rgba(255, 255, 255, 0.9))' }}
             onMouseEnter={(e) => {

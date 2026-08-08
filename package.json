@@ -15,6 +15,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "db:backfill-slugs": "tsx scripts/backfill-slugs.ts",
+    "db:backfill-item-arabic": "tsx scripts/backfill-missing-item-arabic.ts",
     "prisma:deploy": "prisma migrate deploy"
   },
   "dependencies": {
