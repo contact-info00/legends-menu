@@ -111,9 +111,11 @@ export default function MenuBuilderPage() {
     descriptionEn: '', 
     price: '' 
   })
-  const [itemImage, setItemImage] = useState<File | null>(null)
-  const [itemImagePreview, setItemImagePreview] = useState<string | null>(null)
-  const [itemImageRemoved, setItemImageRemoved] = useState(false) // Track if user intentionally removed image
+  const [addItemImage, setAddItemImage] = useState<File | null>(null)
+  const [addItemImagePreview, setAddItemImagePreview] = useState<string | null>(null)
+  const [editItemImage, setEditItemImage] = useState<File | null>(null)
+  const [editItemImagePreview, setEditItemImagePreview] = useState<string | null>(null)
+  const [editItemImageRemoved, setEditItemImageRemoved] = useState(false)
   
   // Drag and drop states
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -200,6 +202,46 @@ export default function MenuBuilderPage() {
   
   // Create formatPrice wrapper with currency
   const formatPriceWithCurrency = (price: number) => formatPrice(price, currency)
+
+  const resetAddItemForm = () => {
+    setItemForm({
+      nameKu: '',
+      nameEn: '',
+      descriptionKu: '',
+      descriptionEn: '',
+      price: '',
+    })
+    setAddItemImage(null)
+    setAddItemImagePreview(null)
+  }
+
+  const openAddItemModal = (categoryId: string) => {
+    setEditingItem(null)
+    setEditItemImage(null)
+    setEditItemImagePreview(null)
+    setEditItemImageRemoved(false)
+    resetAddItemForm()
+    setShowAddItem(categoryId)
+  }
+
+  const closeAddItemModal = () => {
+    setShowAddItem(null)
+    resetAddItemForm()
+  }
+
+  const resetEditItemImageState = () => {
+    setEditItemImage(null)
+    setEditItemImagePreview(null)
+    setEditItemImageRemoved(false)
+  }
+
+  const parseItemPrice = (value: string): number | null => {
+    const parsed = Number.parseFloat(value)
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      return null
+    }
+    return parsed
+  }
 
   // Lock body scroll when Add Item modal is open
   useEffect(() => {
@@ -956,19 +998,17 @@ export default function MenuBuilderPage() {
       return
     }
 
-    const imageToUpload = itemImage
+    const parsedPrice = parseItemPrice(itemForm.price)
+    if (parsedPrice === null) {
+      adminNotifyError('Please enter a valid price.')
+      return
+    }
+
+    const imageToUpload = addItemImage
     const formDataToSave = { ...itemForm }
     const categoryIdToSave = categoryId
     setShowAddItem(null)
-    setItemForm({
-      nameKu: '',
-      nameEn: '',
-      descriptionKu: '',
-      descriptionEn: '',
-      price: '',
-    })
-    setItemImage(null)
-    setItemImagePreview(null)
+    resetAddItemForm()
 
     await runAdminOperation({
       loadingMessage: 'Adding item...',
@@ -981,13 +1021,13 @@ export default function MenuBuilderPage() {
           body: JSON.stringify({
             ...formDataToSave,
             categoryId: categoryIdToSave,
-            price: parseFloat(formDataToSave.price),
+            price: parsedPrice,
             imageMediaId: null,
           }),
         })
 
         if (!response.ok) {
-          const error = await response.json()
+          const error = await response.json().catch(() => ({}))
           throw new Error(error.error || 'Failed to create item')
         }
 
@@ -1004,10 +1044,10 @@ export default function MenuBuilderPage() {
         setItemForm(formDataToSave)
         setShowAddItem(categoryIdToSave)
         if (imageToUpload) {
-          setItemImage(imageToUpload)
+          setAddItemImage(imageToUpload)
           const reader = new FileReader()
           reader.onloadend = () => {
-            setItemImagePreview(reader.result as string)
+            setAddItemImagePreview(reader.result as string)
           }
           reader.readAsDataURL(imageToUpload)
         }
@@ -1057,17 +1097,31 @@ export default function MenuBuilderPage() {
     }
   }
 
-  const handleItemImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAddItemImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      setItemImage(file)
-      setItemImageRemoved(false) // Reset removal flag when new image is selected
+      setAddItemImage(file)
       const reader = new FileReader()
       reader.onloadend = () => {
-        setItemImagePreview(reader.result as string)
+        setAddItemImagePreview(reader.result as string)
       }
       reader.readAsDataURL(file)
     }
+    e.target.value = ''
+  }
+
+  const handleEditItemImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setEditItemImage(file)
+      setEditItemImageRemoved(false)
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setEditItemImagePreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+    e.target.value = ''
   }
 
   const handleEditSection = (section: Section) => {
@@ -1087,6 +1141,7 @@ export default function MenuBuilderPage() {
   }
 
   const handleEditItem = (item: Item) => {
+    closeAddItemModal()
     setEditingItem(item.id)
     setEditItemForm({
       nameKu: item.nameKu,
@@ -1095,15 +1150,14 @@ export default function MenuBuilderPage() {
       descriptionEn: item.descriptionEn || '',
       price: item.price.toString(),
     })
-    // Reset image removal flag
-    setItemImageRemoved(false)
-    // Check R2 URL first, then fall back to old media ID
+    setEditItemImage(null)
+    setEditItemImageRemoved(false)
     if (item.imageR2Url) {
-      setItemImagePreview(item.imageR2Url)
+      setEditItemImagePreview(item.imageR2Url)
     } else if (item.imageMediaId) {
-      setItemImagePreview(`/assets/${item.imageMediaId}`)
+      setEditItemImagePreview(`/assets/${item.imageMediaId}`)
     } else {
-      setItemImagePreview(null)
+      setEditItemImagePreview(null)
     }
   }
 
@@ -1182,15 +1236,19 @@ export default function MenuBuilderPage() {
       return
     }
 
-    const imageToUpload = itemImage
-    const imageRemovedFlag = itemImageRemoved
+    const parsedPrice = parseItemPrice(editItemForm.price)
+    if (parsedPrice === null) {
+      adminNotifyError('Please enter a valid price.')
+      return
+    }
+
+    const imageToUpload = editItemImage
+    const imageRemovedFlag = editItemImageRemoved
     const formDataToSave = { ...editItemForm }
     const itemIdToSave = itemId
-    const previousPreview = itemImagePreview
+    const previousPreview = editItemImagePreview
     setEditingItem(null)
-    setItemImage(null)
-    setItemImagePreview(null)
-    setItemImageRemoved(false)
+    resetEditItemImageState()
 
     await runAdminOperation({
       loadingMessage: 'Saving item...',
@@ -1199,7 +1257,7 @@ export default function MenuBuilderPage() {
       operation: async () => {
         const updateData: Record<string, unknown> = {
           ...formDataToSave,
-          price: parseFloat(formDataToSave.price),
+          price: parsedPrice,
         }
 
         if (imageToUpload) {
@@ -1230,7 +1288,7 @@ export default function MenuBuilderPage() {
         })
 
         if (!response.ok) {
-          const error = await response.json()
+          const error = await response.json().catch(() => ({}))
           throw new Error(error.error || 'Failed to update item')
         }
 
@@ -1244,10 +1302,10 @@ export default function MenuBuilderPage() {
         setEditItemUploadProgress(undefined)
         setEditItemForm(formDataToSave)
         setEditingItem(itemIdToSave)
-        setItemImagePreview(previousPreview)
-        setItemImageRemoved(imageRemovedFlag)
+        setEditItemImagePreview(previousPreview)
+        setEditItemImageRemoved(imageRemovedFlag)
         if (imageToUpload) {
-          setItemImage(imageToUpload)
+          setEditItemImage(imageToUpload)
         }
       },
     })
@@ -1942,7 +2000,7 @@ export default function MenuBuilderPage() {
                     onGripTouchStart={handleGripTouchStart}
                     onGripTouchEnd={handleGripTouchEnd}
                     onShowAddCategory={setShowAddCategory}
-                    onShowAddItem={setShowAddItem}
+                    onShowAddItem={openAddItemModal}
                     formatPrice={formatPriceWithCurrency}
                   />
                   {/* Categories - rendered outside section frame, directly under section name */}
@@ -1970,7 +2028,7 @@ export default function MenuBuilderPage() {
                                 onGripMouseLeave={handleGripMouseLeave}
                                 onGripTouchStart={handleGripTouchStart}
                                 onGripTouchEnd={handleGripTouchEnd}
-                                onShowAddItem={setShowAddItem}
+                                onShowAddItem={openAddItemModal}
                                 formatPrice={formatPriceWithCurrency}
                                 openMenuId={openMenuId}
                                 openMenuType={openMenuType}
@@ -2003,7 +2061,7 @@ export default function MenuBuilderPage() {
                                         ))}
                                         {/* Add Item Button */}
                                         <Button
-                                          onClick={() => setShowAddItem(category.id)}
+                                          onClick={() => openAddItemModal(category.id)}
                                           className="w-full mt-3 text-sm sm:text-base border"
                                           style={{
                                             backgroundColor: '#27C499',
@@ -2029,7 +2087,7 @@ export default function MenuBuilderPage() {
                                         </div>
                                         {/* Add Item Button */}
                                         <Button
-                                          onClick={() => setShowAddItem(category.id)}
+                                          onClick={() => openAddItemModal(category.id)}
                                           className="w-full mt-3 text-sm sm:text-base border"
                                           style={{
                                             backgroundColor: '#27C499',
@@ -2353,12 +2411,7 @@ export default function MenuBuilderPage() {
       {showAddItem && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm"
-          onClick={() => {
-            setShowAddItem(null)
-            setItemForm({ nameKu: '', nameEn: '', descriptionKu: '', descriptionEn: '', price: '' })
-            setItemImage(null)
-            setItemImagePreview(null)
-          }}
+          onClick={closeAddItemModal}
         >
           <div 
             className="backdrop-blur-xl rounded-2xl sm:rounded-3xl border p-3 sm:p-6 w-full max-w-[37.41%] sm:max-w-[11rem] mx-2 sm:mx-auto my-4 sm:my-8 max-h-[70vh] overflow-y-auto scrollbar-hide"
@@ -2374,16 +2427,7 @@ export default function MenuBuilderPage() {
             <div className="flex items-center justify-between mb-3 sm:mb-4">
               <h2 className="text-lg sm:text-xl font-bold admin-text">Add Item</h2>
               <button
-                onClick={() => {
-                  setShowAddItem(null)
-                  setItemForm({ 
-                    nameKu: '', 
-                    nameEn: '', 
-                    descriptionKu: '', 
-                    descriptionEn: '', 
-                    price: '' 
-                  })
-                }}
+                onClick={closeAddItemModal}
                 style={{ color: '#475569', cursor: 'pointer' }}
                 onMouseEnter={(e) => e.currentTarget.style.color = '#0F172A'}
                 onMouseLeave={(e) => e.currentTarget.style.color = '#475569'}
@@ -2482,9 +2526,9 @@ export default function MenuBuilderPage() {
                 </label>
                 <div className="space-y-2">
                   <label className="flex flex-col items-center justify-center w-full h-24 sm:h-32 border-2 border-dashed border-white/20 rounded-lg cursor-pointer hover:bg-white/5 transition-colors">
-                    {itemImagePreview ? (
+                    {addItemImagePreview ? (
                       <img
-                        src={itemImagePreview}
+                        src={addItemImagePreview}
                         alt="Preview"
                         className="w-full h-full object-cover rounded-lg"
                       />
@@ -2496,21 +2540,21 @@ export default function MenuBuilderPage() {
                       </div>
                     )}
                     <input
+                      key={`add-item-image-${showAddItem}`}
                       type="file"
                       accept="image/jpeg,image/png,image/webp"
                       className="hidden"
-                      onChange={handleItemImageChange}
+                      onChange={handleAddItemImageChange}
                     />
                   </label>
-                  {itemImagePreview && (
+                  {addItemImagePreview && (
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        setItemImage(null)
-                        setItemImagePreview(null)
-                        setItemImageRemoved(true) // Mark that user wants to remove image
+                        setAddItemImage(null)
+                        setAddItemImagePreview(null)
                       }}
                       className="w-full text-xs sm:text-sm"
                     >
@@ -2533,18 +2577,7 @@ export default function MenuBuilderPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => {
-                    setShowAddItem(null)
-                    setItemForm({ 
-                      nameKu: '', 
-                      nameEn: '', 
-                      descriptionKu: '', 
-                      descriptionEn: '', 
-                      price: '' 
-                    })
-                    setItemImage(null)
-                    setItemImagePreview(null)
-                  }}
+                  onClick={closeAddItemModal}
                   className="text-xs sm:text-sm py-2"
                 >
                   Cancel
@@ -2725,9 +2758,7 @@ export default function MenuBuilderPage() {
           className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm"
           onClick={() => {
             setEditingItem(null)
-            setItemImage(null)
-            setItemImagePreview(null)
-            setItemImageRemoved(false)
+            resetEditItemImageState()
           }}
         >
           <div 
@@ -2746,9 +2777,7 @@ export default function MenuBuilderPage() {
               <button
                 onClick={() => {
                   setEditingItem(null)
-                  setItemImage(null)
-                  setItemImagePreview(null)
-                  setItemImageRemoved(false)
+                  resetEditItemImageState()
                 }}
                 style={{ color: '#475569', cursor: 'pointer' }}
                 onMouseEnter={(e) => e.currentTarget.style.color = '#0F172A'}
@@ -2847,36 +2876,37 @@ export default function MenuBuilderPage() {
                   Image (Optional - Leave empty to keep current)
                 </label>
                 <div className="space-y-2">
-                  {itemImagePreview && (
+                  {editItemImagePreview && (
                     <img
-                      src={itemImagePreview}
+                      src={editItemImagePreview}
                       alt="Preview"
                       className="w-full h-24 sm:h-32 object-cover rounded-lg border-2 border-white/20"
                     />
                   )}
                   <label className="flex flex-col items-center justify-center w-full h-20 sm:h-24 border-2 border-dashed border-white/20 rounded-lg cursor-pointer hover:bg-white/5 transition-colors">
-                    {!itemImagePreview && (
+                    {!editItemImagePreview && (
                       <div className="flex flex-col items-center justify-center pt-2 pb-3 sm:pt-3 sm:pb-4">
                         <Upload className="w-5 h-5 sm:w-6 sm:h-6 mb-1 admin-body" />
                         <p className="text-[10px] sm:text-xs admin-body">Click to change image</p>
                       </div>
                     )}
                     <input
+                      key={`edit-item-image-${editingItem}`}
                       type="file"
                       accept="image/jpeg,image/png,image/webp"
                       className="hidden"
-                      onChange={handleItemImageChange}
+                      onChange={handleEditItemImageChange}
                     />
                   </label>
-                  {itemImagePreview && (
+                  {editItemImagePreview && (
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        setItemImage(null)
-                        setItemImagePreview(null)
-                        setItemImageRemoved(true) // Mark that user wants to remove image
+                        setEditItemImage(null)
+                        setEditItemImagePreview(null)
+                        setEditItemImageRemoved(true)
                       }}
                       className="w-full text-xs sm:text-sm"
                     >
@@ -2901,9 +2931,7 @@ export default function MenuBuilderPage() {
                   variant="outline"
                   onClick={() => {
                     setEditingItem(null)
-                    setItemImage(null)
-                    setItemImagePreview(null)
-                    setItemImageRemoved(false)
+                    resetEditItemImageState()
                   }}
                   className="text-xs sm:text-sm py-2"
                 >

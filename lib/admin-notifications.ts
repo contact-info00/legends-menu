@@ -63,7 +63,11 @@ export async function runAdminOperation<T>(options: {
     return result
   } catch (error) {
     console.error(options.errorMessage, error)
-    adminNotifyError(options.errorMessage, toastId)
+    const message =
+      error instanceof Error && error.message.trim().length > 0
+        ? error.message
+        : options.errorMessage
+    adminNotifyError(message, toastId)
     options.onError?.(error)
     return null
   }

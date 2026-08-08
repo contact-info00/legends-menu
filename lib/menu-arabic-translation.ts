@@ -27,14 +27,24 @@ function isMissingArabicTranslation(
   return arabic.toLowerCase() === english.toLowerCase()
 }
 
+function containsArabicScript(text: string): boolean {
+  return /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/.test(text)
+}
+
 function assertValidItemNameArabic(nameEn: string, nameAr: string): string {
   const trimmed = nameAr.trim()
   if (!trimmed) {
     throw new AzureTranslatorError()
   }
 
+  if (containsArabicScript(trimmed)) {
+    return trimmed
+  }
+
   if (trimmed.toLowerCase() === normalizeEnglish(nameEn).toLowerCase()) {
-    throw new AzureTranslatorError()
+    throw new AzureTranslatorError(
+      'Could not translate the item name to Arabic. Please try again or adjust the English name.'
+    )
   }
 
   return trimmed
