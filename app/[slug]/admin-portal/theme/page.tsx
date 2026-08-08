@@ -5,7 +5,13 @@ import { useRouter, useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { X, Copy, Check, Palette, Upload } from 'lucide-react'
-import toast from 'react-hot-toast'
+import { AdminUploadProgress } from '@/components/admin-upload-progress'
+import {
+  adminNotifyError,
+  adminNotifyLoading,
+  adminNotifySuccess,
+} from '@/lib/admin-notifications'
+import { uploadAdminMedia } from '@/lib/admin-upload'
 import { HexColorPicker } from 'react-colorful'
 import { generateColorScheme, normalizeToHex } from '@/lib/color-utils'
 import { useAdminBootstrap, useAdminRestaurantId, useAdminReady } from '../admin-context'
@@ -91,6 +97,7 @@ export default function ThemePage() {
   const colorPickerRef = useRef<HTMLDivElement>(null)
   const [menuBgPreview, setMenuBgPreview] = useState<string | null>(null)
   const [uploadingMenuBg, setUploadingMenuBg] = useState(false)
+  const [menuBgUploadProgress, setMenuBgUploadProgress] = useState<number | null>(null)
   const [currency, setCurrency] = useState<'IQD' | 'USD'>('IQD')
   const hasLoadedFromBootstrap = useRef(false)
 
@@ -172,7 +179,7 @@ export default function ThemePage() {
             } catch (logoutError) {
               // Ignore logout errors
             }
-            toast.error('You are logged into another restaurant. Please login again.', { duration: 5000 })
+            adminNotifyError('You are logged into another restaurant. Please login again.')
             router.push(`/${slug}/admin-portal/login`)
             return
           }
@@ -181,7 +188,7 @@ export default function ThemePage() {
           return
         }
         console.error('Error fetching theme:', response.status, errorMsg)
-        toast.error('Failed to load theme settings')
+        adminNotifyError('Failed to load theme settings')
         return
       }
       
@@ -196,11 +203,11 @@ export default function ThemePage() {
         applyThemeToDocument(themeData)
       } else {
         console.error('Invalid response format:', parsed)
-        toast.error('Failed to load theme settings')
+        adminNotifyError('Failed to load theme settings')
       }
     } catch (error) {
       console.error('Error fetching theme:', error)
-      toast.error('Failed to load theme settings')
+      adminNotifyError('Failed to load theme settings')
     }
   }
 
@@ -265,22 +272,24 @@ export default function ThemePage() {
 
   const handleMenuBackgroundUpload = async (file: File) => {
     if (!restaurantId) {
-      toast.error('Restaurant information is still loading. Please wait and try again.')
+      adminNotifyError('Restaurant information is still loading. Please wait and try again.')
       return
     }
 
     setUploadingMenuBg(true)
+    setMenuBgUploadProgress(null)
+    const toastId = adminNotifyLoading('Uploading menu background...')
     try {
       const isImage = file.type.startsWith('image/')
       if (!isImage) {
-        toast.error('Please upload an image (JPEG, PNG, WebP) file')
+        adminNotifyError('Please upload an image (JPEG, PNG, WebP) file', toastId)
         setUploadingMenuBg(false)
         return
       }
 
       const maxSize = 10 * 1024 * 1024
       if (file.size > maxSize) {
-        toast.error('File size must be less than 10MB')
+        adminNotifyError('File size must be less than 10MB', toastId)
         setUploadingMenuBg(false)
         return
       }
@@ -290,18 +299,10 @@ export default function ThemePage() {
       formData.append('scope', 'menuBg')
       formData.append('restaurantId', restaurantId)
 
-      const uploadResponse = await fetch('/api/r2/upload', {
-        method: 'POST',
-        credentials: 'include',
-        body: formData,
+      const { key, publicUrl } = await uploadAdminMedia({
+        formData,
+        onProgress: setMenuBgUploadProgress,
       })
-
-      if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.json().catch(() => ({ error: 'Unknown error' }))
-        throw new Error(errorData.error || 'Failed to upload menu background')
-      }
-
-      const { key, publicUrl } = await uploadResponse.json()
       const updatedTheme = { ...previewTheme, menuBackgroundR2Url: publicUrl, menuBackgroundR2Key: key }
       setPreviewTheme(updatedTheme)
       setMenuBgPreview(publicUrl)
@@ -313,7 +314,6 @@ export default function ThemePage() {
         body: JSON.stringify(updatedTheme),
       })
 
-      // Fix "body stream already read" error by reading response once
       const raw = await saveResponse.text()
       let parsed = null
       try {
@@ -325,15 +325,13 @@ export default function ThemePage() {
       if (!saveResponse.ok) {
         const errorMsg = parsed?.error || parsed?.message || raw || `HTTP ${saveResponse.status}`
         if (saveResponse.status === 401 || saveResponse.status === 403) {
-          // Check if it's a restaurant mismatch error
           if (parsed?.error === 'SESSION_RESTAURANT_MISMATCH') {
-            // Session is for different restaurant - clear session and redirect
             try {
               await fetch('/api/admin/logout', { method: 'POST', credentials: 'include' })
             } catch (logoutError) {
               // Ignore logout errors
             }
-            toast.error('You are logged into another restaurant. Please login again.', { duration: 5000 })
+            adminNotifyError('You are logged into another restaurant. Please login again.', toastId)
             router.push(`/${slug}/admin-portal/login`)
             return
           }
@@ -344,8 +342,7 @@ export default function ThemePage() {
 
       if (parsed?.ok && parsed?.theme) {
         setTheme({ ...defaultTheme, ...parsed.theme })
-        toast.success('Menu background uploaded successfully!')
-        // Trigger menu page refresh if it's open (using localStorage event and custom event)
+        adminNotifySuccess('✓ Upload complete', toastId)
         if (typeof window !== 'undefined') {
           window.localStorage.setItem('theme-updated', Date.now().toString())
           window.dispatchEvent(new Event('storage'))
@@ -356,9 +353,10 @@ export default function ThemePage() {
       }
     } catch (error: any) {
       console.error('Error uploading menu background:', error)
-      toast.error(error.message || 'Failed to upload menu background')
+      adminNotifyError(error.message || '✕ Upload failed', toastId)
     } finally {
       setUploadingMenuBg(false)
+      setMenuBgUploadProgress(null)
     }
   }
 
@@ -406,23 +404,23 @@ export default function ThemePage() {
             } catch (logoutError) {
               // Ignore logout errors
             }
-            toast.error('You are logged into another restaurant. Please login again.', { duration: 5000 })
+            adminNotifyError('You are logged into another restaurant. Please login again.')
             router.push(`/${slug}/admin-portal/login`)
             return
           }
           // Other auth errors
-          toast.error(parsed?.message || 'Session expired. Please login again.')
+          adminNotifyError(parsed?.message || 'Session expired. Please login again.')
           router.push(`/${slug}/admin-portal/login`)
           return
         }
 
         if (response.status === 405) {
-          toast.error('Invalid request method. Please refresh and try again.')
+          adminNotifyError('Invalid request method. Please refresh and try again.')
           return
         }
 
         const errorMessage = parsed?.error || parsed?.message || errorMsg || 'Failed to save theme'
-        toast.error(errorMessage)
+        adminNotifyError(errorMessage)
         return
       }
 
@@ -435,7 +433,7 @@ export default function ThemePage() {
         } catch (e) {
           // localStorage might not be available
         }
-        toast.success('Theme saved successfully!')
+        adminNotifySuccess('Theme saved successfully!')
         // Refresh bootstrap cache after save
         if (refreshBootstrap) {
           refreshBootstrap()
@@ -448,11 +446,11 @@ export default function ThemePage() {
         }
       } else {
         console.error('Invalid response format:', parsed)
-        toast.error('Failed to save theme')
+        adminNotifyError('Failed to save theme')
       }
     } catch (error) {
       console.error('Error saving theme:', error)
-      toast.error('Failed to save theme. Please check your connection.')
+      adminNotifyError('Failed to save theme. Please check your connection.')
     } finally {
       setIsLoading(false)
     }
@@ -485,7 +483,7 @@ export default function ThemePage() {
   const copyToClipboard = (value: string) => {
     navigator.clipboard.writeText(value)
     setCopied(value)
-    toast.success('Color copied to clipboard!')
+    adminNotifySuccess('Color copied to clipboard!')
     setTimeout(() => setCopied(null), 2000)
   }
 
@@ -687,7 +685,7 @@ export default function ThemePage() {
                     />
                   </label>
                   {uploadingMenuBg && (
-                    <p className="text-sm" style={{ color: '#475569' }}>Uploading background...</p>
+                    <AdminUploadProgress label="Uploading..." progress={menuBgUploadProgress} />
                   )}
                   <p className="text-xs" style={{ color: '#94A3B8' }}>
                     Background image will appear on menu page only (not welcome page). Leave empty to use default background color.
@@ -1269,7 +1267,7 @@ export default function ThemePage() {
                           body: JSON.stringify({ currency: newCurrency }),
                         })
                         if (response.ok) {
-                          toast.success('Currency updated successfully!')
+                          adminNotifySuccess('Currency updated successfully!')
                           // Trigger menu page refresh
                           if (typeof window !== 'undefined') {
                             window.localStorage.setItem('typography-updated', Date.now().toString())
@@ -1277,11 +1275,11 @@ export default function ThemePage() {
                             window.dispatchEvent(new Event('typography-updated'))
                           }
                         } else {
-                          toast.error('Failed to update currency')
+                          adminNotifyError('Failed to update currency')
                         }
                       } catch (error) {
                         console.error('Error updating currency:', error)
-                        toast.error('Failed to update currency')
+                        adminNotifyError('Failed to update currency')
                       }
                     }}
                     style={{

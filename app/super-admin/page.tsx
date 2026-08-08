@@ -5,7 +5,13 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Upload, LogOut, UserPlus, Key, Image as ImageIcon, Trash2, Users, Building2, Plus, ExternalLink } from 'lucide-react'
-import toast from 'react-hot-toast'
+import { AdminUploadProgress } from '@/components/admin-upload-progress'
+import {
+  adminNotifyError,
+  adminNotifyLoading,
+  adminNotifySuccess,
+} from '@/lib/admin-notifications'
+import { uploadAdminMedia } from '@/lib/admin-upload'
 import { fetchJson } from '@/lib/fetch-json'
 import { useSuperAdminAuth } from './super-admin-auth-context'
 
@@ -34,6 +40,7 @@ export default function SuperAdminPage() {
   const [footerLogoFile, setFooterLogoFile] = useState<File | null>(null)
   const [footerLogoPreview, setFooterLogoPreview] = useState<string | null>(null)
   const [uploadingFooterLogo, setUploadingFooterLogo] = useState(false)
+  const [footerLogoUploadProgress, setFooterLogoUploadProgress] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
@@ -139,44 +146,36 @@ export default function SuperAdminPage() {
 
   const handleFooterLogoUpload = async (file: File) => {
     setUploadingFooterLogo(true)
+    setFooterLogoUploadProgress(null)
+    const toastId = adminNotifyLoading('Uploading footer logo...')
     try {
       if (!file.type.startsWith('image/')) {
-        toast.error('Please upload an image file (JPEG, PNG, WebP)')
+        adminNotifyError('Please upload an image file (JPEG, PNG, WebP)', toastId)
         setUploadingFooterLogo(false)
         return
       }
 
-      const maxSize = 10 * 1024 * 1024 // 10MB
+      const maxSize = 10 * 1024 * 1024
       if (file.size > maxSize) {
-        toast.error('File size must be less than 10MB')
+        adminNotifyError('File size must be less than 10MB', toastId)
         setUploadingFooterLogo(false)
         return
       }
 
-      // Upload to R2 via server-side proxy
       const formData = new FormData()
       formData.append('file', file)
       formData.append('scope', 'platformFooterLogo')
 
-      const uploadResponse = await fetch('/api/r2/upload', {
-        method: 'POST',
-        credentials: 'include',
-        body: formData,
+      const uploadData = await uploadAdminMedia({
+        formData,
+        onProgress: setFooterLogoUploadProgress,
       })
-
-      if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.json().catch(() => ({ error: 'Unknown error' }))
-        throw new Error(errorData.error || 'Failed to upload footer logo')
-      }
-
-      const uploadData = await uploadResponse.json()
       const { key, publicUrl } = uploadData
 
       if (!key || !publicUrl) {
         throw new Error('Upload succeeded but did not return key and publicUrl')
       }
 
-      // Update platform settings with key and URL
       const updateResponse = await fetch('/api/super-admin/platform-settings', {
         method: 'PUT',
         credentials: 'include',
@@ -194,17 +193,16 @@ export default function SuperAdminPage() {
       }
 
       const updateData = await updateResponse.json()
-      
-      // Update preview with the URL from response (or use publicUrl as fallback)
       const finalUrl = updateData.platformSettings?.footerLogoR2Url || publicUrl
       setFooterLogoPreview(finalUrl)
       
-      toast.success('Footer logo uploaded successfully! This logo will appear on all restaurant menus.')
+      adminNotifySuccess('✓ Upload complete', toastId)
     } catch (error: any) {
       console.error('Error uploading footer logo:', error)
-      toast.error(error.message || 'Failed to upload footer logo')
+      adminNotifyError(error.message || '✕ Upload failed', toastId)
     } finally {
       setUploadingFooterLogo(false)
+      setFooterLogoUploadProgress(null)
       setFooterLogoFile(null)
     }
   }
@@ -228,14 +226,14 @@ export default function SuperAdminPage() {
     if (fileInputRef.current) {
       fileInputRef.current.click()
     } else {
-      toast.error('File input not found. Please refresh the page.')
+      adminNotifyError('File input not found. Please refresh the page.')
     }
   }
 
   const handleCreateRestaurant = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newRestaurantSlug || !newRestaurantNameEn) {
-      toast.error('Slug and English name are required')
+      adminNotifyError('Slug and English name are required')
       return
     }
 
@@ -256,17 +254,17 @@ export default function SuperAdminPage() {
       const data = await response.json()
 
       if (response.ok) {
-        toast.success('Restaurant created successfully!')
+        adminNotifySuccess('Restaurant created successfully!')
         setNewRestaurantSlug('')
         setNewRestaurantNameEn('')
         setNewRestaurantNameKu('')
         setNewRestaurantNameAr('')
         fetchRestaurants()
       } else {
-        toast.error(data.error || 'Failed to create restaurant')
+        adminNotifyError(data.error || 'Failed to create restaurant')
       }
     } catch (error) {
-      toast.error('An error occurred. Please try again.')
+      adminNotifyError('An error occurred. Please try again.')
     } finally {
       setCreatingRestaurant(false)
     }
@@ -275,11 +273,11 @@ export default function SuperAdminPage() {
   const handleCreateAdmin = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedRestaurantId) {
-      toast.error('Please select a restaurant first')
+      adminNotifyError('Please select a restaurant first')
       return
     }
     if (newPin.length !== 4) {
-      toast.error('PIN must be 4 digits')
+      adminNotifyError('PIN must be 4 digits')
       return
     }
 
@@ -298,14 +296,14 @@ export default function SuperAdminPage() {
       const data = await response.json()
 
       if (response.ok) {
-        toast.success('Admin account created successfully!')
+        adminNotifySuccess('Admin account created successfully!')
         setNewPin('')
         fetchAdmins(selectedRestaurantId)
       } else {
-        toast.error(data.error || 'Failed to create admin account')
+        adminNotifyError(data.error || 'Failed to create admin account')
       }
     } catch (error) {
-      toast.error('An error occurred. Please try again.')
+      adminNotifyError('An error occurred. Please try again.')
     } finally {
       setCreatingAdmin(false)
     }
@@ -313,7 +311,7 @@ export default function SuperAdminPage() {
 
   const handleUpdatePin = async (adminId: string) => {
     if (!adminId || updatePin.length !== 4) {
-      toast.error('PIN must be 4 digits')
+      adminNotifyError('PIN must be 4 digits')
       return
     }
 
@@ -332,17 +330,17 @@ export default function SuperAdminPage() {
       const data = await response.json()
 
       if (response.ok) {
-        toast.success('Admin PIN updated successfully!')
+        adminNotifySuccess('Admin PIN updated successfully!')
         setEditingAdminId(null)
         setUpdatePin('')
         if (selectedRestaurantId) {
           fetchAdmins(selectedRestaurantId)
         }
       } else {
-        toast.error(data.error || 'Failed to update PIN')
+        adminNotifyError(data.error || 'Failed to update PIN')
       }
     } catch (error) {
-      toast.error('An error occurred. Please try again.')
+      adminNotifyError('An error occurred. Please try again.')
     } finally {
       setUpdatingPin(false)
     }
@@ -365,15 +363,15 @@ export default function SuperAdminPage() {
       const data = await response.json()
 
       if (response.ok) {
-        toast.success('Admin account deleted successfully!')
+        adminNotifySuccess('Admin account deleted successfully!')
         if (selectedRestaurantId) {
           fetchAdmins(selectedRestaurantId)
         }
       } else {
-        toast.error(data.error || 'Failed to delete admin account')
+        adminNotifyError(data.error || 'Failed to delete admin account')
       }
     } catch (error) {
-      toast.error('An error occurred. Please try again.')
+      adminNotifyError('An error occurred. Please try again.')
     } finally {
       setDeletingAdminId(null)
     }
@@ -403,9 +401,9 @@ export default function SuperAdminPage() {
 
     if (typedSlug !== slug) {
       if (typedSlug !== null) {
-        toast.error('Slug mismatch. Deletion cancelled.')
+        adminNotifyError('Slug mismatch. Deletion cancelled.')
       } else {
-        toast.error('Deletion cancelled')
+        adminNotifyError('Deletion cancelled')
       }
       return
     }
@@ -422,7 +420,7 @@ export default function SuperAdminPage() {
       const data = await response.json()
 
       if (response.ok) {
-        toast.success(`Restaurant "${nameEn}" and all data deleted successfully!`)
+        adminNotifySuccess(`Restaurant "${nameEn}" and all data deleted successfully!`)
         // Refresh restaurants list
         fetchRestaurants()
         // Clear selection if deleted restaurant was selected
@@ -431,11 +429,11 @@ export default function SuperAdminPage() {
           setAdmins([])
         }
       } else {
-        toast.error(data.error || 'Failed to delete restaurant')
+        adminNotifyError(data.error || 'Failed to delete restaurant')
       }
     } catch (error) {
       console.error('Error deleting restaurant:', error)
-      toast.error('An error occurred while deleting the restaurant. Please try again.')
+      adminNotifyError('An error occurred while deleting the restaurant. Please try again.')
     } finally {
       setDeletingRestaurantId(null)
       setDeletingRestaurantSlug(null)
@@ -451,12 +449,12 @@ export default function SuperAdminPage() {
       if (!response.ok) {
         throw new Error('Logout request failed')
       }
-      toast.success('Logged out successfully')
+      adminNotifySuccess('Logged out successfully')
       router.push('/super-admin/login')
       router.refresh()
     } catch (error) {
       console.error('Logout error:', error)
-      toast.error('Failed to logout')
+      adminNotifyError('Failed to logout')
     }
   }
 
@@ -531,6 +529,9 @@ export default function SuperAdminPage() {
             <p className="text-sm text-gray-400 text-center">
               Supported formats: JPEG, PNG, WebP (max 10MB)
             </p>
+            {uploadingFooterLogo && (
+              <AdminUploadProgress label="Uploading..." progress={footerLogoUploadProgress} />
+            )}
           </div>
         </div>
 

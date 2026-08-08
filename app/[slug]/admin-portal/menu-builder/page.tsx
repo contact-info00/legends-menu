@@ -5,7 +5,15 @@ import { useRouter, useParams } from 'next/navigation'
 import { ChevronDown, ChevronRight, Plus, Edit2, Trash2, Upload, X, GripVertical, MoreVertical } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import toast from 'react-hot-toast'
+import { AdminUploadProgress } from '@/components/admin-upload-progress'
+import { getAdminMenuName } from '@/lib/admin-display-name'
+import {
+  adminNotifyError,
+  adminNotifyLoading,
+  adminNotifySuccess,
+  runAdminOperation,
+} from '@/lib/admin-notifications'
+import { uploadAdminMedia } from '@/lib/admin-upload'
 import { formatPrice } from '@/lib/utils'
 import { useAdminBootstrap, useAdminRestaurantId, useAdminReady } from '../admin-context'
 import { MenuBuilderSkeleton } from '../components/admin-skeleton'
@@ -84,6 +92,9 @@ export default function MenuBuilderPage() {
   const [editingSection, setEditingSection] = useState<string | null>(null)
   const [editingCategory, setEditingCategory] = useState<string | null>(null)
   const [uploadingImage, setUploadingImage] = useState<string | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number | null>>({})
+  const [itemUploadProgress, setItemUploadProgress] = useState<number | null | undefined>(undefined)
+  const [editItemUploadProgress, setEditItemUploadProgress] = useState<number | null | undefined>(undefined)
   
   // Modal states
   const [showAddSection, setShowAddSection] = useState(false)
@@ -272,7 +283,7 @@ export default function MenuBuilderPage() {
       }
     } catch (error) {
       console.error('Error fetching menu:', error)
-      toast.error('Failed to load menu data')
+      adminNotifyError('Failed to load menu data')
       setIsLoadingMenu(false)
     }
   }
@@ -303,13 +314,16 @@ export default function MenuBuilderPage() {
 
   const handleImageUpload = async (file: File, type: 'category' | 'item', id: string) => {
     if (!restaurantId) {
-      toast.error('Restaurant information is still loading. Please wait and try again.')
+      adminNotifyError('Restaurant information is still loading. Please wait and try again.')
       return
     }
 
+    const progressKey = `${type}-${id}`
     setUploadingImage(id)
+    setUploadProgress((prev) => ({ ...prev, [progressKey]: null }))
+    const toastId = adminNotifyLoading('Uploading image...')
+
     try {
-      // Upload via server-side proxy (avoids CORS issues)
       const scope = type === 'category' ? 'categoryImage' : 'itemImage'
       const formData = new FormData()
       formData.append('file', file)
@@ -319,20 +333,13 @@ export default function MenuBuilderPage() {
         formData.append('itemId', id)
       }
 
-      const uploadResponse = await fetch('/api/r2/upload', {
-        method: 'POST',
-        credentials: 'include',
-        body: formData,
+      const { key, publicUrl } = await uploadAdminMedia({
+        formData,
+        onProgress: (percent) => {
+          setUploadProgress((prev) => ({ ...prev, [progressKey]: percent }))
+        },
       })
 
-      if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.json().catch(() => ({ error: 'Unknown error' }))
-        throw new Error(errorData.error || 'Failed to upload image')
-      }
-
-      const { key, publicUrl } = await uploadResponse.json()
-
-      // Save R2 key/URL to database
       if (type === 'category') {
         await fetch(`/api/admin/categories/${id}`, {
           method: 'PATCH',
@@ -347,17 +354,23 @@ export default function MenuBuilderPage() {
         })
       }
 
-      toast.success('Image uploaded successfully')
+      adminNotifySuccess('✓ Upload complete', toastId)
       fetchMenuData()
     } catch (error: any) {
       console.error('Upload error:', error)
-      toast.error(error.message || 'Failed to upload image')
+      adminNotifyError(error.message || '✕ Upload failed', toastId)
     } finally {
       setUploadingImage(null)
+      setUploadProgress((prev) => {
+        const next = { ...prev }
+        delete next[progressKey]
+        return next
+      })
     }
   }
 
   const toggleActive = async (type: 'section' | 'category' | 'item', id: string, currentState: boolean) => {
+    const toastId = adminNotifyLoading(`Updating ${type}...`)
     try {
       const endpoint = type === 'section' 
         ? `/api/admin/sections/${id}`
@@ -365,17 +378,21 @@ export default function MenuBuilderPage() {
         ? `/api/admin/categories/${id}`
         : `/api/admin/items/${id}`
       
-      await fetch(endpoint, {
+      const response = await fetch(endpoint, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isActive: !currentState }),
       })
 
-      toast.success(`${type} ${!currentState ? 'activated' : 'deactivated'}`)
+      if (!response.ok) {
+        throw new Error('Failed to update')
+      }
+
+      adminNotifySuccess(`✓ ${type.charAt(0).toUpperCase()}${type.slice(1)} ${!currentState ? 'activated' : 'deactivated'}`, toastId)
       fetchMenuData()
     } catch (error) {
       console.error('Toggle error:', error)
-      toast.error('Failed to update')
+      adminNotifyError('✕ Failed to update. Please try again.', toastId)
     }
   }
 
@@ -384,6 +401,7 @@ export default function MenuBuilderPage() {
       return
     }
 
+    const toastId = adminNotifyLoading(`Deleting ${type}...`)
     try {
       const endpoint = type === 'section' 
         ? `/api/admin/sections/${id}`
@@ -399,11 +417,11 @@ export default function MenuBuilderPage() {
         throw new Error('Failed to delete')
       }
 
-      toast.success(`${type} deleted successfully`)
+      adminNotifySuccess(`✓ ${type.charAt(0).toUpperCase()}${type.slice(1)} deleted successfully`, toastId)
       fetchMenuData()
     } catch (error) {
       console.error('Delete error:', error)
-      toast.error(`Failed to delete ${type}`)
+      adminNotifyError(`✕ Failed to delete ${type}. Please try again.`, toastId)
     }
   }
 
@@ -552,7 +570,7 @@ export default function MenuBuilderPage() {
             body: JSON.stringify({ items: reorderData }),
           })
           
-          toast.success('Sections reordered')
+          adminNotifySuccess('✓ Sections reordered')
         }
       } else if (activeType === 'category') {
         const section = sections.find(s => s.categories.some(c => c.id === active.id))
@@ -587,7 +605,7 @@ export default function MenuBuilderPage() {
               throw new Error(errorData.error || 'Failed to reorder categories')
             }
             
-            toast.success('Categories reordered')
+            adminNotifySuccess('✓ Categories reordered')
           }
         }
       } else if (activeType === 'item') {
@@ -634,13 +652,13 @@ export default function MenuBuilderPage() {
               throw new Error(errorData.error || 'Failed to reorder items')
             }
             
-            toast.success('Items reordered')
+            adminNotifySuccess('✓ Items reordered')
           }
         }
       }
     } catch (error) {
       console.error('Reorder error:', error)
-      toast.error('Failed to reorder')
+      adminNotifyError('✕ Failed to reorder. Please try again.')
       fetchMenuData()
     }
     
@@ -695,86 +713,103 @@ export default function MenuBuilderPage() {
 
   const handleAddSection = async (e: React.FormEvent) => {
     e.preventDefault()
-    try {
-      const response = await fetch('/api/admin/sections', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sectionForm),
-      })
+    const formDataToSave = { ...sectionForm }
+    setShowAddSection(false)
+    setSectionForm({ nameKu: '', nameEn: '', nameAr: '' })
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to create section')
-      }
+    await runAdminOperation({
+      loadingMessage: 'Adding section...',
+      successMessage: '✓ Section added successfully',
+      errorMessage: '✕ Failed to add section. Please try again.',
+      operation: async () => {
+        const response = await fetch('/api/admin/sections', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formDataToSave),
+        })
 
-      toast.success('Section created successfully')
-      setShowAddSection(false)
-      setSectionForm({ nameKu: '', nameEn: '', nameAr: '' })
-      fetchMenuData()
-    } catch (error: any) {
-      console.error('Error creating section:', error)
-      toast.error(error.message || 'Failed to create section')
-    }
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.error || 'Failed to create section')
+        }
+      },
+      onSuccess: () => {
+        fetchMenuData()
+      },
+      onError: () => {
+        setSectionForm(formDataToSave)
+        setShowAddSection(true)
+      },
+    })
   }
 
   const handleAddCategory = async (e: React.FormEvent, sectionId: string) => {
     e.preventDefault()
-    try {
-      // Create category without image
-      const response = await fetch('/api/admin/categories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...categoryForm, sectionId, imageMediaId: null }),
-      })
+    const formDataToSave = { ...categoryForm }
+    const sectionIdToSave = sectionId
+    setShowAddCategory(null)
+    setCategoryForm({ nameKu: '', nameEn: '', nameAr: '' })
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to create category')
-      }
+    await runAdminOperation({
+      loadingMessage: 'Adding category...',
+      successMessage: '✓ Category added successfully',
+      errorMessage: '✕ Failed to add category. Please try again.',
+      operation: async () => {
+        const response = await fetch('/api/admin/categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...formDataToSave, sectionId: sectionIdToSave, imageMediaId: null }),
+        })
 
-      toast.success('Category created successfully')
-      setShowAddCategory(null)
-      setCategoryForm({ nameKu: '', nameEn: '', nameAr: '' })
-      fetchMenuData()
-    } catch (error: any) {
-      console.error('Error creating category:', error)
-      toast.error(error.message || 'Failed to create category')
-    }
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.error || 'Failed to create category')
+        }
+      },
+      onSuccess: () => {
+        fetchMenuData()
+      },
+      onError: () => {
+        setCategoryForm(formDataToSave)
+        setShowAddCategory(sectionIdToSave)
+      },
+    })
   }
 
   const handleAddItem = async (e: React.FormEvent, categoryId: string) => {
     e.preventDefault()
     if (!restaurantId) {
-      toast.error('Restaurant information is still loading. Please wait and try again.')
+      adminNotifyError('Restaurant information is still loading. Please wait and try again.')
       return
     }
 
-    // Close modal immediately and clear form
-    const imageToUpload = itemImage // Store image before clearing state
-    const formDataToSave = { ...itemForm } // Store form data
+    const imageToUpload = itemImage
+    const formDataToSave = { ...itemForm }
+    const categoryIdToSave = categoryId
     setShowAddItem(null)
-    setItemForm({ 
-      nameKu: '', 
-      nameEn: '', 
-      nameAr: '', 
-      descriptionKu: '', 
-      descriptionEn: '', 
-      descriptionAr: '', 
-      price: '' 
+    setItemForm({
+      nameKu: '',
+      nameEn: '',
+      nameAr: '',
+      descriptionKu: '',
+      descriptionEn: '',
+      descriptionAr: '',
+      price: '',
     })
     setItemImage(null)
     setItemImagePreview(null)
 
-    // Save in background (non-blocking)
-    ;(async () => {
-      try {
-        // Create item first (without image)
+    await runAdminOperation({
+      loadingMessage: 'Adding item...',
+      successMessage: '✓ Item added successfully',
+      errorMessage: '✕ Failed to add item. Please try again.',
+      operation: async () => {
         const response = await fetch('/api/admin/items', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             ...formDataToSave,
-            categoryId,
+            categoryId: categoryIdToSave,
             price: parseFloat(formDataToSave.price),
             imageMediaId: null,
           }),
@@ -787,64 +822,66 @@ export default function MenuBuilderPage() {
 
         const newItem = await response.json()
 
-        // Show success toast
-        toast.success('Item created successfully')
-        fetchMenuData()
-
-        // Upload image in background (non-blocking, automatic)
         if (imageToUpload && newItem.id) {
-          // Upload in background - don't await, let it complete automatically
-          ;(async () => {
-            try {
-              // Upload via server-side proxy (avoids CORS issues)
-              const formData = new FormData()
-              formData.append('file', imageToUpload)
-              formData.append('scope', 'itemImage')
-              formData.append('restaurantId', restaurantId)
-              formData.append('itemId', newItem.id)
-
-              const uploadResponse = await fetch('/api/r2/upload', {
-                method: 'POST',
-                credentials: 'include',
-                body: formData,
-              })
-
-              if (!uploadResponse.ok) {
-                const errorData = await uploadResponse.json().catch(() => ({ error: 'Unknown error' }))
-                console.error('[R2 UPLOAD] Upload failed:', errorData)
-                throw new Error(errorData.error || 'Failed to upload image')
-              }
-
-              const { key, publicUrl } = await uploadResponse.json()
-
-              // Update item with R2 key/URL
-              const updateResponse = await fetch(`/api/admin/items/${newItem.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ imageR2Key: key, imageR2Url: publicUrl }),
-              })
-
-              if (!updateResponse.ok) {
-                const errorData = await updateResponse.json().catch(() => ({ error: 'Unknown error' }))
-                console.error('[R2 UPLOAD] Database update failed:', errorData)
-                throw new Error(errorData.error || 'Failed to save image URL to database')
-              }
-
-              console.log('[R2 UPLOAD] ✅ Image uploaded successfully:', { key, publicUrl })
-              // Refresh menu data to show the uploaded image
-              fetchMenuData()
-            } catch (uploadError: any) {
-              console.error('[R2 UPLOAD] ❌ Error uploading image:', uploadError)
-              // Show error toast but don't block the UI
-              toast.error(`Image upload failed: ${uploadError.message || 'Unknown error'}`)
-            }
-          })()
+          void uploadItemImage(newItem.id, imageToUpload)
         }
-      } catch (error: any) {
-        console.error('Error creating item:', error)
-        toast.error(error.message || 'Failed to create item')
+      },
+      onSuccess: () => {
+        fetchMenuData()
+      },
+      onError: () => {
+        setItemForm(formDataToSave)
+        setShowAddItem(categoryIdToSave)
+        if (imageToUpload) {
+          setItemImage(imageToUpload)
+          const reader = new FileReader()
+          reader.onloadend = () => {
+            setItemImagePreview(reader.result as string)
+          }
+          reader.readAsDataURL(imageToUpload)
+        }
+      },
+    })
+  }
+
+  const uploadItemImage = async (itemId: string, file: File, mode: 'create' | 'edit' = 'create') => {
+    if (!restaurantId) return
+
+    const setProgress = mode === 'edit' ? setEditItemUploadProgress : setItemUploadProgress
+    const toastId = adminNotifyLoading('Uploading image...')
+    setProgress(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('scope', 'itemImage')
+      formData.append('restaurantId', restaurantId)
+      formData.append('itemId', itemId)
+
+      const { key, publicUrl } = await uploadAdminMedia({
+        formData,
+        onProgress: setProgress,
+      })
+
+      const updateResponse = await fetch(`/api/admin/items/${itemId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageR2Key: key, imageR2Url: publicUrl }),
+      })
+
+      if (!updateResponse.ok) {
+        const errorData = await updateResponse.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(errorData.error || 'Failed to save image URL to database')
       }
-    })()
+
+      adminNotifySuccess('✓ Upload complete', toastId)
+      fetchMenuData()
+    } catch (uploadError: any) {
+      console.error('[R2 UPLOAD] Error uploading image:', uploadError)
+      adminNotifyError(uploadError.message || '✕ Upload failed', toastId)
+    } finally {
+      setProgress(undefined)
+    }
   }
 
   const handleItemImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -903,15 +940,16 @@ export default function MenuBuilderPage() {
 
   const handleUpdateSection = async (e: React.FormEvent, sectionId: string) => {
     e.preventDefault()
-    
-    // Close modal immediately
     const formDataToSave = { ...editSectionForm }
+    const sectionIdToSave = sectionId
     setEditingSection(null)
 
-    // Save in background (non-blocking)
-    ;(async () => {
-      try {
-        const response = await fetch(`/api/admin/sections/${sectionId}`, {
+    await runAdminOperation({
+      loadingMessage: 'Saving section...',
+      successMessage: '✓ Section updated successfully',
+      errorMessage: '✕ Failed to update section. Please try again.',
+      operation: async () => {
+        const response = await fetch(`/api/admin/sections/${sectionIdToSave}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formDataToSave),
@@ -921,27 +959,29 @@ export default function MenuBuilderPage() {
           const error = await response.json()
           throw new Error(error.error || 'Failed to update section')
         }
-
-        toast.success('Section updated successfully')
+      },
+      onSuccess: () => {
         fetchMenuData()
-      } catch (error: any) {
-        console.error('Error updating section:', error)
-        toast.error(error.message || 'Failed to update section')
-      }
-    })()
+      },
+      onError: () => {
+        setEditSectionForm(formDataToSave)
+        setEditingSection(sectionIdToSave)
+      },
+    })
   }
 
   const handleUpdateCategory = async (e: React.FormEvent, categoryId: string) => {
     e.preventDefault()
-    
-    // Close modal immediately
     const formDataToSave = { ...editCategoryForm }
+    const categoryIdToSave = categoryId
     setEditingCategory(null)
 
-    // Save in background (non-blocking)
-    ;(async () => {
-      try {
-        const response = await fetch(`/api/admin/categories/${categoryId}`, {
+    await runAdminOperation({
+      loadingMessage: 'Saving category...',
+      successMessage: '✓ Category updated successfully',
+      errorMessage: '✕ Failed to update category. Please try again.',
+      operation: async () => {
+        const response = await fetch(`/api/admin/categories/${categoryIdToSave}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formDataToSave),
@@ -951,83 +991,66 @@ export default function MenuBuilderPage() {
           const error = await response.json()
           throw new Error(error.error || 'Failed to update category')
         }
-
-        toast.success('Category updated successfully')
+      },
+      onSuccess: () => {
         fetchMenuData()
-      } catch (error: any) {
-        console.error('Error updating category:', error)
-        toast.error(error.message || 'Failed to update category')
-      }
-    })()
+      },
+      onError: () => {
+        setEditCategoryForm(formDataToSave)
+        setEditingCategory(categoryIdToSave)
+      },
+    })
   }
 
   const handleUpdateItem = async (e: React.FormEvent, itemId: string) => {
     e.preventDefault()
     if (!restaurantId) {
-      toast.error('Restaurant information is still loading. Please wait and try again.')
+      adminNotifyError('Restaurant information is still loading. Please wait and try again.')
       return
     }
 
-    // Close modal immediately and clear form
-    const imageToUpload = itemImage // Store image before clearing state
-    const imageRemovedFlag = itemImageRemoved // Store removal flag
-    const formDataToSave = { ...editItemForm } // Store form data
+    const imageToUpload = itemImage
+    const imageRemovedFlag = itemImageRemoved
+    const formDataToSave = { ...editItemForm }
+    const itemIdToSave = itemId
+    const previousPreview = itemImagePreview
     setEditingItem(null)
     setItemImage(null)
     setItemImagePreview(null)
     setItemImageRemoved(false)
 
-    // Save in background (non-blocking)
-    ;(async () => {
-      try {
-        const updateData: any = {
+    await runAdminOperation({
+      loadingMessage: 'Saving item...',
+      successMessage: '✓ Item updated successfully',
+      errorMessage: '✕ Failed to update item. Please try again.',
+      operation: async () => {
+        const updateData: Record<string, unknown> = {
           ...formDataToSave,
           price: parseFloat(formDataToSave.price),
         }
 
-        // Handle image: upload new, remove existing, or keep existing
         if (imageToUpload) {
-          // Upload new image to R2 if provided (using server-side proxy to avoid CORS)
-          try {
-            // Upload via server-side proxy (avoids CORS issues)
-            const formData = new FormData()
-            formData.append('file', imageToUpload)
-            formData.append('scope', 'itemImage')
-            formData.append('restaurantId', restaurantId)
-            formData.append('itemId', itemId)
+          setEditItemUploadProgress(null)
+          const formData = new FormData()
+          formData.append('file', imageToUpload)
+          formData.append('scope', 'itemImage')
+          formData.append('restaurantId', restaurantId)
+          formData.append('itemId', itemIdToSave)
 
-            const uploadResponse = await fetch('/api/r2/upload', {
-              method: 'POST',
-              credentials: 'include',
-              body: formData,
-            })
+          const { key, publicUrl } = await uploadAdminMedia({
+            formData,
+            onProgress: setEditItemUploadProgress,
+          })
 
-            if (!uploadResponse.ok) {
-              const errorData = await uploadResponse.json().catch(() => ({ error: 'Unknown error' }))
-              console.error('[R2 UPLOAD] Upload failed:', errorData)
-              throw new Error(errorData.error || 'Failed to upload image')
-            }
-
-            const { key, publicUrl } = await uploadResponse.json()
-
-            // Add R2 fields to update data
-            updateData.imageR2Key = key
-            updateData.imageR2Url = publicUrl
-            
-            console.log('[R2 UPLOAD] ✅ Image uploaded successfully:', { key, publicUrl })
-          } catch (uploadError: any) {
-            console.error('[R2 UPLOAD] ❌ Error uploading image:', uploadError)
-            toast.error(`Failed to upload image: ${uploadError.message || 'Unknown error'}`)
-            return
-          }
+          updateData.imageR2Key = key
+          updateData.imageR2Url = publicUrl
         } else if (imageRemovedFlag) {
-          // User intentionally removed the image - clear image fields
           updateData.imageR2Key = null
           updateData.imageR2Url = null
-          updateData.imageMediaId = null // Also clear old media ID if it exists
+          updateData.imageMediaId = null
         }
 
-        const response = await fetch(`/api/admin/items/${itemId}`, {
+        const response = await fetch(`/api/admin/items/${itemIdToSave}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updateData),
@@ -1037,14 +1060,22 @@ export default function MenuBuilderPage() {
           const error = await response.json()
           throw new Error(error.error || 'Failed to update item')
         }
-
-        toast.success('Item updated successfully')
+      },
+      onSuccess: () => {
+        setEditItemUploadProgress(undefined)
         fetchMenuData()
-      } catch (error: any) {
-        console.error('Error updating item:', error)
-        toast.error(error.message || 'Failed to update item')
-      }
-    })()
+      },
+      onError: () => {
+        setEditItemUploadProgress(undefined)
+        setEditItemForm(formDataToSave)
+        setEditingItem(itemIdToSave)
+        setItemImagePreview(previousPreview)
+        setItemImageRemoved(imageRemovedFlag)
+        if (imageToUpload) {
+          setItemImage(imageToUpload)
+        }
+      },
+    })
   }
 
   // Sortable Section Component
@@ -1151,7 +1182,7 @@ export default function MenuBuilderPage() {
               className="font-medium truncate text-sm sm:text-base"
                   style={{ color: '#0F172A' }}
                 >
-                  {section.nameEn}
+                  {getAdminMenuName(section)}
               </div>
             </div>
           </div>
@@ -1227,7 +1258,7 @@ export default function MenuBuilderPage() {
                       e.stopPropagation()
                       setOpenMenuId(null)
                       setOpenMenuType(null)
-                      onDeleteSection('section', section.id, section.nameEn)
+                      onDeleteSection('section', section.id, getAdminMenuName(section))
                     }}
                     className="w-full px-4 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
                     style={{ color: '#EF4444' }}
@@ -1346,7 +1377,7 @@ export default function MenuBuilderPage() {
               className="font-medium truncate text-sm sm:text-base"
                   style={{ color: '#0F172A' }}
                 >
-                  {category.nameEn}
+                  {getAdminMenuName(category)}
               </div>
             <div className="text-xs truncate" style={{ color: '#94A3B8' }}>
               {category.items?.length || 0} Items
@@ -1425,7 +1456,7 @@ export default function MenuBuilderPage() {
                       e.stopPropagation()
                       setOpenMenuId(null)
                       setOpenMenuType(null)
-                      onDeleteCategory('category', category.id, category.nameEn)
+                      onDeleteCategory('category', category.id, getAdminMenuName(category))
                     }}
                     className="w-full px-4 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
                     style={{ color: '#EF4444' }}
@@ -1528,7 +1559,7 @@ export default function MenuBuilderPage() {
             return imageUrl ? (
               <img
                 src={imageUrl}
-                alt={item.nameEn}
+                alt={getAdminMenuName(item)}
                 className="w-full h-full object-cover"
                 loading="lazy"
                 decoding="async"
@@ -1569,7 +1600,7 @@ export default function MenuBuilderPage() {
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E6F7F2'}
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
           >
-            {item.nameEn}
+            {getAdminMenuName(item)}
           </div>
           <div className="text-xs sm:text-sm text-[#FBBF24] font-bold">
             {formatPrice(item.price)}
@@ -1603,7 +1634,7 @@ export default function MenuBuilderPage() {
             variant="ghost"
             onClick={(e) => {
               e.stopPropagation()
-              onDeleteItem('item', item.id, item.nameEn)
+              onDeleteItem('item', item.id, getAdminMenuName(item))
             }}
             className="h-10 w-10 p-0 sm:h-12 sm:w-12"
           >
@@ -1653,6 +1684,24 @@ export default function MenuBuilderPage() {
             Back
           </Button>
         </div>
+
+        {(itemUploadProgress !== undefined || editItemUploadProgress !== undefined) && (
+          <div
+            className="admin-card mb-4 sm:mb-6"
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '1px solid #D1D5DB',
+              borderRadius: '0.75rem',
+              padding: '1rem 1.5rem',
+              boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+            }}
+          >
+            <AdminUploadProgress
+              label="Uploading image..."
+              progress={editItemUploadProgress !== undefined ? editItemUploadProgress : itemUploadProgress ?? null}
+            />
+          </div>
+        )}
 
         {/* Show skeleton only for content area while loading */}
         {isLoadingMenu ? (
@@ -1898,7 +1947,7 @@ export default function MenuBuilderPage() {
                         color: '#475569',
                       }}
                     >
-                      {sections.find(s => s.id === activeId)?.nameEn}
+                      {sections.find(s => s.id === activeId) ? getAdminMenuName(sections.find(s => s.id === activeId)!) : ''}
                     </div>
                   )}
                   {activeType === 'category' && (
@@ -1910,9 +1959,12 @@ export default function MenuBuilderPage() {
                         color: '#475569',
                       }}
                     >
-                      {sections
-                        .flatMap(s => s.categories)
-                        .find(c => c.id === activeId)?.nameEn}
+                      {(() => {
+                        const category = sections
+                          .flatMap(s => s.categories)
+                          .find(c => c.id === activeId)
+                        return category ? getAdminMenuName(category) : ''
+                      })()}
                     </div>
                   )}
                   {activeType === 'item' && (
@@ -1924,10 +1976,13 @@ export default function MenuBuilderPage() {
                         color: '#475569',
                       }}
                     >
-                      {sections
-                        .flatMap(s => s.categories)
-                        .flatMap(c => c.items)
-                        .find(i => i.id === activeId)?.nameEn}
+                      {(() => {
+                        const item = sections
+                          .flatMap(s => s.categories)
+                          .flatMap(c => c.items)
+                          .find(i => i.id === activeId)
+                        return item ? getAdminMenuName(item) : ''
+                      })()}
                     </div>
                   )}
                 </div>

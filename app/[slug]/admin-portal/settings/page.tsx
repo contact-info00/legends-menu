@@ -5,7 +5,14 @@ import { useRouter, useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Upload, X } from 'lucide-react'
-import toast from 'react-hot-toast'
+import { AdminUploadProgress } from '@/components/admin-upload-progress'
+import {
+  adminNotifyDismiss,
+  adminNotifyError,
+  adminNotifyLoading,
+  adminNotifySuccess,
+} from '@/lib/admin-notifications'
+import { uploadAdminMedia } from '@/lib/admin-upload'
 import { useAdminBootstrap, useAdminRestaurantId, useAdminReady } from '../admin-context'
 import { SettingsSkeleton } from '../components/admin-skeleton'
 
@@ -65,6 +72,8 @@ export default function SettingsPage() {
   const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null)
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [uploadingBackground, setUploadingBackground] = useState(false)
+  const [logoUploadProgress, setLogoUploadProgress] = useState<number | null>(null)
+  const [backgroundUploadProgress, setBackgroundUploadProgress] = useState<number | null>(null)
   // Helper function to handle restaurant mismatch error
   const handleMismatchError = async (response: Response, errorData: any): Promise<boolean> => {
     if (response.status === 401 || response.status === 403) {
@@ -74,12 +83,12 @@ export default function SettingsPage() {
         } catch (logoutError) {
           // Ignore logout errors
         }
-        toast.error('You are logged into another restaurant. Please login again.', { duration: 5000 })
+        adminNotifyError('You are logged into another restaurant. Please login again.')
         router.push(`/${slug}/admin-portal/login`)
         return true // Indicates mismatch was handled
       }
       // Other auth errors
-      toast.error(errorData.message || 'Session expired. Please login again.')
+      adminNotifyError(errorData.message || 'Session expired. Please login again.')
       router.push(`/${slug}/admin-portal/login`)
       return true
     }
@@ -97,7 +106,7 @@ export default function SettingsPage() {
   const requireRestaurantId = (): string | null => {
     const id = resolveRestaurantId()
     if (!id) {
-      toast.error('Restaurant information is still loading. Please wait and try again.')
+      adminNotifyError('Restaurant information is still loading. Please wait and try again.')
     }
     return id
   }
@@ -145,7 +154,7 @@ export default function SettingsPage() {
           } catch (logoutError) {
             // Ignore logout errors
           }
-          toast.error('You are logged into another restaurant. Please login again.', { duration: 5000 })
+          adminNotifyError('You are logged into another restaurant. Please login again.')
           router.push(`/${slug}/admin-portal/login`)
           return
         }
@@ -162,11 +171,11 @@ export default function SettingsPage() {
         }
       } else {
         console.error('Error fetching settings:', response.status, response.statusText)
-        toast.error('Failed to load settings')
+        adminNotifyError('Failed to load settings')
       }
     } catch (error) {
       console.error('Error fetching settings:', error)
-      toast.error('Failed to load settings')
+      adminNotifyError('Failed to load settings')
     }
   }
 
@@ -177,24 +186,18 @@ export default function SettingsPage() {
     }
 
     setUploadingLogo(true)
+    setLogoUploadProgress(null)
+    const toastId = adminNotifyLoading('Uploading logo...')
     try {
       const formData = new FormData()
       formData.append('file', file)
       formData.append('scope', 'logo')
       formData.append('restaurantId', restaurantId)
 
-      const uploadResponse = await fetch('/api/r2/upload', {
-        method: 'POST',
-        credentials: 'include',
-        body: formData,
+      const { key, publicUrl } = await uploadAdminMedia({
+        formData,
+        onProgress: setLogoUploadProgress,
       })
-
-      if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.json().catch(() => ({ error: 'Unknown error' }))
-        throw new Error(errorData.error || 'Failed to upload logo')
-      }
-
-      const { key, publicUrl } = await uploadResponse.json()
 
       // Save R2 key/URL to database
       const updateResponse = await fetch('/api/admin/settings', {
@@ -224,15 +227,16 @@ export default function SettingsPage() {
           window.localStorage.setItem('restaurant-updated', Date.now().toString())
           window.dispatchEvent(new Event('restaurant-updated'))
         }
-        toast.success('Logo uploaded successfully!')
+        adminNotifySuccess('✓ Upload complete', toastId)
       } else {
         throw new Error(updateData.message || 'Failed to update logo')
       }
     } catch (error: any) {
       console.error('Error uploading logo:', error)
-      toast.error(error.message || 'Failed to upload logo')
+      adminNotifyError(error.message || '✕ Upload failed', toastId)
     } finally {
       setUploadingLogo(false)
+      setLogoUploadProgress(null)
       setLogoFile(null)
     }
   }
@@ -244,46 +248,40 @@ export default function SettingsPage() {
     }
 
     setUploadingBackground(true)
+    setBackgroundUploadProgress(null)
+    const toastId = adminNotifyLoading('Uploading background...')
     try {
-      // Validate file before upload
       const isVideo = file.type.startsWith('video/')
       const isImage = file.type.startsWith('image/')
       
       if (!isVideo && !isImage) {
-        toast.error('Please upload an image (JPEG, PNG, WebP) or video (MP4) file')
+        adminNotifyError('Please upload an image (JPEG, PNG, WebP) or video (MP4) file', toastId)
         setUploadingBackground(false)
         return
       }
 
-      // Raw upload limits — images are optimized server-side before storage
-      const maxImageSize = 15 * 1024 * 1024 // 15MB raw image upload
-      const maxVideoSize = 10 * 1024 * 1024 // 10MB MP4 (1080p max)
+      const maxImageSize = 15 * 1024 * 1024
+      const maxVideoSize = 10 * 1024 * 1024
       const maxSize = isVideo ? maxVideoSize : maxImageSize
       
       if (file.size > maxSize) {
-        toast.error(`File size must be less than ${maxSize / (1024 * 1024)}MB`)
+        adminNotifyError(`File size must be less than ${maxSize / (1024 * 1024)}MB`, toastId)
         setUploadingBackground(false)
         return
       }
 
-      // Upload via server-side proxy (avoids CORS issues)
       const formData = new FormData()
       formData.append('file', file)
       formData.append('scope', 'welcomeBg')
       formData.append('restaurantId', restaurantId)
 
-      const uploadResponse = await fetch('/api/r2/upload', {
-        method: 'POST',
-        credentials: 'include',
-        body: formData,
+      const uploadResult = await uploadAdminMedia({
+        formData,
+        onProgress: setBackgroundUploadProgress,
       })
-
-      if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.json().catch(() => ({ error: 'Unknown error' }))
-        throw new Error(errorData.error || 'Failed to upload background')
-      }
-
-      const { key, publicUrl, contentType, recommendation } = await uploadResponse.json()
+      const { key, publicUrl } = uploadResult
+      const contentType = (uploadResult as { contentType?: string }).contentType
+      const recommendation = (uploadResult as { recommendation?: string }).recommendation
       const storedMimeType = contentType || file.type
 
       // Save R2 key/URL and mimeType to database
@@ -311,15 +309,19 @@ export default function SettingsPage() {
       if (updateResponse.ok) {
         applySettingsToState({ ...settings, welcomeBgR2Key: key, welcomeBgR2Url: publicUrl, welcomeBgMimeType: storedMimeType })
         if (refresh) refresh()
-        toast.success(recommendation ? `Background uploaded. ${recommendation}` : 'Background uploaded successfully!')
+        adminNotifySuccess(
+          recommendation ? `✓ Background uploaded. ${recommendation}` : '✓ Upload complete',
+          toastId
+        )
       } else {
         throw new Error(updateData.message || 'Failed to update background')
       }
     } catch (error: any) {
       console.error('Error uploading background:', error)
-      toast.error(error.message || 'Failed to upload background')
+      adminNotifyError(error.message || '✕ Upload failed', toastId)
     } finally {
       setUploadingBackground(false)
+      setBackgroundUploadProgress(null)
       setBackgroundFile(null)
     }
   }
@@ -353,7 +355,7 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     // Show immediate feedback and save in background
-    toast.loading('Saving settings...', { id: 'save-settings' })
+    const toastId = adminNotifyLoading('Saving settings...')
     
     // Save in background (non-blocking)
     ;(async () => {
@@ -398,13 +400,13 @@ export default function SettingsPage() {
         // Check for mismatch error
         const handled = await handleMismatchError(response, parsed || {})
         if (handled) {
-          toast.dismiss('save-settings')
+          adminNotifyDismiss(toastId)
           return
         }
 
         if (response.ok) {
-          toast.dismiss('save-settings')
-          toast.success('Settings saved successfully!')
+          adminNotifyDismiss(toastId)
+          adminNotifySuccess('✓ Settings saved successfully', toastId)
           if (parsed) {
             applySettingsToState(parsed)
           }
@@ -419,14 +421,14 @@ export default function SettingsPage() {
             window.dispatchEvent(new Event('service-charge-updated'))
           }
         } else {
-          toast.dismiss('save-settings')
-          toast.error(parsed?.message || parsed?.error || 'Failed to save settings')
+          adminNotifyDismiss(toastId)
+          adminNotifyError(parsed?.message || parsed?.error || 'Failed to save settings')
           console.error('Settings save error:', parsed)
         }
       } catch (error) {
         console.error('Error saving settings:', error)
-        toast.dismiss('save-settings')
-        toast.error('Failed to save settings')
+        adminNotifyDismiss(toastId)
+        adminNotifyError('✕ Failed to save settings')
       }
     })()
   }
@@ -532,7 +534,7 @@ export default function SettingsPage() {
                     />
                   </label>
                   {uploadingLogo && (
-                    <p className="text-sm" style={{ color: '#475569' }}>Uploading logo...</p>
+                    <AdminUploadProgress label="Uploading..." progress={logoUploadProgress} />
                   )}
                 </div>
               </div>
@@ -692,7 +694,7 @@ export default function SettingsPage() {
                       type="button"
                       onClick={() => {
                         navigator.clipboard.writeText(`https://menuzin.com/${settings.slug}`)
-                        toast.success('URL copied to clipboard!')
+                        adminNotifySuccess('✓ URL copied to clipboard!')
                       }}
                       size="sm"
                       variant="outline"
@@ -794,7 +796,7 @@ export default function SettingsPage() {
                     />
                   </label>
                   {uploadingBackground && (
-                    <p className="text-sm" style={{ color: '#475569' }}>Uploading background...</p>
+                    <AdminUploadProgress label="Uploading..." progress={backgroundUploadProgress} />
                   )}
                 </div>
               </div>
