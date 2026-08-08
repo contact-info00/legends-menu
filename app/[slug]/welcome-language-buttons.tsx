@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { Language, languages } from '@/lib/i18n'
+import { preloadMenuForNavigation } from '@/lib/preload-menu-client'
 import { useState } from 'react'
 
 interface WelcomeLanguageButtonsProps {
@@ -18,6 +19,7 @@ export function WelcomeLanguageButtons({
 }: WelcomeLanguageButtonsProps) {
   const router = useRouter()
   const [isTransitioning, setIsTransitioning] = useState(false)
+  const [loadProgress, setLoadProgress] = useState(0)
 
   const handleLanguageSelect = (lang: Language) => {
     if (isTransitioning) return
@@ -30,8 +32,18 @@ export function WelcomeLanguageButtons({
       typeof window !== 'undefined' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
+    const startPreload = () => {
+      void preloadMenuForNavigation(slug, lang, setLoadProgress).catch(() => {
+        setLoadProgress(1)
+      })
+    }
+
     if (logoUrl && !prefersReducedMotion) {
+      setLoadProgress(0)
       setIsTransitioning(true)
+      startPreload()
+    } else {
+      startPreload()
     }
 
     router.push(menuPath)
@@ -55,6 +67,10 @@ export function WelcomeLanguageButtons({
               />
               <div className="welcome-logo-popup__progress-line" aria-hidden="true">
                 <div className="welcome-logo-popup__progress-track" />
+                <div
+                  className="welcome-logo-popup__progress-fill"
+                  style={{ width: `${loadProgress * 100}%` }}
+                />
               </div>
             </div>
           </div>
