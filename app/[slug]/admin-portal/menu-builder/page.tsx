@@ -102,15 +102,13 @@ export default function MenuBuilderPage() {
   const [showAddItem, setShowAddItem] = useState<string | null>(null)
   
   // Form states
-  const [sectionForm, setSectionForm] = useState({ nameKu: '', nameEn: '', nameAr: '' })
-  const [categoryForm, setCategoryForm] = useState({ nameKu: '', nameEn: '', nameAr: '' })
+  const [sectionForm, setSectionForm] = useState({ nameKu: '', nameEn: '' })
+  const [categoryForm, setCategoryForm] = useState({ nameKu: '', nameEn: '' })
   const [itemForm, setItemForm] = useState({ 
     nameKu: '', 
     nameEn: '', 
-    nameAr: '', 
     descriptionKu: '', 
     descriptionEn: '', 
-    descriptionAr: '', 
     price: '' 
   })
   const [itemImage, setItemImage] = useState<File | null>(null)
@@ -129,15 +127,13 @@ export default function MenuBuilderPage() {
   const [openMenuType, setOpenMenuType] = useState<'section' | 'category' | null>(null)
   
   // Edit form states
-  const [editSectionForm, setEditSectionForm] = useState({ nameKu: '', nameEn: '', nameAr: '' })
-  const [editCategoryForm, setEditCategoryForm] = useState({ nameKu: '', nameEn: '', nameAr: '' })
+  const [editSectionForm, setEditSectionForm] = useState({ nameKu: '', nameEn: '' })
+  const [editCategoryForm, setEditCategoryForm] = useState({ nameKu: '', nameEn: '' })
   const [editItemForm, setEditItemForm] = useState({ 
     nameKu: '', 
     nameEn: '', 
-    nameAr: '', 
     descriptionKu: '', 
     descriptionEn: '', 
-    descriptionAr: '', 
     price: '' 
   })
 
@@ -888,7 +884,7 @@ export default function MenuBuilderPage() {
     e.preventDefault()
     const formDataToSave = { ...sectionForm }
     setShowAddSection(false)
-    setSectionForm({ nameKu: '', nameEn: '', nameAr: '' })
+    setSectionForm({ nameKu: '', nameEn: '' })
 
     await runAdminOperation({
       loadingMessage: 'Adding section...',
@@ -923,7 +919,7 @@ export default function MenuBuilderPage() {
     const formDataToSave = { ...categoryForm }
     const sectionIdToSave = sectionId
     setShowAddCategory(null)
-    setCategoryForm({ nameKu: '', nameEn: '', nameAr: '' })
+    setCategoryForm({ nameKu: '', nameEn: '' })
 
     await runAdminOperation({
       loadingMessage: 'Adding category...',
@@ -967,10 +963,8 @@ export default function MenuBuilderPage() {
     setItemForm({
       nameKu: '',
       nameEn: '',
-      nameAr: '',
       descriptionKu: '',
       descriptionEn: '',
-      descriptionAr: '',
       price: '',
     })
     setItemImage(null)
@@ -1081,7 +1075,6 @@ export default function MenuBuilderPage() {
     setEditSectionForm({
       nameKu: section.nameKu,
       nameEn: section.nameEn,
-      nameAr: section.nameAr,
     })
   }
 
@@ -1090,7 +1083,6 @@ export default function MenuBuilderPage() {
     setEditCategoryForm({
       nameKu: category.nameKu,
       nameEn: category.nameEn,
-      nameAr: category.nameAr,
     })
   }
 
@@ -1099,10 +1091,8 @@ export default function MenuBuilderPage() {
     setEditItemForm({
       nameKu: item.nameKu,
       nameEn: item.nameEn,
-      nameAr: item.nameAr,
       descriptionKu: item.descriptionKu || '',
       descriptionEn: item.descriptionEn || '',
-      descriptionAr: item.descriptionAr || '',
       price: item.price.toString(),
     })
     // Reset image removal flag
@@ -2183,7 +2173,7 @@ export default function MenuBuilderPage() {
           className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm overflow-y-auto"
           onClick={() => {
             setShowAddSection(false)
-            setSectionForm({ nameKu: '', nameEn: '', nameAr: '' })
+            setSectionForm({ nameKu: '', nameEn: '' })
           }}
         >
           <div 
@@ -2200,7 +2190,7 @@ export default function MenuBuilderPage() {
               <button
                 onClick={() => {
                   setShowAddSection(false)
-                  setSectionForm({ nameKu: '', nameEn: '', nameAr: '' })
+                  setSectionForm({ nameKu: '', nameEn: '' })
                 }}
                 style={{ color: '#475569', cursor: 'pointer' }}
                 onMouseEnter={(e) => e.currentTarget.style.color = '#0F172A'}
@@ -2241,21 +2231,6 @@ export default function MenuBuilderPage() {
                   }}
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: '#0F172A' }}>
-                  Name (Arabic)
-                </label>
-                <Input
-                  value={sectionForm.nameAr}
-                  onChange={(e) => setSectionForm({ ...sectionForm, nameAr: e.target.value })}
-                  required
-                  style={{
-                    border: '1px solid #D1D5DB',
-                    backgroundColor: '#FFFFFF',
-                    color: '#0F172A',
-                  }}
-                />
-              </div>
               <div className="flex gap-2 pt-2">
                 <Button 
                   type="submit" 
@@ -2272,7 +2247,7 @@ export default function MenuBuilderPage() {
                   variant="outline"
                   onClick={() => {
                     setShowAddSection(false)
-                    setSectionForm({ nameKu: '', nameEn: '', nameAr: '' })
+                    setSectionForm({ nameKu: '', nameEn: '' })
                   }}
                 >
                   Cancel
@@ -2289,7 +2264,7 @@ export default function MenuBuilderPage() {
           className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm overflow-y-auto"
           onClick={() => {
             setShowAddCategory(null)
-            setCategoryForm({ nameKu: '', nameEn: '', nameAr: '' })
+            setCategoryForm({ nameKu: '', nameEn: '' })
           }}
         >
           <div 
@@ -2306,7 +2281,7 @@ export default function MenuBuilderPage() {
               <button
                 onClick={() => {
                   setShowAddCategory(null)
-                  setCategoryForm({ nameKu: '', nameEn: '', nameAr: '' })
+                  setCategoryForm({ nameKu: '', nameEn: '' })
                 }}
                 style={{ color: '#475569', cursor: 'pointer' }}
                 onMouseEnter={(e) => e.currentTarget.style.color = '#0F172A'}
@@ -2347,21 +2322,6 @@ export default function MenuBuilderPage() {
                   }}
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: '#0F172A' }}>
-                  Name (Arabic)
-                </label>
-                <Input
-                  value={categoryForm.nameAr}
-                  onChange={(e) => setCategoryForm({ ...categoryForm, nameAr: e.target.value })}
-                  required
-                  style={{
-                    border: '1px solid #D1D5DB',
-                    backgroundColor: '#FFFFFF',
-                    color: '#0F172A',
-                  }}
-                />
-              </div>
               <div className="flex gap-2 pt-2">
                 <Button 
                   type="submit" 
@@ -2378,7 +2338,7 @@ export default function MenuBuilderPage() {
                   variant="outline"
                   onClick={() => {
                     setShowAddCategory(null)
-                    setCategoryForm({ nameKu: '', nameEn: '', nameAr: '' })
+                    setCategoryForm({ nameKu: '', nameEn: '' })
                   }}
                 >
                   Cancel
@@ -2395,7 +2355,7 @@ export default function MenuBuilderPage() {
           className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm"
           onClick={() => {
             setShowAddItem(null)
-            setItemForm({ nameKu: '', nameEn: '', nameAr: '', descriptionKu: '', descriptionEn: '', descriptionAr: '', price: '' })
+            setItemForm({ nameKu: '', nameEn: '', descriptionKu: '', descriptionEn: '', price: '' })
             setItemImage(null)
             setItemImagePreview(null)
           }}
@@ -2419,10 +2379,8 @@ export default function MenuBuilderPage() {
                   setItemForm({ 
                     nameKu: '', 
                     nameEn: '', 
-                    nameAr: '', 
                     descriptionKu: '', 
                     descriptionEn: '', 
-                    descriptionAr: '', 
                     price: '' 
                   })
                 }}
@@ -2469,22 +2427,6 @@ export default function MenuBuilderPage() {
               </div>
               <div>
                 <label className="block text-xs sm:text-sm font-medium admin-text mb-1">
-                  Name (Arabic)
-                </label>
-                <Input
-                  value={itemForm.nameAr}
-                  onChange={(e) => setItemForm({ ...itemForm, nameAr: e.target.value })}
-                  required
-                  className="text-sm"
-                  style={{
-                    border: '1px solid #D1D5DB',
-                    backgroundColor: '#FFFFFF',
-                    color: '#0F172A',
-                  }}
-                />
-              </div>
-              <div>
-                <label className="block text-xs sm:text-sm font-medium admin-text mb-1">
                   Description (English)
                 </label>
                 <textarea
@@ -2506,22 +2448,6 @@ export default function MenuBuilderPage() {
                 <textarea
                   value={itemForm.descriptionKu}
                   onChange={(e) => setItemForm({ ...itemForm, descriptionKu: e.target.value })}
-                  className="w-full rounded-lg px-3 py-2 text-xs sm:text-sm focus-visible:outline-none focus-visible:ring-2"
-                  style={{
-                    border: '1px solid #D1D5DB',
-                    backgroundColor: '#FFFFFF',
-                    color: '#0F172A',
-                  }}
-                  rows={2}
-                />
-              </div>
-              <div>
-                <label className="block text-xs sm:text-sm font-medium admin-text mb-1">
-                  Description (Arabic)
-                </label>
-                <textarea
-                  value={itemForm.descriptionAr}
-                  onChange={(e) => setItemForm({ ...itemForm, descriptionAr: e.target.value })}
                   className="w-full rounded-lg px-3 py-2 text-xs sm:text-sm focus-visible:outline-none focus-visible:ring-2"
                   style={{
                     border: '1px solid #D1D5DB',
@@ -2612,10 +2538,8 @@ export default function MenuBuilderPage() {
                     setItemForm({ 
                       nameKu: '', 
                       nameEn: '', 
-                      nameAr: '', 
                       descriptionKu: '', 
                       descriptionEn: '', 
-                      descriptionAr: '', 
                       price: '' 
                     })
                     setItemImage(null)
@@ -2681,21 +2605,6 @@ export default function MenuBuilderPage() {
                 <Input
                   value={editSectionForm.nameEn}
                   onChange={(e) => setEditSectionForm({ ...editSectionForm, nameEn: e.target.value })}
-                  required
-                  style={{
-                    border: '1px solid #D1D5DB',
-                    backgroundColor: '#FFFFFF',
-                    color: '#0F172A',
-                  }}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: '#0F172A' }}>
-                  Name (Arabic)
-                </label>
-                <Input
-                  value={editSectionForm.nameAr}
-                  onChange={(e) => setEditSectionForm({ ...editSectionForm, nameAr: e.target.value })}
                   required
                   style={{
                     border: '1px solid #D1D5DB',
@@ -2778,21 +2687,6 @@ export default function MenuBuilderPage() {
                 <Input
                   value={editCategoryForm.nameEn}
                   onChange={(e) => setEditCategoryForm({ ...editCategoryForm, nameEn: e.target.value })}
-                  required
-                  style={{
-                    border: '1px solid #D1D5DB',
-                    backgroundColor: '#FFFFFF',
-                    color: '#0F172A',
-                  }}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: '#0F172A' }}>
-                  Name (Arabic)
-                </label>
-                <Input
-                  value={editCategoryForm.nameAr}
-                  onChange={(e) => setEditCategoryForm({ ...editCategoryForm, nameAr: e.target.value })}
                   required
                   style={{
                     border: '1px solid #D1D5DB',
@@ -2899,22 +2793,6 @@ export default function MenuBuilderPage() {
               </div>
               <div>
                 <label className="block text-xs sm:text-sm font-medium admin-text mb-1">
-                  Name (Arabic)
-                </label>
-                <Input
-                  value={editItemForm.nameAr}
-                  onChange={(e) => setEditItemForm({ ...editItemForm, nameAr: e.target.value })}
-                  required
-                  className="text-sm"
-                  style={{
-                    border: '1px solid #D1D5DB',
-                    backgroundColor: '#FFFFFF',
-                    color: '#0F172A',
-                  }}
-                />
-              </div>
-              <div>
-                <label className="block text-xs sm:text-sm font-medium admin-text mb-1">
                   Description (English)
                 </label>
                 <textarea
@@ -2936,22 +2814,6 @@ export default function MenuBuilderPage() {
                 <textarea
                   value={editItemForm.descriptionKu}
                   onChange={(e) => setEditItemForm({ ...editItemForm, descriptionKu: e.target.value })}
-                  className="w-full rounded-lg px-3 py-2 text-xs sm:text-sm focus-visible:outline-none focus-visible:ring-2"
-                  style={{
-                    border: '1px solid #D1D5DB',
-                    backgroundColor: '#FFFFFF',
-                    color: '#0F172A',
-                  }}
-                  rows={2}
-                />
-              </div>
-              <div>
-                <label className="block text-xs sm:text-sm font-medium admin-text mb-1">
-                  Description (Arabic)
-                </label>
-                <textarea
-                  value={editItemForm.descriptionAr}
-                  onChange={(e) => setEditItemForm({ ...editItemForm, descriptionAr: e.target.value })}
                   className="w-full rounded-lg px-3 py-2 text-xs sm:text-sm focus-visible:outline-none focus-visible:ring-2"
                   style={{
                     border: '1px solid #D1D5DB',

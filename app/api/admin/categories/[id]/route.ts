@@ -6,6 +6,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdminSession } from '@/lib/auth'
 import { invalidateMenuDataCaches } from '@/lib/cache-invalidation'
+import {
+  AzureTranslatorError,
+  buildCategoryUpdateData,
+} from '@/lib/menu-arabic-translation'
+import { Prisma } from '@prisma/client'
 
 export async function PATCH(
   request: NextRequest,
@@ -14,10 +19,19 @@ export async function PATCH(
   try {
     const session = await requireAdminSession()
 
-    // Verify category belongs to admin's restaurant
     const existingCategory = await prisma.category.findUnique({
       where: { id: params.id },
-      select: { restaurantId: true },
+      select: {
+        restaurantId: true,
+        nameKu: true,
+        nameEn: true,
+        nameAr: true,
+        sortOrder: true,
+        isActive: true,
+        imageMediaId: true,
+        imageR2Key: true,
+        imageR2Url: true,
+      },
     })
 
     if (!existingCategory) {
@@ -29,17 +43,21 @@ export async function PATCH(
     }
 
     const body = await request.json()
+    const updateData = await buildCategoryUpdateData(body, existingCategory)
 
     const category = await prisma.category.update({
       where: { id: params.id },
-      data: body,
+      data: updateData as Prisma.CategoryUpdateInput,
     })
 
-    // Invalidate cache so menu page reflects changes immediately
     invalidateMenuDataCaches(session.restaurantId)
 
     return NextResponse.json(category)
   } catch (error) {
+    if (error instanceof AzureTranslatorError) {
+      return NextResponse.json({ error: error.message }, { status: 502 })
+    }
+
     console.error('Error updating category:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
@@ -52,7 +70,6 @@ export async function DELETE(
   try {
     const session = await requireAdminSession()
 
-    // Verify category belongs to admin's restaurant
     const existingCategory = await prisma.category.findUnique({
       where: { id: params.id },
       select: { restaurantId: true },
@@ -66,7 +83,6 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
-    // Delete all items in this category first (only items belonging to this restaurant)
     await prisma.item.deleteMany({
       where: { 
         categoryId: params.id,
@@ -74,12 +90,10 @@ export async function DELETE(
       },
     })
 
-    // Delete the category
     await prisma.category.delete({
       where: { id: params.id },
     })
 
-    // Invalidate cache so menu page reflects changes immediately
     invalidateMenuDataCaches(session.restaurantId)
 
     return NextResponse.json({ success: true })
@@ -88,7 +102,6 @@ export async function DELETE(
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
-
 
 
 

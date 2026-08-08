@@ -6,6 +6,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdminSession } from '@/lib/auth'
 import { invalidateMenuDataCaches } from '@/lib/cache-invalidation'
+import {
+  AzureTranslatorError,
+  buildSectionUpdateData,
+} from '@/lib/menu-arabic-translation'
+import { Prisma } from '@prisma/client'
 
 export async function PATCH(
   request: NextRequest,
@@ -14,10 +19,16 @@ export async function PATCH(
   try {
     const session = await requireAdminSession()
 
-    // Verify section belongs to admin's restaurant
     const existingSection = await prisma.section.findUnique({
       where: { id: params.id },
-      select: { restaurantId: true },
+      select: {
+        restaurantId: true,
+        nameKu: true,
+        nameEn: true,
+        nameAr: true,
+        sortOrder: true,
+        isActive: true,
+      },
     })
 
     if (!existingSection) {
@@ -29,17 +40,21 @@ export async function PATCH(
     }
 
     const body = await request.json()
+    const updateData = await buildSectionUpdateData(body, existingSection)
 
     const section = await prisma.section.update({
       where: { id: params.id },
-      data: body,
+      data: updateData as Prisma.SectionUpdateInput,
     })
 
-    // Invalidate cache so menu page reflects changes immediately
     invalidateMenuDataCaches(session.restaurantId)
 
     return NextResponse.json(section)
   } catch (error) {
+    if (error instanceof AzureTranslatorError) {
+      return NextResponse.json({ error: error.message }, { status: 502 })
+    }
+
     console.error('Error updating section:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
@@ -52,7 +67,6 @@ export async function DELETE(
   try {
     const session = await requireAdminSession()
 
-    // Verify section belongs to admin's restaurant and get related data
     const section = await prisma.section.findUnique({
       where: { id: params.id },
       select: { 
@@ -75,7 +89,6 @@ export async function DELETE(
 
     const categoryIds = section.categories.map(cat => cat.id)
 
-    // Delete all items in all categories (only for this restaurant)
     if (categoryIds.length > 0) {
       await prisma.item.deleteMany({
         where: { 
@@ -85,7 +98,6 @@ export async function DELETE(
       })
     }
 
-    // Delete all categories
     await prisma.category.deleteMany({
       where: { 
         sectionId: params.id,
@@ -93,12 +105,10 @@ export async function DELETE(
       },
     })
 
-    // Delete the section
     await prisma.section.delete({
       where: { id: params.id },
     })
 
-    // Invalidate cache so menu page reflects changes immediately
     invalidateMenuDataCaches(session.restaurantId)
 
     return NextResponse.json({ success: true })
@@ -107,7 +117,6 @@ export async function DELETE(
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
-
 
 
 

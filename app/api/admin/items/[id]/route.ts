@@ -6,6 +6,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdminSession } from '@/lib/auth'
 import { invalidateMenuDataCaches } from '@/lib/cache-invalidation'
+import {
+  AzureTranslatorError,
+  buildItemUpdateData,
+} from '@/lib/menu-arabic-translation'
+import { Prisma } from '@prisma/client'
 
 export async function PATCH(
   request: NextRequest,
@@ -14,10 +19,23 @@ export async function PATCH(
   try {
     const session = await requireAdminSession()
 
-    // Verify item belongs to admin's restaurant
     const existingItem = await prisma.item.findUnique({
       where: { id: params.id },
-      select: { restaurantId: true },
+      select: {
+        restaurantId: true,
+        nameKu: true,
+        nameEn: true,
+        nameAr: true,
+        descriptionKu: true,
+        descriptionEn: true,
+        descriptionAr: true,
+        price: true,
+        sortOrder: true,
+        isActive: true,
+        imageMediaId: true,
+        imageR2Key: true,
+        imageR2Url: true,
+      },
     })
 
     if (!existingItem) {
@@ -29,17 +47,21 @@ export async function PATCH(
     }
 
     const body = await request.json()
+    const updateData = await buildItemUpdateData(body, existingItem)
 
     const item = await prisma.item.update({
       where: { id: params.id },
-      data: body,
+      data: updateData as Prisma.ItemUpdateInput,
     })
 
-    // Invalidate cache so menu page reflects changes immediately
     invalidateMenuDataCaches(session.restaurantId)
 
     return NextResponse.json(item)
   } catch (error) {
+    if (error instanceof AzureTranslatorError) {
+      return NextResponse.json({ error: error.message }, { status: 502 })
+    }
+
     console.error('Error updating item:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
@@ -52,7 +74,6 @@ export async function DELETE(
   try {
     const session = await requireAdminSession()
 
-    // Verify item belongs to admin's restaurant
     const existingItem = await prisma.item.findUnique({
       where: { id: params.id },
       select: { restaurantId: true },
@@ -70,7 +91,6 @@ export async function DELETE(
       where: { id: params.id },
     })
 
-    // Invalidate cache so menu page reflects changes immediately
     invalidateMenuDataCaches(session.restaurantId)
 
     return NextResponse.json({ success: true })
@@ -79,7 +99,6 @@ export async function DELETE(
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
-
 
 
 
