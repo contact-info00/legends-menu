@@ -288,6 +288,151 @@ export default function MenuBuilderPage() {
     }
   }
 
+  const addSectionToState = (apiSection: Omit<Section, 'categories'> & Partial<Pick<Section, 'categories'>>) => {
+    setSections((prev) => [
+      ...prev,
+      { ...apiSection, categories: apiSection.categories ?? [] } as Section,
+    ])
+  }
+
+  const replaceSectionInState = (apiSection: Partial<Section> & { id: string }) => {
+    setSections((prev) =>
+      prev.map((section) =>
+        section.id === apiSection.id
+          ? { ...section, ...apiSection, categories: section.categories }
+          : section
+      )
+    )
+  }
+
+  const removeSectionFromState = (sectionId: string) => {
+    setSections((prev) => prev.filter((section) => section.id !== sectionId))
+    setExpandedSections((prev) => {
+      const next = new Set(prev)
+      next.delete(sectionId)
+      return next
+    })
+  }
+
+  const addCategoryToState = (
+    sectionId: string,
+    apiCategory: Omit<Category, 'items'> & Partial<Pick<Category, 'items'>>
+  ) => {
+    setSections((prev) =>
+      prev.map((section) =>
+        section.id === sectionId
+          ? {
+              ...section,
+              categories: [...section.categories, { ...apiCategory, items: apiCategory.items ?? [] } as Category],
+            }
+          : section
+      )
+    )
+  }
+
+  const replaceCategoryInState = (categoryId: string, apiCategory: Partial<Category> & { id: string }) => {
+    setSections((prev) =>
+      prev.map((section) => ({
+        ...section,
+        categories: section.categories.map((category) =>
+          category.id === categoryId
+            ? { ...category, ...apiCategory, items: category.items }
+            : category
+        ),
+      }))
+    )
+  }
+
+  const removeCategoryFromState = (categoryId: string) => {
+    setSections((prev) =>
+      prev.map((section) => ({
+        ...section,
+        categories: section.categories.filter((category) => category.id !== categoryId),
+      }))
+    )
+    setExpandedCategories((prev) => {
+      const next = new Set(prev)
+      next.delete(categoryId)
+      return next
+    })
+  }
+
+  const addItemToState = (categoryId: string, apiItem: Item) => {
+    setSections((prev) =>
+      prev.map((section) => ({
+        ...section,
+        categories: section.categories.map((category) =>
+          category.id === categoryId
+            ? { ...category, items: [...category.items, apiItem] }
+            : category
+        ),
+      }))
+    )
+  }
+
+  const replaceItemInState = (itemId: string, apiItem: Partial<Item> & { id: string }) => {
+    setSections((prev) =>
+      prev.map((section) => ({
+        ...section,
+        categories: section.categories.map((category) => ({
+          ...category,
+          items: category.items.map((item) =>
+            item.id === itemId ? { ...item, ...apiItem } : item
+          ),
+        })),
+      }))
+    )
+  }
+
+  const removeItemFromState = (itemId: string) => {
+    setSections((prev) =>
+      prev.map((section) => ({
+        ...section,
+        categories: section.categories.map((category) => ({
+          ...category,
+          items: category.items.filter((item) => item.id !== itemId),
+        })),
+      }))
+    )
+  }
+
+  const updateActiveInState = (
+    type: 'section' | 'category' | 'item',
+    id: string,
+    isActive: boolean
+  ) => {
+    if (type === 'section') {
+      setSections((prev) =>
+        prev.map((section) => (section.id === id ? { ...section, isActive } : section))
+      )
+      return
+    }
+
+    if (type === 'category') {
+      setSections((prev) =>
+        prev.map((section) => ({
+          ...section,
+          categories: section.categories.map((category) =>
+            category.id === id ? { ...category, isActive } : category
+          ),
+        }))
+      )
+      return
+    }
+
+    setSections((prev) =>
+      prev.map((section) => ({
+        ...section,
+        categories: section.categories.map((category) => ({
+          ...category,
+          items: category.items.map((item) =>
+            item.id === id ? { ...item, isActive } : item
+          ),
+        })),
+      }))
+    )
+  }
+
   const toggleSection = (sectionId: string) => {
     setExpandedSections((prev) => {
       const newSet = new Set(prev)
@@ -341,21 +486,30 @@ export default function MenuBuilderPage() {
       })
 
       if (type === 'category') {
-        await fetch(`/api/admin/categories/${id}`, {
+        const patchResponse = await fetch(`/api/admin/categories/${id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ imageR2Key: key, imageR2Url: publicUrl }),
         })
+        if (!patchResponse.ok) {
+          throw new Error('Failed to save image URL to database')
+        }
+        const updatedCategory = await patchResponse.json()
+        replaceCategoryInState(id, updatedCategory)
       } else {
-        await fetch(`/api/admin/items/${id}`, {
+        const patchResponse = await fetch(`/api/admin/items/${id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ imageR2Key: key, imageR2Url: publicUrl }),
         })
+        if (!patchResponse.ok) {
+          throw new Error('Failed to save image URL to database')
+        }
+        const updatedItem = await patchResponse.json()
+        replaceItemInState(id, updatedItem)
       }
 
       adminNotifySuccess('✓ Upload complete', toastId)
-      fetchMenuData()
     } catch (error: any) {
       console.error('Upload error:', error)
       adminNotifyError(error.message || '✕ Upload failed', toastId)
@@ -388,8 +542,10 @@ export default function MenuBuilderPage() {
         throw new Error('Failed to update')
       }
 
+      const updated = await response.json()
+      updateActiveInState(type, id, updated.isActive)
+
       adminNotifySuccess(`✓ ${type.charAt(0).toUpperCase()}${type.slice(1)} ${!currentState ? 'activated' : 'deactivated'}`, toastId)
-      fetchMenuData()
     } catch (error) {
       console.error('Toggle error:', error)
       adminNotifyError('✕ Failed to update. Please try again.', toastId)
@@ -417,8 +573,15 @@ export default function MenuBuilderPage() {
         throw new Error('Failed to delete')
       }
 
+      if (type === 'section') {
+        removeSectionFromState(id)
+      } else if (type === 'category') {
+        removeCategoryFromState(id)
+      } else {
+        removeItemFromState(id)
+      }
+
       adminNotifySuccess(`✓ ${type.charAt(0).toUpperCase()}${type.slice(1)} deleted successfully`, toastId)
-      fetchMenuData()
     } catch (error) {
       console.error('Delete error:', error)
       adminNotifyError(`✕ Failed to delete ${type}. Please try again.`, toastId)
@@ -556,6 +719,7 @@ export default function MenuBuilderPage() {
         const newIndex = sections.findIndex(s => s.id === over.id)
         
         if (oldIndex !== -1 && newIndex !== -1) {
+          const previousSections = sections
           const newSections = arrayMove(sections, oldIndex, newIndex)
           setSections(newSections)
           
@@ -564,11 +728,17 @@ export default function MenuBuilderPage() {
             sortOrder: index,
           }))
           
-          await fetch('/api/admin/sections/reorder', {
+          const response = await fetch('/api/admin/sections/reorder', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ items: reorderData }),
           })
+
+          if (!response.ok) {
+            setSections(previousSections)
+            const errorData = await response.json().catch(() => ({}))
+            throw new Error(errorData.error || 'Failed to reorder sections')
+          }
           
           adminNotifySuccess('✓ Sections reordered')
         }
@@ -579,6 +749,7 @@ export default function MenuBuilderPage() {
           const newIndex = section.categories.findIndex(c => c.id === over.id)
           
           if (oldIndex !== -1 && newIndex !== -1) {
+            const previousSections = sections
             const newCategories = arrayMove(section.categories, oldIndex, newIndex)
             
             const updatedSections = sections.map(s => 
@@ -601,6 +772,7 @@ export default function MenuBuilderPage() {
             })
             
             if (!response.ok) {
+              setSections(previousSections)
               const errorData = await response.json().catch(() => ({}))
               throw new Error(errorData.error || 'Failed to reorder categories')
             }
@@ -619,6 +791,7 @@ export default function MenuBuilderPage() {
           const newIndex = category.items.findIndex(i => i.id === over.id)
           
           if (oldIndex !== -1 && newIndex !== -1) {
+            const previousSections = sections
             const newItems = arrayMove(category.items, oldIndex, newIndex)
             
             const updatedSections = sections.map(s => 
@@ -648,6 +821,7 @@ export default function MenuBuilderPage() {
             })
             
             if (!response.ok) {
+              setSections(previousSections)
               const errorData = await response.json().catch(() => ({}))
               throw new Error(errorData.error || 'Failed to reorder items')
             }
@@ -659,7 +833,6 @@ export default function MenuBuilderPage() {
     } catch (error) {
       console.error('Reorder error:', error)
       adminNotifyError('✕ Failed to reorder. Please try again.')
-      fetchMenuData()
     }
     
     setActiveId(null)
@@ -732,9 +905,11 @@ export default function MenuBuilderPage() {
           const error = await response.json()
           throw new Error(error.error || 'Failed to create section')
         }
+
+        return response.json() as Promise<Section>
       },
-      onSuccess: () => {
-        fetchMenuData()
+      onSuccess: (createdSection) => {
+        addSectionToState(createdSection)
       },
       onError: () => {
         setSectionForm(formDataToSave)
@@ -765,9 +940,11 @@ export default function MenuBuilderPage() {
           const error = await response.json()
           throw new Error(error.error || 'Failed to create category')
         }
+
+        return response.json() as Promise<Category>
       },
-      onSuccess: () => {
-        fetchMenuData()
+      onSuccess: (createdCategory) => {
+        addCategoryToState(sectionIdToSave, createdCategory)
       },
       onError: () => {
         setCategoryForm(formDataToSave)
@@ -820,14 +997,14 @@ export default function MenuBuilderPage() {
           throw new Error(error.error || 'Failed to create item')
         }
 
-        const newItem = await response.json()
-
-        if (imageToUpload && newItem.id) {
-          void uploadItemImage(newItem.id, imageToUpload)
-        }
+        const newItem = await response.json() as Item
+        return { newItem, categoryId: categoryIdToSave, imageToUpload }
       },
-      onSuccess: () => {
-        fetchMenuData()
+      onSuccess: ({ newItem, categoryId, imageToUpload: pendingImage }) => {
+        addItemToState(categoryId, newItem)
+        if (pendingImage && newItem.id) {
+          void uploadItemImage(newItem.id, pendingImage)
+        }
       },
       onError: () => {
         setItemForm(formDataToSave)
@@ -874,8 +1051,10 @@ export default function MenuBuilderPage() {
         throw new Error(errorData.error || 'Failed to save image URL to database')
       }
 
+      const updatedItem = await updateResponse.json()
+      replaceItemInState(itemId, updatedItem)
+
       adminNotifySuccess('✓ Upload complete', toastId)
-      fetchMenuData()
     } catch (uploadError: any) {
       console.error('[R2 UPLOAD] Error uploading image:', uploadError)
       adminNotifyError(uploadError.message || '✕ Upload failed', toastId)
@@ -959,9 +1138,11 @@ export default function MenuBuilderPage() {
           const error = await response.json()
           throw new Error(error.error || 'Failed to update section')
         }
+
+        return response.json() as Promise<Section>
       },
-      onSuccess: () => {
-        fetchMenuData()
+      onSuccess: (updatedSection) => {
+        replaceSectionInState(updatedSection)
       },
       onError: () => {
         setEditSectionForm(formDataToSave)
@@ -991,9 +1172,11 @@ export default function MenuBuilderPage() {
           const error = await response.json()
           throw new Error(error.error || 'Failed to update category')
         }
+
+        return response.json() as Promise<Category>
       },
-      onSuccess: () => {
-        fetchMenuData()
+      onSuccess: (updatedCategory) => {
+        replaceCategoryInState(categoryIdToSave, updatedCategory)
       },
       onError: () => {
         setEditCategoryForm(formDataToSave)
@@ -1060,10 +1243,12 @@ export default function MenuBuilderPage() {
           const error = await response.json()
           throw new Error(error.error || 'Failed to update item')
         }
+
+        return response.json() as Promise<Item>
       },
-      onSuccess: () => {
+      onSuccess: (updatedItem) => {
         setEditItemUploadProgress(undefined)
-        fetchMenuData()
+        replaceItemInState(itemIdToSave, updatedItem)
       },
       onError: () => {
         setEditItemUploadProgress(undefined)
