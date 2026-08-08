@@ -20,7 +20,8 @@ function getAzureConfig(): { endpoint: string; key: string; region: string } {
 }
 
 /**
- * Translate one or more English strings to Arabic in a single Azure request.
+ * Translate one or more strings to Arabic in a single Azure request.
+ * Source language is auto-detected so English, Italian, and other names work.
  * Empty strings are returned as empty without calling Azure.
  */
 export async function translateEnglishTextsToArabic(texts: string[]): Promise<string[]> {
@@ -42,7 +43,7 @@ export async function translateEnglishTextsToArabic(texts: string[]): Promise<st
   }
 
   const { endpoint, key, region } = getAzureConfig()
-  const url = `${endpoint}/translate?api-version=3.0&from=en&to=ar`
+  const url = `${endpoint}/translate?api-version=3.0&to=ar`
 
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), TRANSLATE_TIMEOUT_MS)
