@@ -2,10 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { Language, languages } from '@/lib/i18n'
-import { preloadMenuForNavigation } from '@/lib/preload-menu-client'
-import { useState, useEffect, useRef } from 'react'
-
-const POP_ANIM_MS = 450
+import { useState } from 'react'
 
 interface WelcomeLanguageButtonsProps {
   slug: string
@@ -14,41 +11,16 @@ interface WelcomeLanguageButtonsProps {
   isLoaded: boolean
 }
 
-type PopupPhase = 'idle' | 'enter' | 'hold' | 'exit'
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
 export function WelcomeLanguageButtons({
   slug,
   logoUrl,
   appBg,
 }: WelcomeLanguageButtonsProps) {
   const router = useRouter()
-  const [popupPhase, setPopupPhase] = useState<PopupPhase>('idle')
-  const [loadProgress, setLoadProgress] = useState(0)
-  const cancelledRef = useRef(false)
+  const [isTransitioning, setIsTransitioning] = useState(false)
 
-  useEffect(() => {
-    cancelledRef.current = false
-    return () => {
-      cancelledRef.current = true
-    }
-  }, [])
-
-  const finishTransition = async (menuPath: string) => {
-    setLoadProgress(1)
-    setPopupPhase('exit')
-    await delay(POP_ANIM_MS)
-    if (cancelledRef.current) return
-    router.push(menuPath)
-    setPopupPhase('idle')
-    setLoadProgress(0)
-  }
-
-  const handleLanguageSelect = async (lang: Language) => {
-    if (popupPhase !== 'idle') return
+  const handleLanguageSelect = (lang: Language) => {
+    if (isTransitioning) return
 
     localStorage.setItem('language', lang)
     const menuPath = `/${slug}/menu?lang=${lang}`
@@ -58,36 +30,12 @@ export function WelcomeLanguageButtons({
       typeof window !== 'undefined' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-    if (!logoUrl || prefersReducedMotion) {
-      try {
-        await preloadMenuForNavigation(slug, lang)
-      } catch {
-        // Navigate even if preload fails
-      }
-      if (!cancelledRef.current) {
-        router.push(menuPath)
-      }
-      return
+    if (logoUrl && !prefersReducedMotion) {
+      setIsTransitioning(true)
     }
 
-    setLoadProgress(0)
-    setPopupPhase('enter')
-    await delay(POP_ANIM_MS)
-    if (cancelledRef.current) return
-
-    setPopupPhase('hold')
-
-    try {
-      await preloadMenuForNavigation(slug, lang, setLoadProgress)
-    } catch {
-      setLoadProgress(1)
-    }
-
-    if (cancelledRef.current) return
-    await finishTransition(menuPath)
+    router.push(menuPath)
   }
-
-  const isTransitioning = popupPhase !== 'idle'
 
   return (
     <>
@@ -98,22 +46,16 @@ export function WelcomeLanguageButtons({
           aria-live="polite"
           aria-busy="true"
         >
-          <div className={`welcome-logo-popup welcome-logo-popup--${popupPhase}`}>
+          <div className="welcome-logo-popup welcome-logo-popup--enter">
             <div className="welcome-logo-popup__stack">
               <img
                 src={logoUrl}
                 alt="Restaurant Logo"
                 className="welcome-logo-popup__image"
               />
-              {popupPhase !== 'exit' && (
-                <div className="welcome-logo-popup__progress-line" aria-hidden="true">
-                  <div className="welcome-logo-popup__progress-track" />
-                  <div
-                    className="welcome-logo-popup__progress-fill"
-                    style={{ width: `${loadProgress * 100}%` }}
-                  />
-                </div>
-              )}
+              <div className="welcome-logo-popup__progress-line" aria-hidden="true">
+                <div className="welcome-logo-popup__progress-track" />
+              </div>
             </div>
           </div>
         </div>
