@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 import { NextResponse } from 'next/server'
-import { requireAdminSession } from '@/lib/auth'
+import { requireAdminSession, SessionExpiredError } from '@/lib/auth'
 import { invalidateMenuDataCaches } from '@/lib/cache-invalidation'
 import {
   AzureTranslatorError,
@@ -23,6 +23,9 @@ export async function POST() {
       updated,
     })
   } catch (error) {
+    if (error instanceof SessionExpiredError) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     if (error instanceof AzureTranslatorError) {
       return NextResponse.json({ error: error.message }, { status: 502 })
     }
