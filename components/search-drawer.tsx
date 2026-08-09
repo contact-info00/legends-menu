@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { X, Search as SearchIcon } from 'lucide-react'
 import { Language } from '@/lib/i18n'
 import { getLocalizedText } from '@/lib/i18n'
-import { menuLocalizedTextProps } from '@/lib/menu-typography'
+import { menuItemNameLocalizedTextProps } from '@/lib/menu-typography'
 import { Input } from './ui/input'
 
 interface Item {
@@ -204,7 +204,7 @@ export function SearchDrawer({
                     )
                   })()}
                   <span 
-                    {...menuLocalizedTextProps(currentLang, 'text-white font-medium')}
+                    {...menuItemNameLocalizedTextProps(currentLang, 'text-white', 'medium')}
                     style={{ fontSize: 'var(--menu-item-name-size)' }}
                   >
                     {getLocalizedText(item, currentLang)}

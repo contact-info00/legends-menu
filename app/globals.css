@@ -518,3 +518,19 @@ nav.sticky {
   font-weight: 700;
 }
 
+/* Item names only: match description shaping (Regular weight, no nowrap truncate) */
+.menu-kurdish-text.menu-item-name-text {
+  font-weight: 400;
+}
+
+.menu-kurdish-text.menu-item-name-text.menu-item-name-truncate {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+

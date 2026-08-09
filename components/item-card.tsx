@@ -6,7 +6,7 @@ import { Plus, Check } from 'lucide-react'
 import { Language } from '@/lib/i18n'
 import { getLocalizedText } from '@/lib/i18n'
 import { formatPrice } from '@/lib/utils'
-import { menuLocalizedTextProps } from '@/lib/menu-typography'
+import { menuItemNameLocalizedTextProps } from '@/lib/menu-typography'
 
 interface Item {
   id: string
@@ -147,7 +147,7 @@ function ItemCardComponent({ item, currentLang, onItemClick, onAddToBasket, quan
           margin: 0,
         }}>
           <h3 
-            {...menuLocalizedTextProps(currentLang, 'font-semibold mb-1 min-w-0 w-full truncate')}
+            {...menuItemNameLocalizedTextProps(currentLang, 'mb-1')}
             style={{ 
               color: 'var(--item-name-text-color, var(--auto-text-primary, #FFFFFF))',
               fontSize: 'var(--menu-item-name-size)'

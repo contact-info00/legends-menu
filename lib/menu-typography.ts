@@ -24,3 +24,24 @@ export function menuLocalizedTextProps(lang: Language, className?: string) {
     ...menuScriptTextAttributes(lang),
   }
 }
+
+type ItemNameWeight = 'semibold' | 'bold' | 'medium'
+
+/**
+ * Item titles only. Kurdish names use Regular (400) + line-clamp truncation so
+ * Arabic-script shaping matches descriptions. English/Arabic keep bold weights.
+ */
+export function menuItemNameLocalizedTextProps(
+  lang: Language,
+  className?: string,
+  enArWeight: ItemNameWeight = 'semibold'
+) {
+  const weightClass = lang === 'ku' ? 'font-normal' : `font-${enArWeight}`
+  const truncationClass =
+    lang === 'ku' ? 'menu-item-name-truncate min-w-0 w-full' : 'truncate min-w-0 w-full'
+
+  return menuLocalizedTextProps(
+    lang,
+    cn('menu-item-name-text', weightClass, truncationClass, className)
+  )
+}
