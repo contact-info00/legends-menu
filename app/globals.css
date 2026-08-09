@@ -501,11 +501,20 @@ nav.sticky {
 
 /* Customer menu Kurdish (Central Kurdish / Sorani) Arabic-script typography */
 .menu-kurdish-text {
-  font-family: var(--font-kurdish-menu), 'Rudaw', 'Rudaw Regular', Tahoma, 'Segoe UI', sans-serif;
-  font-feature-settings: 'liga' 1, 'calt' 1, 'kern' 1;
+  font-family: var(--font-kurdish-menu), Tahoma, 'Segoe UI', sans-serif;
+  font-synthesis: none;
+  letter-spacing: 0;
+  word-spacing: normal;
+  text-transform: none;
+  font-feature-settings: 'liga' 1, 'calt' 1;
   font-variant-ligatures: common-ligatures contextual;
-  text-rendering: optimizeLegibility;
+  text-rendering: auto;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.menu-kurdish-text.font-semibold,
+.menu-kurdish-text.font-bold {
+  font-weight: 700;
 }
 

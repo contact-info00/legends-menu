@@ -16,4 +16,8 @@ export const kurdishMenuFont = localFont({
   variable: '--font-kurdish-menu',
   display: 'swap',
   fallback: ['Tahoma', 'Segoe UI', 'sans-serif'],
+  adjustFontFallback: false,
 })
+
+/** Apply on Kurdish menu text nodes so the loaded Rudaw face is always used. */
+export const kurdishMenuFontClassName = kurdishMenuFont.className

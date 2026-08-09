@@ -1,3 +1,5 @@
+import { normalizeArabicScriptForDisplay } from '@/lib/arabic-script-normalize'
+
 export type Language = 'ku' | 'en' | 'ar'
 
 export const languages: { code: Language; name: string; nativeName: string }[] = [
@@ -12,7 +14,7 @@ export function getLocalizedText(
 ): string {
   switch (lang) {
     case 'ku':
-      return text.nameKu
+      return normalizeArabicScriptForDisplay(text.nameKu)
     case 'en':
       return text.nameEn
     case 'ar':
@@ -27,8 +29,10 @@ export function getLocalizedDescription(
   lang: Language
 ): string {
   switch (lang) {
-    case 'ku':
-      return text.descriptionKu || text.descriptionEn || ''
+    case 'ku': {
+      const kurdish = text.descriptionKu || text.descriptionEn || ''
+      return normalizeArabicScriptForDisplay(kurdish)
+    }
     case 'en':
       return text.descriptionEn || ''
     case 'ar':
@@ -37,7 +41,3 @@ export function getLocalizedDescription(
       return text.descriptionEn || ''
   }
 }
-
-
-
-
