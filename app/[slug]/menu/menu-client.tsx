@@ -13,7 +13,7 @@ import { PoweredByFooter } from '@/components/powered-by-footer'
 import { CategorySectionSkeleton, SectionHeaderSkeleton, MenuItemSkeleton } from '@/components/menu-skeleton'
 import { Language } from '@/lib/i18n'
 import { getLocalizedText } from '@/lib/i18n'
-import { menuLocalizedTextProps } from '@/lib/menu-typography'
+import { menuCategoryNameLocalizedTextProps, menuLocalizedTextProps } from '@/lib/menu-typography'
 import { detectOverflow } from '@/lib/debug-overflow'
 import {
   applyMenuThemeCssVariables,
@@ -1001,7 +1001,7 @@ export function MenuPageClient({ slug, initialLang, initialData }: MenuPageClien
                           }}
                         >
                           <span 
-                            {...menuLocalizedTextProps(currentLang, 'relative font-semibold whitespace-nowrap')}
+                            {...menuCategoryNameLocalizedTextProps(currentLang, 'relative font-semibold whitespace-nowrap')}
                             style={{ 
                               color: theme?.bottomNavSectionNameColor || 'var(--auto-text-primary, #FFFFFF)',
                               display: 'flex',
@@ -1084,7 +1084,7 @@ export function MenuPageClient({ slug, initialLang, initialData }: MenuPageClien
                         }}
                       >
                         <h2 
-                          {...menuLocalizedTextProps(currentLang, 'relative font-bold transition-all duration-300 text-center')}
+                          {...menuCategoryNameLocalizedTextProps(currentLang, 'relative font-bold transition-all duration-300 text-center', 'bold')}
                           style={{ 
                             fontSize: 'var(--menu-category-size)',
                             color: theme?.categoryNameColor || 'var(--auto-text-primary, #FFFFFF)',
