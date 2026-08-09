@@ -1,19 +1,12 @@
 import { notFound } from 'next/navigation'
-import { Noto_Naskh_Arabic } from 'next/font/google'
 import { getMenuPageData } from '@/lib/menu-server'
 import { buildMenuThemeStyleTag } from '@/lib/menu-theme-css'
 import { parseMenuLanguage } from '@/lib/menu-types'
+import { kurdishMenuFont } from '@/lib/kurdish-menu-font'
 import { MenuPageClient } from './menu-client'
 
 export const revalidate = 30
 export const runtime = 'nodejs'
-
-const kurdishMenuFont = Noto_Naskh_Arabic({
-  subsets: ['arabic'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-kurdish-menu',
-  display: 'swap',
-})
 
 interface MenuPageProps {
   params: {
