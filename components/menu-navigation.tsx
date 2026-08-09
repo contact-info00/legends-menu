@@ -2,6 +2,7 @@
 
 import { Language } from '@/lib/i18n'
 import { getLocalizedText } from '@/lib/i18n'
+import { menuLocalizedTextProps } from '@/lib/menu-typography'
 
 interface Section {
   id: string
@@ -88,7 +89,9 @@ export function MenuNavigation({
                 }
               }}
             >
-              {getLocalizedText(section, currentLang)}
+              <span {...menuLocalizedTextProps(currentLang)}>
+                {getLocalizedText(section, currentLang)}
+              </span>
             </button>
           ))}
 
@@ -144,7 +147,7 @@ export function MenuNavigation({
                   }}
                 ></div>
                 <span 
-                  className="relative text-sm font-semibold whitespace-nowrap"
+                  {...menuLocalizedTextProps(currentLang, 'relative text-sm font-semibold whitespace-nowrap')}
                   style={{ color: 'var(--auto-text-primary, #FFFFFF)' }}
                 >
                   {getLocalizedText(category, currentLang)}

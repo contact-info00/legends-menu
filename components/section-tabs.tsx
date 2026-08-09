@@ -2,6 +2,7 @@
 
 import { Language } from '@/lib/i18n'
 import { getLocalizedText } from '@/lib/i18n'
+import { menuLocalizedTextProps } from '@/lib/menu-typography'
 
 interface Section {
   id: string
@@ -47,7 +48,9 @@ export function SectionTabs({
                 : 'text-[var(--inactive-tab)] hover:bg-white/10'
             }`}
           >
-            {getLocalizedText(section, currentLang)}
+            <span {...menuLocalizedTextProps(currentLang)}>
+              {getLocalizedText(section, currentLang)}
+            </span>
           </button>
         ))}
       </div>

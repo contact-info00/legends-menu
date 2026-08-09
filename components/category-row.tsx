@@ -2,6 +2,7 @@
 
 import { Language } from '@/lib/i18n'
 import { getLocalizedText } from '@/lib/i18n'
+import { menuLocalizedTextProps } from '@/lib/menu-typography'
 
 interface Category {
   id: string
@@ -64,7 +65,7 @@ export function CategoryRow({ categories, currentLang, onCategoryClick }: Catego
               })()}
             </button>
             <span 
-              className="text-[var(--item-name-text)] text-center max-w-[80px] truncate"
+              {...menuLocalizedTextProps(currentLang, 'text-[var(--item-name-text)] text-center max-w-[80px] truncate')}
               style={{ fontSize: 'var(--menu-category-size)' }}
             >
               {getLocalizedText(category, currentLang)}

@@ -5,6 +5,7 @@ import { X } from 'lucide-react'
 import { Language } from '@/lib/i18n'
 import { getLocalizedText, getLocalizedDescription } from '@/lib/i18n'
 import { formatPrice } from '@/lib/utils'
+import { menuLocalizedTextProps } from '@/lib/menu-typography'
 
 interface Item {
   id: string
@@ -89,7 +90,7 @@ export function ItemModal({ item, currentLang, isOpen, onClose, currency = 'IQD'
         {/* Content */}
         <div className="p-6">
           <h2 
-            className="font-bold mb-2"
+            {...menuLocalizedTextProps(currentLang, 'font-bold mb-2')}
             style={{ 
               color: 'var(--item-name-text-color, var(--auto-text-primary, #FFFFFF))',
               fontSize: 'var(--menu-item-name-size, 1.5rem)' 
@@ -108,7 +109,7 @@ export function ItemModal({ item, currentLang, isOpen, onClose, currency = 'IQD'
           </p>
           {getLocalizedDescription(item, currentLang) && (
             <p 
-              className="leading-relaxed"
+              {...menuLocalizedTextProps(currentLang, 'leading-relaxed')}
               style={{ 
                 color: 'var(--item-description-text-color, var(--auto-text-secondary, rgba(255, 255, 255, 0.9)))',
                 fontSize: 'var(--menu-item-desc-size, 0.875rem)' 

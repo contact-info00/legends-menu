@@ -499,3 +499,13 @@ nav.sticky {
   font-style: normal;
 }
 
+/* Customer menu Kurdish (Central Kurdish / Sorani) Arabic-script typography */
+.menu-kurdish-text {
+  font-family: var(--font-kurdish-menu), 'Noto Naskh Arabic', 'Segoe UI', Tahoma, sans-serif;
+  font-feature-settings: 'liga' 1, 'calt' 1, 'kern' 1;
+  font-variant-ligatures: common-ligatures contextual;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
