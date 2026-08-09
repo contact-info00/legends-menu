@@ -168,6 +168,8 @@ export function MenuPageClient({ slug, initialLang, initialData }: MenuPageClien
   const categoryButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
   const isUserScrollingNav = useRef(false)
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const savedScrollYRef = useRef(0)
+  const isScrollLockedRef = useRef(false)
 
   // Fetch all items for a section in one batched request (other sections after SSR initial load)
   const fetchSectionItems = useCallback(async (sectionId: string) => {
@@ -651,32 +653,31 @@ export function MenuPageClient({ slug, initialLang, initialData }: MenuPageClien
 
     const isAnyModalOpen = isItemModalOpen || isBasketOpen
 
-    if (isAnyModalOpen) {
-      // Save current scroll position
-      const scrollY = window.scrollY
-      // Lock body scroll
+    if (isAnyModalOpen && !isScrollLockedRef.current) {
+      savedScrollYRef.current = window.scrollY
       document.body.style.position = 'fixed'
-      document.body.style.top = `-${scrollY}px`
+      document.body.style.top = `-${savedScrollYRef.current}px`
       document.body.style.width = '100%'
       document.body.style.overflow = 'hidden'
-    } else {
-      // Restore scroll position
-      const scrollY = document.body.style.top
+      isScrollLockedRef.current = true
+    } else if (!isAnyModalOpen && isScrollLockedRef.current) {
       document.body.style.position = ''
       document.body.style.top = ''
       document.body.style.width = ''
       document.body.style.overflow = ''
-      if (scrollY) {
-        window.scrollTo(0, parseInt(scrollY || '0') * -1)
-      }
+      window.scrollTo(0, savedScrollYRef.current)
+      isScrollLockedRef.current = false
     }
 
-    // Cleanup on unmount
     return () => {
+      if (!isScrollLockedRef.current) return
+
       document.body.style.position = ''
       document.body.style.top = ''
       document.body.style.width = ''
       document.body.style.overflow = ''
+      window.scrollTo(0, savedScrollYRef.current)
+      isScrollLockedRef.current = false
     }
   }, [isItemModalOpen, isBasketOpen])
 
