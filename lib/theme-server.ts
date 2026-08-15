@@ -1,6 +1,8 @@
+import { cache } from 'react'
 import { unstable_cache } from 'next/cache'
 import type { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import type { MenuTheme } from '@/lib/menu-types'
 
 export const DEFAULT_THEME = {
   appBg: '#400810',
@@ -44,39 +46,52 @@ export const THEME_NO_STORE_HEADERS = {
   'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
 } as const
 
+const THEME_SELECT = {
+  id: true,
+  appBg: true,
+  menuBackgroundR2Key: true,
+  menuBackgroundR2Url: true,
+  itemNameTextColor: true,
+  itemPriceTextColor: true,
+  itemDescriptionTextColor: true,
+  bottomNavSectionNameColor: true,
+  categoryNameColor: true,
+  headerFooterBgColor: true,
+  glassTintColor: true,
+  restaurantId: true,
+  createdAt: true,
+  updatedAt: true,
+} as const
+
 async function fetchThemeForSlug(slug: string): Promise<ThemePayload | null> {
-  const restaurant = await prisma.restaurant.findUnique({
-    where: { slug },
-    select: { id: true },
-  })
-
-  if (!restaurant) {
-    return null
-  }
-
-  const theme = await prisma.theme.findUnique({
-    where: { restaurantId: restaurant.id },
+  // Resolve the theme through the restaurant relation so the common case is a single query.
+  const theme = await prisma.theme.findFirst({
+    where: { restaurant: { slug } },
+    select: THEME_SELECT,
   })
 
   if (!theme) {
-    return { theme: { ...DEFAULT_THEME } }
+    // No theme row: only now do we need to tell "restaurant missing" apart from "theme missing".
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { slug },
+      select: { id: true },
+    })
+    return restaurant ? { theme: { ...DEFAULT_THEME } } : null
   }
-
-  const themeResponse = theme as Record<string, unknown>
 
   return {
     theme: {
       id: theme.id,
       appBg: theme.appBg,
-      menuBackgroundR2Key: (themeResponse.menuBackgroundR2Key as string | null) || null,
-      menuBackgroundR2Url: (themeResponse.menuBackgroundR2Url as string | null) || null,
-      itemNameTextColor: (themeResponse.itemNameTextColor as string | null) || null,
-      itemPriceTextColor: (themeResponse.itemPriceTextColor as string | null) || null,
-      itemDescriptionTextColor: (themeResponse.itemDescriptionTextColor as string | null) || null,
-      bottomNavSectionNameColor: (themeResponse.bottomNavSectionNameColor as string | null) || null,
-      categoryNameColor: (themeResponse.categoryNameColor as string | null) || null,
-      headerFooterBgColor: (themeResponse.headerFooterBgColor as string | null) || null,
-      glassTintColor: (themeResponse.glassTintColor as string | null) || null,
+      menuBackgroundR2Key: theme.menuBackgroundR2Key || null,
+      menuBackgroundR2Url: theme.menuBackgroundR2Url || null,
+      itemNameTextColor: theme.itemNameTextColor || null,
+      itemPriceTextColor: theme.itemPriceTextColor || null,
+      itemDescriptionTextColor: theme.itemDescriptionTextColor || null,
+      bottomNavSectionNameColor: theme.bottomNavSectionNameColor || null,
+      categoryNameColor: theme.categoryNameColor || null,
+      headerFooterBgColor: theme.headerFooterBgColor || null,
+      glassTintColor: theme.glassTintColor || null,
       restaurantId: theme.restaurantId,
       createdAt: theme.createdAt,
       updatedAt: theme.updatedAt,
@@ -102,16 +117,47 @@ export function resolveThemeSlugFromRequest(request: NextRequest): string | null
   return slug
 }
 
-/** Server-side cached theme lookup — shared by /data/theme and [slug]/layout. */
-export async function getCachedThemeForSlug(slug: string): Promise<ThemePayload | null> {
-  const getCachedTheme = unstable_cache(
-    () => fetchThemeForSlug(slug),
-    [`theme-slug-${slug}`],
-    {
-      tags: ['theme', `theme-slug-${slug}`, `restaurant-slug-${slug}`],
-      revalidate: 30,
-    }
-  )
+/**
+ * Server-side cached theme lookup — shared by /data/theme, [slug]/layout and the menu page.
+ *
+ * The React cache() wrapper dedupes callers within a single request: a layout and its page render
+ * concurrently, so on a cold data cache both would otherwise miss and issue the same query.
+ */
+export const getCachedThemeForSlug = cache(
+  async (slug: string): Promise<ThemePayload | null> => {
+    const getCachedTheme = unstable_cache(
+      () => fetchThemeForSlug(slug),
+      [`theme-slug-${slug}`],
+      {
+        tags: ['theme', `theme-slug-${slug}`, `restaurant-slug-${slug}`],
+        revalidate: 30,
+      }
+    )
 
-  return getCachedTheme()
+    return getCachedTheme()
+  }
+)
+
+/**
+ * Narrow the cached theme payload to the fields the customer menu renders.
+ * A restaurant without a Theme row yields the id-less DEFAULT_THEME, which maps to null so the
+ * menu keeps falling back to its built-in defaults exactly as before.
+ */
+export function toMenuTheme(payload: ThemePayload | null): MenuTheme | null {
+  const theme = payload?.theme
+  if (!theme?.id) {
+    return null
+  }
+
+  return {
+    appBg: theme.appBg,
+    menuBackgroundR2Url: theme.menuBackgroundR2Url ?? null,
+    headerFooterBgColor: theme.headerFooterBgColor ?? null,
+    glassTintColor: theme.glassTintColor ?? null,
+    itemNameTextColor: theme.itemNameTextColor ?? null,
+    itemPriceTextColor: theme.itemPriceTextColor ?? null,
+    itemDescriptionTextColor: theme.itemDescriptionTextColor ?? null,
+    bottomNavSectionNameColor: theme.bottomNavSectionNameColor ?? null,
+    categoryNameColor: theme.categoryNameColor ?? null,
+  }
 }

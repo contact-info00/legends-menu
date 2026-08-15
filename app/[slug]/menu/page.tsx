@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation'
 import { getMenuPageData } from '@/lib/menu-server'
 import { buildMenuThemeStyleTag } from '@/lib/menu-theme-css'
-import { parseMenuLanguage } from '@/lib/menu-types'
+import { parseMenuLanguage, type MenuPageInitialData } from '@/lib/menu-types'
+import { getCachedThemeForSlug, toMenuTheme } from '@/lib/theme-server'
 import { kurdishMenuFont } from '@/lib/kurdish-menu-font'
 import { MenuPageClient } from './menu-client'
 
@@ -21,11 +22,17 @@ export default async function MenuPage({ params, searchParams }: MenuPageProps) 
   const { slug } = params
   const initialLang = parseMenuLanguage(searchParams.lang)
 
-  const initialData = await getMenuPageData(slug, initialLang)
+  // Both reads share the caches the slug layout already warmed, so neither hits the DB again.
+  const [menuData, themePayload] = await Promise.all([
+    getMenuPageData(slug, initialLang),
+    getCachedThemeForSlug(slug),
+  ])
 
-  if (!initialData) {
+  if (!menuData) {
     notFound()
   }
+
+  const initialData: MenuPageInitialData = { ...menuData, theme: toMenuTheme(themePayload) }
 
   const themeCss = buildMenuThemeStyleTag(initialData.theme, initialData.uiSettings)
   const backgroundUrl = initialData.theme?.menuBackgroundR2Url

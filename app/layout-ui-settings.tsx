@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 
 // Default values
@@ -12,13 +13,25 @@ const DEFAULT_SETTINGS = {
   bottomNavCategorySize: 13,
 }
 
-export async function getUiSettings() {
+const SIZE_SELECT = {
+  sectionTitleSize: true,
+  categoryTitleSize: true,
+  itemNameSize: true,
+  itemDescriptionSize: true,
+  itemPriceSize: true,
+  headerLogoSize: true,
+  bottomNavSectionSize: true,
+  bottomNavCategorySize: true,
+} as const
+
+async function fetchUiSettings() {
   let uiSettings = DEFAULT_SETTINGS
 
   try {
     // Try to get from UiSettings first
     const settings = await prisma.uiSettings.findUnique({
       where: { id: 'ui-settings-1' },
+      select: SIZE_SELECT,
     })
 
     if (settings) {
@@ -36,6 +49,7 @@ export async function getUiSettings() {
       // Try FallbackSettings
       const fallbackSettings = await prisma.fallbackSettings.findUnique({
         where: { id: 'fallback-1' },
+        select: SIZE_SELECT,
       })
 
       if (fallbackSettings) {
@@ -56,5 +70,19 @@ export async function getUiSettings() {
   }
 
   return uiSettings
+}
+
+/**
+ * Global (non tenant-scoped) typography sizes rendered by the root layout on every request.
+ * Cached behind the same tags the admin settings routes already invalidate, so admin edits
+ * still take effect immediately instead of waiting out the revalidate window.
+ */
+const getCachedUiSettings = unstable_cache(fetchUiSettings, ['root-layout-ui-settings'], {
+  tags: ['ui-settings', 'settings'],
+  revalidate: 30,
+})
+
+export async function getUiSettings() {
+  return getCachedUiSettings()
 }
 

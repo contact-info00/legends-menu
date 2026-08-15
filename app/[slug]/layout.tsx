@@ -1,5 +1,4 @@
 import { notFound } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
 import { getCachedThemeForSlug } from '@/lib/theme-server'
 
 // Slug existence check is safe to cache briefly; deleted restaurants may 404 for up to 60s.
@@ -16,28 +15,21 @@ interface LayoutProps {
 export default async function SlugLayout({ children, params }: LayoutProps) {
   const { slug } = params
 
-  const restaurant = await prisma.restaurant.findUnique({
-    where: { slug },
-    select: { id: true },
-  })
+  // A null payload means the slug has no restaurant, so this doubles as the existence check.
+  const themePayload = await getCachedThemeForSlug(slug)
 
-  if (!restaurant) {
+  if (!themePayload) {
     notFound()
   }
 
-  const themePayload = await getCachedThemeForSlug(slug)
-  const themeScript = themePayload
-    ? `window.__INITIAL_THEME__=${JSON.stringify(themePayload)};`
-    : ''
+  const themeScript = `window.__INITIAL_THEME__=${JSON.stringify(themePayload)};`
 
   return (
     <>
-      {themeScript ? (
-        <script
-          dangerouslySetInnerHTML={{ __html: themeScript }}
-          suppressHydrationWarning
-        />
-      ) : null}
+      <script
+        dangerouslySetInnerHTML={{ __html: themeScript }}
+        suppressHydrationWarning
+      />
       {children}
     </>
   )

@@ -4,7 +4,6 @@ import {
   type MenuItem,
   type MenuPageInitialData,
   type MenuSection,
-  type MenuTheme,
   type MenuUiSettings,
   groupItemsByCategory,
   parseMenuLanguage,
@@ -70,25 +69,10 @@ async function fetchUiSettings(restaurantId: string): Promise<MenuUiSettings> {
 }
 
 async function fetchMenuStructure(restaurantId: string): Promise<{
-  theme: MenuTheme | null
   sections: MenuSection[]
   uiSettings: MenuUiSettings
 }> {
-  const [themeRow, sectionsWithCategories, uiSettings] = await Promise.all([
-    prisma.theme.findUnique({
-      where: { restaurantId },
-      select: {
-        appBg: true,
-        menuBackgroundR2Url: true,
-        headerFooterBgColor: true,
-        glassTintColor: true,
-        itemNameTextColor: true,
-        itemPriceTextColor: true,
-        itemDescriptionTextColor: true,
-        bottomNavSectionNameColor: true,
-        categoryNameColor: true,
-      },
-    }),
+  const [sectionsWithCategories, uiSettings] = await Promise.all([
     prisma.section.findMany({
       where: {
         restaurantId,
@@ -129,21 +113,7 @@ async function fetchMenuStructure(restaurantId: string): Promise<{
     })),
   }))
 
-  const theme: MenuTheme | null = themeRow
-    ? {
-        appBg: themeRow.appBg,
-        menuBackgroundR2Url: themeRow.menuBackgroundR2Url,
-        headerFooterBgColor: themeRow.headerFooterBgColor,
-        glassTintColor: themeRow.glassTintColor,
-        itemNameTextColor: themeRow.itemNameTextColor,
-        itemPriceTextColor: themeRow.itemPriceTextColor,
-        itemDescriptionTextColor: themeRow.itemDescriptionTextColor,
-        bottomNavSectionNameColor: themeRow.bottomNavSectionNameColor,
-        categoryNameColor: themeRow.categoryNameColor,
-      }
-    : null
-
-  return { theme, sections, uiSettings }
+  return { sections, uiSettings }
 }
 
 async function fetchSectionItems(
@@ -178,7 +148,13 @@ async function fetchPlatformFooterLogo(): Promise<string | null> {
   return settings?.footerLogoR2Url ?? null
 }
 
-async function loadMenuPageData(slug: string, langParam?: string | null): Promise<MenuPageInitialData | null> {
+/**
+ * Everything the menu page needs except the theme, which is served from the slug-scoped theme
+ * cache that the surrounding layout already populates.
+ */
+export type MenuPageData = Omit<MenuPageInitialData, 'theme'>
+
+async function loadMenuPageData(slug: string, langParam?: string | null): Promise<MenuPageData | null> {
   parseMenuLanguage(langParam ?? undefined)
 
   const restaurant = await prisma.restaurant.findUnique({
@@ -198,7 +174,7 @@ async function loadMenuPageData(slug: string, langParam?: string | null): Promis
     return null
   }
 
-  const [{ theme, sections, uiSettings }, footerLogoUrl] = await Promise.all([
+  const [{ sections, uiSettings }, footerLogoUrl] = await Promise.all([
     fetchMenuStructure(restaurant.id),
     fetchPlatformFooterLogo(),
   ])
@@ -224,7 +200,6 @@ async function loadMenuPageData(slug: string, langParam?: string | null): Promis
       logoMediaId: restaurant.logoMediaId,
       serviceChargePercent: restaurant.serviceChargePercent ?? 0,
     },
-    theme,
     sections,
     uiSettings,
     footerLogoUrl,
@@ -238,7 +213,7 @@ async function loadMenuPageData(slug: string, langParam?: string | null): Promis
 export async function getMenuPageData(
   slug: string,
   langParam?: string | null
-): Promise<MenuPageInitialData | null> {
+): Promise<MenuPageData | null> {
   const getCachedMenuPage = unstable_cache(
     () => loadMenuPageData(slug, langParam),
     [`menu-page-${slug}-${langParam || 'en'}`],
