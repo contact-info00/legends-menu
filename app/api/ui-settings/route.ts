@@ -59,45 +59,35 @@ async function fetchUiSettingsForRestaurant(slug: string | null, restaurantId: s
     return null
   }
 
-  let settings
+  // Public GET must stay read-only. Missing rows return defaults; admin PUT/GET create records.
+  let settings = null
   try {
     settings = await prisma.uiSettings.findUnique({
       where: { restaurantId: restaurant.id },
     })
   } catch (findError: any) {
     if (findError?.code === 'P2021' || findError?.code === 'P2022') {
-      try {
-        settings = await prisma.uiSettings.create({
-          data: {
-            restaurantId: restaurant.id,
-            ...DEFAULT_UI_SETTINGS,
-          },
-        })
-      } catch {
-        return DEFAULT_RESPONSE
+      return {
+        ...DEFAULT_RESPONSE,
+        serviceChargePercent: restaurant.serviceChargePercent ?? 0,
       }
-    } else {
-      throw findError
     }
-  }
-
-  if (!settings) {
-    try {
-      settings = await prisma.uiSettings.create({
-        data: {
-          restaurantId: restaurant.id,
-          ...DEFAULT_UI_SETTINGS,
-        },
-      })
-    } catch {
-      return DEFAULT_RESPONSE
-    }
+    throw findError
   }
 
   const theme = await prisma.theme.findUnique({
     where: { restaurantId: restaurant.id },
     select: { headerFooterBgColor: true, glassTintColor: true },
   })
+
+  if (!settings) {
+    return {
+      ...DEFAULT_RESPONSE,
+      serviceChargePercent: restaurant.serviceChargePercent ?? 0,
+      headerFooterBgColor: theme?.headerFooterBgColor ?? null,
+      glassTintColor: theme?.glassTintColor ?? null,
+    }
+  }
 
   return {
     sectionTitleSize: settings.sectionTitleSize,

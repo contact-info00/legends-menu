@@ -81,9 +81,54 @@ export class SessionExpiredError extends Error {
   }
 }
 
-// Cache restaurant existence check to avoid DB query on every call
-const restaurantCache = new Map<string, { exists: boolean; checkedAt: number }>()
-const RESTAURANT_CACHE_TTL = 60000 // 60 seconds
+// Cache restaurant existence/slug so session polls and requireAdminSession do not each
+// hit Postgres on every call. Cookie expiry is still checked on every request.
+const restaurantCache = new Map<
+  string,
+  { exists: boolean; slug: string | null; checkedAt: number }
+>()
+const RESTAURANT_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
+function pruneRestaurantCache() {
+  if (restaurantCache.size <= 100) return
+  const entries = Array.from(restaurantCache.entries())
+  entries.sort((a, b) => b[1].checkedAt - a[1].checkedAt)
+  restaurantCache.clear()
+  entries.slice(0, 100).forEach(([id, data]) => restaurantCache.set(id, data))
+}
+
+/**
+ * Resolve the restaurant for an admin session, with a short in-memory cache.
+ * Used by check-session (needs slug) and requireAdminSession (needs existence).
+ */
+export async function getAdminSessionRestaurant(
+  restaurantId: string
+): Promise<{ id: string; slug: string } | null> {
+  const cached = restaurantCache.get(restaurantId)
+  const now = Date.now()
+
+  if (cached && now - cached.checkedAt < RESTAURANT_CACHE_TTL) {
+    if (!cached.exists || !cached.slug) {
+      return null
+    }
+    return { id: restaurantId, slug: cached.slug }
+  }
+
+  const { prisma } = await import('@/lib/prisma')
+  const restaurant = await prisma.restaurant.findUnique({
+    where: { id: restaurantId },
+    select: { id: true, slug: true },
+  })
+
+  restaurantCache.set(restaurantId, {
+    exists: !!restaurant,
+    slug: restaurant?.slug ?? null,
+    checkedAt: now,
+  })
+  pruneRestaurantCache()
+
+  return restaurant
+}
 
 export async function requireAdminSession(): Promise<AdminSessionData> {
   const session = await getAdminSession()
@@ -92,47 +137,13 @@ export async function requireAdminSession(): Promise<AdminSessionData> {
     await deleteAdminSession()
     throw new SessionExpiredError('SESSION_EXPIRED')
   }
-  
-  // Check cache first to avoid DB query on every call
-  const cached = restaurantCache.get(session.restaurantId)
-  const now = Date.now()
-  
-  if (cached && (now - cached.checkedAt) < RESTAURANT_CACHE_TTL) {
-    // Use cached result
-    if (!cached.exists) {
-      await deleteAdminSession()
-      throw new Error('Restaurant not found: This restaurant has been deleted')
-    }
-    return session
-  }
-  
-  // Verify restaurant still exists (not deleted) - only if cache miss or expired
-  const { prisma } = await import('@/lib/prisma')
-  const restaurant = await prisma.restaurant.findUnique({
-    where: { id: session.restaurantId },
-    select: { id: true },
-  })
-  
-  // Update cache
-  restaurantCache.set(session.restaurantId, {
-    exists: !!restaurant,
-    checkedAt: now,
-  })
-  
-  // Clean old cache entries (keep only last 100)
-  if (restaurantCache.size > 100) {
-    const entries = Array.from(restaurantCache.entries())
-    entries.sort((a, b) => b[1].checkedAt - a[1].checkedAt)
-    restaurantCache.clear()
-    entries.slice(0, 100).forEach(([id, data]) => restaurantCache.set(id, data))
-  }
-  
+
+  const restaurant = await getAdminSessionRestaurant(session.restaurantId)
   if (!restaurant) {
-    // Restaurant was deleted - clear session and throw error
     await deleteAdminSession()
     throw new Error('Restaurant not found: This restaurant has been deleted')
   }
-  
+
   return session
 }
 
