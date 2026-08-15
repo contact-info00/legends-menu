@@ -1,10 +1,8 @@
 import type { Language } from '@/lib/i18n'
-import { pickDefaultSection, type MenuSection } from '@/lib/menu-types'
 
 interface BootstrapResponse {
   restaurant: { logoR2Url?: string | null } | null
   theme: { menuBackgroundR2Url?: string | null } | null
-  sections: MenuSection[]
 }
 
 const MAX_PRELOAD_MS = 15000
@@ -65,26 +63,6 @@ export async function preloadMenuForNavigation(
     }
     if (bootstrap?.restaurant?.logoR2Url) {
       imageUrls.push(bootstrap.restaurant.logoR2Url)
-    }
-
-    const defaultSection = bootstrap?.sections
-      ? pickDefaultSection(bootstrap.sections)
-      : null
-
-    if (defaultSection?.id) {
-      const itemsRes = await fetch(
-        `/api/${slug}/public/menu-items?sectionId=${defaultSection.id}&lang=${lang}`,
-        { credentials: 'same-origin' }
-      )
-      if (itemsRes.ok) {
-        const data = await itemsRes.json()
-        const items = Array.isArray(data?.items) ? data.items : []
-        for (const item of items.slice(0, 8)) {
-          if (item.imageR2Url) {
-            imageUrls.push(item.imageR2Url)
-          }
-        }
-      }
     }
 
     report(0.65)
