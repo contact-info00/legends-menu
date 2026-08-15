@@ -1,5 +1,7 @@
+import { headers } from 'next/headers'
 import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
+import { isReservedSlug } from '@/lib/slug-validation'
 
 // Default values
 const DEFAULT_SETTINGS = {
@@ -82,7 +84,30 @@ const getCachedUiSettings = unstable_cache(fetchUiSettings, ['root-layout-ui-set
   revalidate: 30,
 })
 
-export async function getUiSettings() {
-  return getCachedUiSettings()
+/**
+ * Customer restaurant public surfaces (welcome/menu/feedback) already apply tenant UI settings
+ * (menu page CSS) or do not need the legacy global ui-settings-1 row. Skip that DB round-trip.
+ * Keep the query for admin, super-admin, and non-restaurant pages.
+ */
+export function shouldSkipRootUiSettingsDbQuery(pathname: string): boolean {
+  if (!pathname || pathname === '/') return false
+
+  const parts = pathname.split('/').filter(Boolean)
+  if (parts.length === 0) return false
+
+  const [first, second] = parts
+  if (isReservedSlug(first)) return false
+  if (second === 'admin-portal') return false
+
+  // /{restaurantSlug} or /{restaurantSlug}/menu|feedback|...
+  return true
 }
 
+export async function getUiSettings() {
+  const pathname = headers().get('x-pathname') || ''
+  if (shouldSkipRootUiSettingsDbQuery(pathname)) {
+    return DEFAULT_SETTINGS
+  }
+
+  return getCachedUiSettings()
+}

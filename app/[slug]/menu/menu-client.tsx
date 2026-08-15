@@ -697,7 +697,14 @@ export function MenuPageClient({ slug, initialLang, initialData }: MenuPageClien
   const handleLanguageChange = (lang: Language) => {
     setCurrentLang(lang)
     localStorage.setItem('language', lang)
-    router.replace(`/${slug}/menu?lang=${lang}`, { scroll: false })
+    // Update the shareable ?lang= URL without a Next.js navigation/RSC refetch.
+    // Menu payloads are language-independent; localization is client-side only.
+    // popstate listener above keeps currentLang in sync on back/forward.
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href)
+      url.searchParams.set('lang', lang)
+      window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}`)
+    }
   }
 
   // Memoize handlers to prevent ItemCard re-renders
@@ -797,7 +804,7 @@ export function MenuPageClient({ slug, initialLang, initialData }: MenuPageClien
       .filter((c) => c?.isActive !== false)
       .sort((a, b) => (a?.sortOrder || 0) - (b?.sortOrder || 0))
       .map((category) => {
-        // Get items from cache if available, otherwise empty array (will show skeleton)
+        // Cache miss → empty array; skeletons only while the section fetch is in flight.
         const cachedItems = categoryItemsCache.get(category.id) || []
         return {
           category,
@@ -806,7 +813,6 @@ export function MenuPageClient({ slug, initialLang, initialData }: MenuPageClien
             .sort((a, b) => (a?.sortOrder || 0) - (b?.sortOrder || 0))
         }
       })
-      // DO NOT filter - show all categories even if items.length === 0 (will render skeletons)
   }, [activeSection, categoryItemsCache])
 
 
@@ -1079,7 +1085,10 @@ export function MenuPageClient({ slug, initialLang, initialData }: MenuPageClien
           <div className="px-2 sm:px-4 space-y-8 pt-2 w-full max-w-full">
             {itemsByCategory.map(({ category, items }, index) => {
               const hasItems = items.length > 0
-              const skeletonCount = 6 // Show 6 skeleton items per category
+              // Skeletons only while this section's items request is in flight — never after load.
+              const showLoadingSkeletons =
+                !hasItems && loadingSectionId !== null && loadingSectionId === activeSectionId
+              const skeletonCount = 6
               
               return (
                 <div key={category.id} id={`category-${category.id}`} className="scroll-mt-4">
@@ -1110,10 +1119,9 @@ export function MenuPageClient({ slug, initialLang, initialData }: MenuPageClien
                     </div>
                   </div>
                   
-                  {/* Items Grid - show real items or skeleton placeholders */}
+                  {/* Items Grid - items, loading skeletons, or empty (no permanent skeletons) */}
                   <div className="grid grid-cols-2 gap-1.5 sm:gap-3 pb-6 w-full items-stretch">
                     {hasItems ? (
-                      // Render real items
                       items.map((item, itemIndex) => {
                         // Only prioritize first 2 items for faster initial load
                         const isPriority = itemIndex < 2
@@ -1130,12 +1138,11 @@ export function MenuPageClient({ slug, initialLang, initialData }: MenuPageClien
                           />
                         )
                       })
-                    ) : (
-                      // Render skeleton items while loading
+                    ) : showLoadingSkeletons ? (
                       Array.from({ length: skeletonCount }).map((_, skeletonIndex) => (
                         <MenuItemSkeleton key={`skeleton-${category.id}-${skeletonIndex}`} />
                       ))
-                    )}
+                    ) : null}
                   </div>
                 </div>
               )

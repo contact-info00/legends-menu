@@ -108,9 +108,11 @@ async function fetchUiSettingsForRestaurant(slug: string | null, restaurantId: s
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
+    // searchParams.get() returns null when absent; Zod .optional() only allows undefined.
+    // Passing null made validation fail even when slug was present (production 400).
     const query = {
-      slug: searchParams.get('slug'),
-      restaurantId: searchParams.get('restaurantId'),
+      slug: searchParams.get('slug') ?? undefined,
+      restaurantId: searchParams.get('restaurantId') ?? undefined,
     }
 
     const validation = querySchema.safeParse(query)
@@ -126,7 +128,7 @@ export async function GET(request: NextRequest) {
       : `ui-settings-slug-${query.slug}`
 
     const getCachedUiSettings = unstable_cache(
-      () => fetchUiSettingsForRestaurant(query.slug, query.restaurantId),
+      () => fetchUiSettingsForRestaurant(query.slug ?? null, query.restaurantId ?? null),
       [cacheKey],
       {
         tags: ['ui-settings', query.slug ? `restaurant-slug-${query.slug}` : `restaurant-${query.restaurantId}`],

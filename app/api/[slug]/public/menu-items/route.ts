@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 
-export const dynamic = 'force-dynamic'
+// Public read-only JSON; CDN may cache by full URL (slug + sectionId/categoryId).
+// Admin mutations invalidate via the `menu-items` / `restaurant-slug-*` tags.
+export const revalidate = 30
 export const runtime = 'nodejs'
 
 

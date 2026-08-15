@@ -2,6 +2,17 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { isReservedSlug } from '@/lib/slug-validation'
 
+/** Forward pathname so root layout can skip the legacy ui-settings DB query on customer routes. */
+function nextWithPathname(request: NextRequest) {
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-pathname', request.nextUrl.pathname)
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  })
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const host = request.headers.get('host') || ''
@@ -15,20 +26,20 @@ export function middleware(request: NextRequest) {
 
   // 1) ALWAYS ALLOW: Next.js internal routes
   if (pathname.startsWith('/_next')) {
-    return NextResponse.next()
+    return nextWithPathname(request)
   }
 
   // 2) ALWAYS ALLOW: Static assets and API routes
   if (pathname.startsWith('/assets')) {
-    return NextResponse.next()
+    return nextWithPathname(request)
   }
 
   if (pathname.startsWith('/data')) {
-    return NextResponse.next()
+    return nextWithPathname(request)
   }
 
   if (pathname.startsWith('/api')) {
-    return NextResponse.next()
+    return nextWithPathname(request)
   }
 
   // 3) ALWAYS ALLOW: Static files
@@ -38,12 +49,12 @@ export function middleware(request: NextRequest) {
     pathname === '/robots.txt' ||
     pathname === '/sitemap.xml'
   ) {
-    return NextResponse.next()
+    return nextWithPathname(request)
   }
 
   // 4) ALLOW: Root "/" - return 404 (handled by app/page.tsx)
   if (pathname === '/') {
-    return NextResponse.next()
+    return nextWithPathname(request)
   }
 
   // 5) Super admin — canonical route only; redirect legacy /[slug]/super-admin
@@ -55,7 +66,7 @@ export function middleware(request: NextRequest) {
   }
 
   if (pathname === '/super-admin' || pathname.startsWith('/super-admin/')) {
-    return NextResponse.next()
+    return nextWithPathname(request)
   }
 
   // 6) Redirect legacy /[slug]/admin routes to /[slug]/admin-portal
@@ -78,7 +89,7 @@ export function middleware(request: NextRequest) {
   }
 
   // 8) ALLOW: All other routes (dynamic slug routes will be validated in page/API handlers)
-  return NextResponse.next()
+  return nextWithPathname(request)
 }
 
 export const config = {
