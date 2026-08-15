@@ -1,12 +1,11 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { ChevronDown, ChevronRight, Plus, Edit2, Trash2, Upload, X, GripVertical, MoreVertical } from 'lucide-react'
+import { Upload, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { AdminUploadProgress } from '@/components/admin-upload-progress'
-import { getAdminMenuName } from '@/lib/admin-display-name'
 import {
   adminNotifyError,
   adminNotifyLoading,
@@ -18,8 +17,6 @@ import { formatPrice } from '@/lib/utils'
 import { useAdminBootstrap, useAdminRestaurantId, useAdminReady } from '../admin-context'
 import { MenuBuilderSkeleton } from '../components/admin-skeleton'
 import {
-  DndContext,
-  closestCenter,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -27,54 +24,25 @@ import {
   DragEndEvent,
   DragStartEvent,
   DragMoveEvent,
-  DragOverlay,
 } from '@dnd-kit/core'
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
+import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
+import type { GripHandlers } from './menu-builder-rows'
+import { MenuTree } from './menu-builder-tree'
+import type { Category, Item, MenuEntityType, MenuRowType, Section } from './menu-builder-types'
 
-interface Section {
-  id: string
-  nameKu: string
-  nameEn: string
-  nameAr: string
-  sortOrder: number
-  isActive: boolean
-  categories: Category[]
+const SCROLL_SPEED = 50 // pixels per interval - increased for faster scrolling
+const SCROLL_ZONE = 150 // distance from edge to trigger scroll
+
+// dnd-kit keys useSensor's memo on the options object, so these must not be inline literals —
+// otherwise `sensors` gets a new identity every render and defeats the memoized tree below.
+const POINTER_SENSOR_OPTIONS = {
+  activationConstraint: {
+    delay: 300,
+    tolerance: 5,
+  },
 }
-
-interface Category {
-  id: string
-  nameKu: string
-  nameEn: string
-  nameAr: string
-  imageMediaId: string | null
-  imageR2Key?: string | null
-  imageR2Url?: string | null
-  sortOrder: number
-  isActive: boolean
-  items: Item[]
-}
-
-interface Item {
-  id: string
-  nameKu: string
-  nameEn: string
-  nameAr: string
-  descriptionKu?: string | null
-  descriptionEn?: string | null
-  descriptionAr?: string | null
-  price: number
-  imageMediaId: string | null
-  imageR2Key?: string | null
-  imageR2Url?: string | null
-  sortOrder: number
-  isActive: boolean
+const KEYBOARD_SENSOR_OPTIONS = {
+  coordinateGetter: sortableKeyboardCoordinates,
 }
 
 export default function MenuBuilderPage() {
@@ -86,6 +54,7 @@ export default function MenuBuilderPage() {
   const restaurantId = sessionRestaurantId
   const [sections, setSections] = useState<Section[]>([])
   const [isLoadingMenu, setIsLoadingMenu] = useState(true)
+  const hasLoadedMenuRef = useRef(false)
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [editingItem, setEditingItem] = useState<string | null>(null)
@@ -141,15 +110,8 @@ export default function MenuBuilderPage() {
 
   // Drag and drop sensors with 0.3 second delay for touch
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        delay: 300,
-        tolerance: 5,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+    useSensor(PointerSensor, POINTER_SENSOR_OPTIONS),
+    useSensor(KeyboardSensor, KEYBOARD_SENSOR_OPTIONS)
   )
 
   // Close menu when clicking outside
@@ -168,6 +130,7 @@ export default function MenuBuilderPage() {
 
   const { bootstrap, isLoading: isLoadingBootstrap } = useAdminBootstrap()
 
+  // Currency tracks bootstrap so a settings change is still picked up on the next admin refresh.
   useEffect(() => {
     if (!isAdminReady) {
       return
@@ -178,32 +141,50 @@ export default function MenuBuilderPage() {
       if (currencyValue === 'IQD' || currencyValue === 'USD') {
         setCurrency(currencyValue)
       }
-    } else {
-      const fetchCurrency = async () => {
-        try {
-          const response = await fetch('/api/admin/ui-settings', {
-            credentials: 'include',
-          })
-          if (response.ok) {
-            const data = await response.json()
-            if (data.currency && (data.currency === 'IQD' || data.currency === 'USD')) {
-              setCurrency(data.currency)
-            }
-          }
-        } catch (error) {
-          console.error('Error fetching currency:', error)
-        }
-      }
-      void fetchCurrency()
+      return
     }
 
-    void fetchMenuData()
+    const fetchCurrency = async () => {
+      try {
+        const response = await fetch('/api/admin/ui-settings', {
+          credentials: 'include',
+        })
+        if (response.ok) {
+          const data = await response.json()
+          if (data.currency && (data.currency === 'IQD' || data.currency === 'USD')) {
+            setCurrency(data.currency)
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching currency:', error)
+      }
+    }
+    void fetchCurrency()
   }, [bootstrap, isAdminReady])
-  
-  // Create formatPrice wrapper with currency
-  const formatPriceWithCurrency = (price: number) => formatPrice(price, currency)
 
-  const resetAddItemForm = () => {
+  // The menu tree is owned by local state once loaded; every mutation edits it in place. The ref
+  // guard makes this a one-shot load so the periodic bootstrap refresh can no longer discard those
+  // local edits. bootstrap stays in the deps purely so a failed first load gets another attempt.
+  useEffect(() => {
+    if (!isAdminReady || hasLoadedMenuRef.current) {
+      return
+    }
+
+    hasLoadedMenuRef.current = true
+    void fetchMenuData().then((loaded) => {
+      if (!loaded) {
+        hasLoadedMenuRef.current = false
+      }
+    })
+  }, [bootstrap, isAdminReady])
+
+  // Stable identity keeps the memoized tree from re-rendering on unrelated parent updates.
+  const formatPriceWithCurrency = useCallback(
+    (price: number) => formatPrice(price, currency),
+    [currency]
+  )
+
+  const resetAddItemForm = useCallback(() => {
     setItemForm({
       nameKu: '',
       nameEn: '',
@@ -213,27 +194,27 @@ export default function MenuBuilderPage() {
     })
     setAddItemImage(null)
     setAddItemImagePreview(null)
-  }
+  }, [])
 
-  const openAddItemModal = (categoryId: string) => {
+  const openAddItemModal = useCallback((categoryId: string) => {
     setEditingItem(null)
     setEditItemImage(null)
     setEditItemImagePreview(null)
     setEditItemImageRemoved(false)
     resetAddItemForm()
     setShowAddItem(categoryId)
-  }
+  }, [resetAddItemForm])
 
-  const closeAddItemModal = () => {
+  const closeAddItemModal = useCallback(() => {
     setShowAddItem(null)
     resetAddItemForm()
-  }
+  }, [resetAddItemForm])
 
-  const resetEditItemImageState = () => {
+  const resetEditItemImageState = useCallback(() => {
     setEditItemImage(null)
     setEditItemImagePreview(null)
     setEditItemImageRemoved(false)
-  }
+  }, [])
 
   const parseItemPrice = (value: string): number | null => {
     const parsed = Number.parseFloat(value)
@@ -286,7 +267,7 @@ export default function MenuBuilderPage() {
   }, [editingItem])
 
 
-  const fetchMenuData = async () => {
+  const fetchMenuData = async (): Promise<boolean> => {
     const startTime = performance.now()
     setIsLoadingMenu(true)
     try {
@@ -319,21 +300,24 @@ export default function MenuBuilderPage() {
         )
         console.log(`[PERF] Menu fetch (client): ${fetchTime.toFixed(2)}ms (${normalizedSections.length} sections, ${totalItems} items)`)
       }
+
+      return true
     } catch (error) {
       console.error('Error fetching menu:', error)
       adminNotifyError('Failed to load menu data')
       setIsLoadingMenu(false)
+      return false
     }
   }
 
-  const addSectionToState = (apiSection: Omit<Section, 'categories'> & Partial<Pick<Section, 'categories'>>) => {
+  const addSectionToState = useCallback((apiSection: Omit<Section, 'categories'> & Partial<Pick<Section, 'categories'>>) => {
     setSections((prev) => [
       ...prev,
       { ...apiSection, categories: apiSection.categories ?? [] } as Section,
     ])
-  }
+  }, [])
 
-  const replaceSectionInState = (apiSection: Partial<Section> & { id: string }) => {
+  const replaceSectionInState = useCallback((apiSection: Partial<Section> & { id: string }) => {
     setSections((prev) =>
       prev.map((section) =>
         section.id === apiSection.id
@@ -341,18 +325,18 @@ export default function MenuBuilderPage() {
           : section
       )
     )
-  }
+  }, [])
 
-  const removeSectionFromState = (sectionId: string) => {
+  const removeSectionFromState = useCallback((sectionId: string) => {
     setSections((prev) => prev.filter((section) => section.id !== sectionId))
     setExpandedSections((prev) => {
       const next = new Set(prev)
       next.delete(sectionId)
       return next
     })
-  }
+  }, [])
 
-  const addCategoryToState = (
+  const addCategoryToState = useCallback((
     sectionId: string,
     apiCategory: Omit<Category, 'items'> & Partial<Pick<Category, 'items'>>
   ) => {
@@ -366,9 +350,9 @@ export default function MenuBuilderPage() {
           : section
       )
     )
-  }
+  }, [])
 
-  const replaceCategoryInState = (categoryId: string, apiCategory: Partial<Category> & { id: string }) => {
+  const replaceCategoryInState = useCallback((categoryId: string, apiCategory: Partial<Category> & { id: string }) => {
     setSections((prev) =>
       prev.map((section) => ({
         ...section,
@@ -379,9 +363,9 @@ export default function MenuBuilderPage() {
         ),
       }))
     )
-  }
+  }, [])
 
-  const removeCategoryFromState = (categoryId: string) => {
+  const removeCategoryFromState = useCallback((categoryId: string) => {
     setSections((prev) =>
       prev.map((section) => ({
         ...section,
@@ -393,9 +377,9 @@ export default function MenuBuilderPage() {
       next.delete(categoryId)
       return next
     })
-  }
+  }, [])
 
-  const addItemToState = (categoryId: string, apiItem: Item) => {
+  const addItemToState = useCallback((categoryId: string, apiItem: Item) => {
     setSections((prev) =>
       prev.map((section) => ({
         ...section,
@@ -406,9 +390,9 @@ export default function MenuBuilderPage() {
         ),
       }))
     )
-  }
+  }, [])
 
-  const replaceItemInState = (itemId: string, apiItem: Partial<Item> & { id: string }) => {
+  const replaceItemInState = useCallback((itemId: string, apiItem: Partial<Item> & { id: string }) => {
     setSections((prev) =>
       prev.map((section) => ({
         ...section,
@@ -420,9 +404,9 @@ export default function MenuBuilderPage() {
         })),
       }))
     )
-  }
+  }, [])
 
-  const removeItemFromState = (itemId: string) => {
+  const removeItemFromState = useCallback((itemId: string) => {
     setSections((prev) =>
       prev.map((section) => ({
         ...section,
@@ -432,10 +416,10 @@ export default function MenuBuilderPage() {
         })),
       }))
     )
-  }
+  }, [])
 
-  const updateActiveInState = (
-    type: 'section' | 'category' | 'item',
+  const updateActiveInState = useCallback((
+    type: MenuEntityType,
     id: string,
     isActive: boolean
   ) => {
@@ -469,9 +453,9 @@ export default function MenuBuilderPage() {
         })),
       }))
     )
-  }
+  }, [])
 
-  const toggleSection = (sectionId: string) => {
+  const toggleSection = useCallback((sectionId: string) => {
     setExpandedSections((prev) => {
       const newSet = new Set(prev)
       if (newSet.has(sectionId)) {
@@ -481,9 +465,9 @@ export default function MenuBuilderPage() {
       }
       return newSet
     })
-  }
+  }, [])
 
-  const toggleCategory = (categoryId: string) => {
+  const toggleCategory = useCallback((categoryId: string) => {
     setExpandedCategories((prev) => {
       const newSet = new Set(prev)
       if (newSet.has(categoryId)) {
@@ -493,7 +477,26 @@ export default function MenuBuilderPage() {
       }
       return newSet
     })
-  }
+  }, [])
+
+  const handleToggleRowMenu = useCallback((id: string, type: MenuRowType, isOpen: boolean) => {
+    if (isOpen) {
+      setOpenMenuId(null)
+      setOpenMenuType(null)
+      return
+    }
+    setOpenMenuId(id)
+    setOpenMenuType(type)
+  }, [])
+
+  const handleCloseRowMenu = useCallback(() => {
+    setOpenMenuId(null)
+    setOpenMenuType(null)
+  }, [])
+
+  const handleAddSectionClick = useCallback(() => setShowAddSection(true), [])
+
+  const handleAddCategoryClick = useCallback((sectionId: string) => setShowAddCategory(sectionId), [])
 
   const handleImageUpload = async (file: File, type: 'category' | 'item', id: string) => {
     if (!restaurantId) {
@@ -561,7 +564,7 @@ export default function MenuBuilderPage() {
     }
   }
 
-  const toggleActive = async (type: 'section' | 'category' | 'item', id: string, currentState: boolean) => {
+  const toggleActive = useCallback(async (type: MenuEntityType, id: string, currentState: boolean) => {
     const toastId = adminNotifyLoading(`Updating ${type}...`)
     try {
       const endpoint = type === 'section' 
@@ -588,9 +591,9 @@ export default function MenuBuilderPage() {
       console.error('Toggle error:', error)
       adminNotifyError('✕ Failed to update. Please try again.', toastId)
     }
-  }
+  }, [updateActiveInState])
 
-  const handleDelete = async (type: 'section' | 'category' | 'item', id: string, name: string) => {
+  const handleDelete = useCallback(async (type: MenuEntityType, id: string, name: string) => {
     if (!confirm(`Are you sure you want to delete ${type} "${name}"? This action cannot be undone.`)) {
       return
     }
@@ -624,18 +627,69 @@ export default function MenuBuilderPage() {
       console.error('Delete error:', error)
       adminNotifyError(`✕ Failed to delete ${type}. Please try again.`, toastId)
     }
-  }
+  }, [removeSectionFromState, removeCategoryFromState, removeItemFromState])
 
   // Auto-scroll during drag
   const scrollIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const lastPointerYRef = useRef<number | null>(null)
-  const scrollSpeed = 50 // pixels per interval - increased for faster scrolling
-  const scrollZone = 150 // distance from edge to trigger scroll
 
-  const handleDragMove = (event: DragMoveEvent) => {
+  const checkAndScroll = useCallback((clientY: number) => {
+    const viewportHeight = window.innerHeight
+    const scrollThreshold = SCROLL_ZONE
+
+    // Clear any existing scroll interval
+    if (scrollIntervalRef.current) {
+      clearInterval(scrollIntervalRef.current)
+      scrollIntervalRef.current = null
+    }
+
+    // Check if near bottom edge
+    if (clientY > viewportHeight - scrollThreshold) {
+      // Scroll down
+      scrollIntervalRef.current = setInterval(() => {
+        const maxScroll = document.documentElement.scrollHeight - window.innerHeight
+        const currentScroll = window.pageYOffset || document.documentElement.scrollTop
+        
+        if (currentScroll < maxScroll) {
+          window.scrollBy({
+            top: SCROLL_SPEED,
+            behavior: 'auto'
+          })
+        } else {
+          // Reached bottom, stop scrolling
+          if (scrollIntervalRef.current) {
+            clearInterval(scrollIntervalRef.current)
+            scrollIntervalRef.current = null
+          }
+        }
+      }, 16) // ~60fps
+    }
+    // Check if near top edge
+    else if (clientY < scrollThreshold) {
+      // Scroll up
+      scrollIntervalRef.current = setInterval(() => {
+        const currentScroll = window.pageYOffset || document.documentElement.scrollTop
+        
+        if (currentScroll > 0) {
+          window.scrollBy({
+            top: -SCROLL_SPEED,
+            behavior: 'auto'
+          })
+        } else {
+          // Reached top, stop scrolling
+          if (scrollIntervalRef.current) {
+            clearInterval(scrollIntervalRef.current)
+            scrollIntervalRef.current = null
+          }
+        }
+      }, 16) // ~60fps
+    }
+  }, [])
+
+  const handleDragMove = useCallback((event: DragMoveEvent) => {
     // Get pointer position from the event
     const pointerEvent = (event as any).activatorEvent as PointerEvent | TouchEvent | null
-    
+
     if (!pointerEvent) {
       // Fallback: use delta to estimate position
       if (lastPointerYRef.current !== null) {
@@ -658,63 +712,10 @@ export default function MenuBuilderPage() {
 
     lastPointerYRef.current = clientY
     checkAndScroll(clientY)
-  }
-
-  const checkAndScroll = (clientY: number) => {
-    const viewportHeight = window.innerHeight
-    const scrollThreshold = scrollZone
-
-    // Clear any existing scroll interval
-    if (scrollIntervalRef.current) {
-      clearInterval(scrollIntervalRef.current)
-      scrollIntervalRef.current = null
-    }
-
-    // Check if near bottom edge
-    if (clientY > viewportHeight - scrollThreshold) {
-      // Scroll down
-      scrollIntervalRef.current = setInterval(() => {
-        const maxScroll = document.documentElement.scrollHeight - window.innerHeight
-        const currentScroll = window.pageYOffset || document.documentElement.scrollTop
-        
-        if (currentScroll < maxScroll) {
-          window.scrollBy({
-            top: scrollSpeed,
-            behavior: 'auto'
-          })
-        } else {
-          // Reached bottom, stop scrolling
-          if (scrollIntervalRef.current) {
-            clearInterval(scrollIntervalRef.current)
-            scrollIntervalRef.current = null
-          }
-        }
-      }, 16) // ~60fps
-    }
-    // Check if near top edge
-    else if (clientY < scrollThreshold) {
-      // Scroll up
-      scrollIntervalRef.current = setInterval(() => {
-        const currentScroll = window.pageYOffset || document.documentElement.scrollTop
-        
-        if (currentScroll > 0) {
-          window.scrollBy({
-            top: -scrollSpeed,
-            behavior: 'auto'
-          })
-        } else {
-          // Reached top, stop scrolling
-          if (scrollIntervalRef.current) {
-            clearInterval(scrollIntervalRef.current)
-            scrollIntervalRef.current = null
-          }
-        }
-      }, 16) // ~60fps
-    }
-  }
+  }, [checkAndScroll])
 
   // Drag and drop handlers
-  const handleDragStart = (event: DragStartEvent) => {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
     const { active } = event
     setActiveId(active.id as string)
     
@@ -733,9 +734,9 @@ export default function MenuBuilderPage() {
     // Don't prevent page scroll - we want auto-scroll to work
     // document.body.style.overflow = 'hidden'
     // document.body.style.touchAction = 'none'
-  }
+  }, [sections])
 
-  const handleDragEnd = async (event: DragEndEvent) => {
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     // Clear scroll interval and reset pointer tracking
     if (scrollIntervalRef.current) {
       clearInterval(scrollIntervalRef.current)
@@ -885,42 +886,60 @@ export default function MenuBuilderPage() {
     // Restore page scroll after drag
     document.body.style.overflow = ''
     document.body.style.touchAction = ''
-  }
+  }, [sections, activeType])
 
-  const handleGripMouseDown = (e: React.MouseEvent, id: string, type: 'section' | 'category' | 'item') => {
+  const handleGripMouseDown = useCallback((e: React.MouseEvent, id: string, type: MenuEntityType) => {
     // Allow dnd-kit to handle the drag - don't stop propagation
     setHoldingId(id)
     setHoldingType(type)
-  }
+  }, [])
 
-  const handleGripMouseUp = (e: React.MouseEvent) => {
+  const handleGripMouseUp = useCallback((e: React.MouseEvent) => {
     // Allow dnd-kit to handle the drag - don't stop propagation
     if (!activeId) {
       setHoldingId(null)
       setHoldingType(null)
     }
-  }
+  }, [activeId])
 
-  const handleGripTouchStart = (e: React.TouchEvent, id: string, type: 'section' | 'category' | 'item') => {
+  const handleGripTouchStart = useCallback((e: React.TouchEvent, id: string, type: MenuEntityType) => {
     // Allow dnd-kit to handle the drag - don't stop propagation
     setHoldingId(id)
     setHoldingType(type)
-  }
+  }, [])
 
-  const handleGripTouchEnd = (e: React.TouchEvent) => {
+  const handleGripTouchEnd = useCallback((e: React.TouchEvent) => {
     // Allow dnd-kit to handle the drag - don't stop propagation
     if (!activeId) {
       setHoldingId(null)
       setHoldingType(null)
     }
-  }
+  }, [activeId])
 
-  const handleGripMouseLeave = () => {
+  const handleGripMouseLeave = useCallback(() => {
     if (!activeId) {
       setHoldingId(null)
       setHoldingType(null)
     }
-  }
+  }, [activeId])
+
+  // One object instead of five props, so every sortable row sees a single stable reference.
+  const grip = useMemo<GripHandlers>(
+    () => ({
+      onGripMouseDown: handleGripMouseDown,
+      onGripMouseUp: handleGripMouseUp,
+      onGripMouseLeave: handleGripMouseLeave,
+      onGripTouchStart: handleGripTouchStart,
+      onGripTouchEnd: handleGripTouchEnd,
+    }),
+    [
+      handleGripMouseDown,
+      handleGripMouseUp,
+      handleGripMouseLeave,
+      handleGripTouchStart,
+      handleGripTouchEnd,
+    ]
+  )
 
   const handleAddSection = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -1124,23 +1143,23 @@ export default function MenuBuilderPage() {
     e.target.value = ''
   }
 
-  const handleEditSection = (section: Section) => {
+  const handleEditSection = useCallback((section: Section) => {
     setEditingSection(section.id)
     setEditSectionForm({
       nameKu: section.nameKu,
       nameEn: section.nameEn,
     })
-  }
+  }, [])
 
-  const handleEditCategory = (category: Category) => {
+  const handleEditCategory = useCallback((category: Category) => {
     setEditingCategory(category.id)
     setEditCategoryForm({
       nameKu: category.nameKu,
       nameEn: category.nameEn,
     })
-  }
+  }, [])
 
-  const handleEditItem = (item: Item) => {
+  const handleEditItem = useCallback((item: Item) => {
     closeAddItemModal()
     setEditingItem(item.id)
     setEditItemForm({
@@ -1159,7 +1178,7 @@ export default function MenuBuilderPage() {
     } else {
       setEditItemImagePreview(null)
     }
-  }
+  }, [closeAddItemModal])
 
   const handleUpdateSection = async (e: React.FormEvent, sectionId: string) => {
     e.preventDefault()
@@ -1311,573 +1330,6 @@ export default function MenuBuilderPage() {
     })
   }
 
-  // Sortable Section Component
-  function SortableSection({ section, expandedSections, expandedCategories, activeId, holdingId, holdingType, onToggleSection, onToggleCategory, onEditSection, onDeleteSection, onEditCategory, onDeleteCategory, onEditItem, onDeleteItem, onToggleActive, onGripMouseDown, onGripMouseUp, onGripMouseLeave, onGripTouchStart, onGripTouchEnd, onShowAddCategory, onShowAddItem, formatPrice }: {
-    section: Section
-    expandedSections: Set<string>
-    expandedCategories: Set<string>
-    activeId: string | null
-    holdingId: string | null
-    holdingType: 'section' | 'category' | 'item' | null
-    onToggleSection: (id: string) => void
-    onToggleCategory: (id: string) => void
-    onEditSection: (section: Section) => void
-    onDeleteSection: (type: 'section', id: string, name: string) => void
-    onEditCategory: (category: Category) => void
-    onDeleteCategory: (type: 'category', id: string, name: string) => void
-    onEditItem: (item: Item) => void
-    onDeleteItem: (type: 'item', id: string, name: string) => void
-    onToggleActive: (type: 'section' | 'category' | 'item', id: string, currentState: boolean) => void
-    onGripMouseDown: (e: React.MouseEvent, id: string, type: 'section' | 'category' | 'item') => void
-    onGripMouseUp: (e: React.MouseEvent) => void
-    onGripMouseLeave: () => void
-    onGripTouchStart: (e: React.TouchEvent, id: string, type: 'section' | 'category' | 'item') => void
-    onGripTouchEnd: (e: React.TouchEvent) => void
-    onShowAddCategory: (id: string) => void
-    onShowAddItem: (id: string) => void
-    formatPrice: (price: number) => string
-  }) {
-    const {
-      attributes,
-      listeners,
-      setNodeRef,
-      transform,
-      transition,
-      isDragging,
-    } = useSortable({ id: section.id })
-
-    const style = {
-      transform: CSS.Transform.toString(transform),
-      transition,
-      opacity: isDragging ? 0.5 : 1,
-    }
-
-    const isHolding = holdingId === section.id && holdingType === 'section'
-
-    return (
-      <div
-        ref={setNodeRef}
-        className={`flex items-center gap-2 sm:gap-3 p-2 rounded border relative ${isHolding ? 'scale-105 shadow-lg' : ''}`}
-        style={{
-          border: '1px solid #D1D5DB',
-          backgroundColor: '#FFFFFF',
-          ...style,
-        }}
-      >
-        {/* Drag Handle - Left Side (3 dots vertical) */}
-        <div
-          {...attributes}
-          {...listeners}
-          onMouseDown={(e) => {
-            onGripMouseDown(e, section.id, 'section')
-          }}
-          onMouseUp={onGripMouseUp}
-          onMouseLeave={handleGripMouseLeave}
-          onTouchStart={(e) => {
-            onGripTouchStart(e, section.id, 'section')
-          }}
-          onTouchEnd={onGripTouchEnd}
-          onClick={(e) => e.stopPropagation()}
-          className="p-1 rounded transition-colors cursor-grab active:cursor-grabbing flex-shrink-0"
-          style={{ 
-            color: '#475569',
-            touchAction: 'none',
-            userSelect: 'none',
-            WebkitUserSelect: 'none',
-          }}
-        >
-          <div className="flex flex-col gap-0.5 sm:gap-1">
-            <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-current"></div>
-            <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-current"></div>
-            <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-current"></div>
-            </div>
-            </div>
-        {/* Equals Sign */}
-        <div className="flex-shrink-0" style={{ color: '#94A3B8' }}>
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M3 8a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 12a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" />
-          </svg>
-          </div>
-        {/* Chevron and Name - Click to toggle expand/collapse */}
-        <div 
-          className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 cursor-pointer"
-          onClick={() => onToggleSection(section.id)}
-        >
-            <div className="p-1 rounded transition-colors flex-shrink-0">
-              {expandedSections.has(section.id) ? (
-                <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#475569' }} />
-              ) : (
-                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#475569' }} />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-            <div 
-              className="font-medium truncate text-sm sm:text-base"
-                  style={{ color: '#0F172A' }}
-                >
-                  {getAdminMenuName(section)}
-              </div>
-            </div>
-          </div>
-        {/* Toggle and Menu */}
-        <div className="flex items-center gap-2 flex-shrink-0 relative">
-          <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={section.isActive}
-                onChange={(e) => {
-                  e.stopPropagation()
-                  onToggleActive('section', section.id, section.isActive)
-                }}
-              onClick={(e) => e.stopPropagation()}
-                className="sr-only peer"
-              />
-              <div 
-                className="w-9 h-5 sm:w-11 sm:h-6 peer-focus:outline-none rounded-full peer peer-checked:after:left-auto peer-checked:after:right-[2px] peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all border"
-                style={{
-                  backgroundColor: section.isActive 
-                    ? '#27C499' 
-                    : '#EF4444',
-                  border: '1px solid #D1D5DB',
-                }}
-              ></div>
-            </label>
-          {/* 3 Dots Menu */}
-          <div className="relative">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation()
-                if (openMenuId === section.id && openMenuType === 'section') {
-                  setOpenMenuId(null)
-                  setOpenMenuType(null)
-                } else {
-                  setOpenMenuId(section.id)
-                  setOpenMenuType('section')
-                }
-              }}
-              className="h-10 w-10 p-0 sm:h-12 sm:w-12"
-            >
-              <MoreVertical className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#475569' }} />
-            </Button>
-            {/* Dropdown Menu */}
-            {openMenuId === section.id && openMenuType === 'section' && (
-              <div 
-                className="absolute right-0 top-full mt-1 z-50 rounded-lg border shadow-lg"
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  border: '1px solid #D1D5DB',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="py-1">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setOpenMenuId(null)
-                      setOpenMenuType(null)
-                      onEditSection(section)
-                    }}
-                    className="w-full px-4 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
-                    style={{ color: '#0F172A' }}
-                  >
-                    <Edit2 className="w-4 h-4" />
-                    Edit
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setOpenMenuId(null)
-                      setOpenMenuType(null)
-                      onDeleteSection('section', section.id, getAdminMenuName(section))
-                    }}
-                    className="w-full px-4 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
-                    style={{ color: '#EF4444' }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FEE2E2'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Sortable Category Component
-  function SortableCategory({ category, sectionId, expandedCategories, activeId, holdingId, holdingType, onToggleCategory, onEditCategory, onDeleteCategory, onEditItem, onDeleteItem, onToggleActive, onGripMouseDown, onGripMouseUp, onGripMouseLeave, onGripTouchStart, onGripTouchEnd, onShowAddItem, formatPrice, openMenuId, openMenuType, setOpenMenuId, setOpenMenuType }: {
-    category: Category
-    sectionId: string
-    expandedCategories: Set<string>
-    activeId: string | null
-    holdingId: string | null
-    holdingType: 'section' | 'category' | 'item' | null
-    onToggleCategory: (id: string) => void
-    onEditCategory: (category: Category) => void
-    onDeleteCategory: (type: 'category', id: string, name: string) => void
-    onEditItem: (item: Item) => void
-    onDeleteItem: (type: 'item', id: string, name: string) => void
-    onToggleActive: (type: 'section' | 'category' | 'item', id: string, currentState: boolean) => void
-    onGripMouseDown: (e: React.MouseEvent, id: string, type: 'section' | 'category' | 'item') => void
-    onGripMouseUp: (e: React.MouseEvent) => void
-    onGripMouseLeave: () => void
-    onGripTouchStart: (e: React.TouchEvent, id: string, type: 'section' | 'category' | 'item') => void
-    onGripTouchEnd: (e: React.TouchEvent) => void
-    onShowAddItem: (id: string) => void
-    formatPrice: (price: number) => string
-    openMenuId: string | null
-    openMenuType: 'section' | 'category' | null
-    setOpenMenuId: (id: string | null) => void
-    setOpenMenuType: (type: 'section' | 'category' | null) => void
-  }) {
-    const {
-      attributes,
-      listeners,
-      setNodeRef,
-      transform,
-      transition,
-      isDragging,
-    } = useSortable({ id: category.id })
-
-    const style = {
-      transform: CSS.Transform.toString(transform),
-      transition,
-      opacity: isDragging ? 0.5 : 1,
-    }
-
-    const isHolding = holdingId === category.id && holdingType === 'category'
-
-    return (
-      <div
-        ref={setNodeRef}
-        className={`flex items-center gap-2 sm:gap-3 p-2 rounded border relative ${isHolding ? 'scale-105 shadow-lg' : ''}`}
-        style={{
-          border: '1px solid #D1D5DB',
-          backgroundColor: '#FFFFFF',
-          ...style,
-        }}
-      >
-        {/* Drag Handle - Left Side (3 dots vertical) */}
-        <div
-          {...attributes}
-          {...listeners}
-          onMouseDown={(e) => onGripMouseDown(e, category.id, 'category')}
-          onMouseUp={onGripMouseUp}
-          onMouseLeave={handleGripMouseLeave}
-          onTouchStart={(e) => onGripTouchStart(e, category.id, 'category')}
-          onTouchEnd={onGripTouchEnd}
-          onClick={(e) => e.stopPropagation()}
-          className="p-1 rounded transition-colors cursor-grab active:cursor-grabbing flex-shrink-0"
-          style={{ 
-            color: '#475569',
-            touchAction: 'none',
-            userSelect: 'none',
-            WebkitUserSelect: 'none',
-          }}
-        >
-          <div className="flex flex-col gap-0.5 sm:gap-1">
-            <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-current"></div>
-            <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-current"></div>
-            <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-current"></div>
-            </div>
-            </div>
-        {/* Equals Sign */}
-        <div className="flex-shrink-0" style={{ color: '#94A3B8' }}>
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M3 8a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 12a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" />
-          </svg>
-          </div>
-        {/* Chevron and Name - Click to toggle expand/collapse */}
-        <div 
-          className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 cursor-pointer"
-          onClick={() => onToggleCategory(category.id)}
-        >
-          <div className="p-1 rounded transition-colors flex-shrink-0">
-              {expandedCategories.has(category.id) ? (
-                <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4" style={{ color: '#475569' }} />
-              ) : (
-                <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" style={{ color: '#475569' }} />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-            <div 
-              className="font-medium truncate text-sm sm:text-base"
-                  style={{ color: '#0F172A' }}
-                >
-                  {getAdminMenuName(category)}
-              </div>
-            <div className="text-xs truncate" style={{ color: '#94A3B8' }}>
-              {category.items?.length || 0} Items
-            </div>
-          </div>
-        </div>
-        {/* Toggle and Menu */}
-        <div className="flex items-center gap-2 flex-shrink-0 relative">
-          <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={category.isActive}
-                onChange={(e) => {
-                  e.stopPropagation()
-                  onToggleActive('category', category.id, category.isActive)
-                }}
-              onClick={(e) => e.stopPropagation()}
-                className="sr-only peer"
-              />
-              <div 
-                className="w-9 h-5 sm:w-11 sm:h-6 peer-focus:outline-none rounded-full peer peer-checked:after:left-auto peer-checked:after:right-[2px] peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all border"
-                style={{
-                  backgroundColor: category.isActive 
-                    ? '#27C499' 
-                    : '#EF4444',
-                  border: '1px solid #D1D5DB',
-                }}
-              ></div>
-            </label>
-          {/* 3 Dots Menu */}
-          <div className="relative">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation()
-                if (openMenuId === category.id && openMenuType === 'category') {
-                  setOpenMenuId(null)
-                  setOpenMenuType(null)
-                } else {
-                  setOpenMenuId(category.id)
-                  setOpenMenuType('category')
-                }
-              }}
-              className="h-10 w-10 p-0 sm:h-12 sm:w-12"
-            >
-              <MoreVertical className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#475569' }} />
-            </Button>
-            {/* Dropdown Menu */}
-            {openMenuId === category.id && openMenuType === 'category' && (
-              <div 
-                className="absolute right-0 top-full mt-1 z-50 rounded-lg border shadow-lg"
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  border: '1px solid #D1D5DB',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="py-1">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setOpenMenuId(null)
-                      setOpenMenuType(null)
-                      onEditCategory(category)
-                    }}
-                    className="w-full px-4 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
-                    style={{ color: '#0F172A' }}
-                  >
-                    <Edit2 className="w-4 h-4" />
-                    Edit
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setOpenMenuId(null)
-                      setOpenMenuType(null)
-                      onDeleteCategory('category', category.id, getAdminMenuName(category))
-                    }}
-                    className="w-full px-4 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
-                    style={{ color: '#EF4444' }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FEE2E2'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Sortable Item Component
-  function SortableItem({ item, activeId, holdingId, holdingType, onEditItem, onDeleteItem, onToggleActive, onGripMouseDown, onGripMouseUp, onGripMouseLeave, onGripTouchStart, onGripTouchEnd, formatPrice }: {
-    item: Item
-    activeId: string | null
-    holdingId: string | null
-    holdingType: 'section' | 'category' | 'item' | null
-    onEditItem: (item: Item) => void
-    onDeleteItem: (type: 'item', id: string, name: string) => void
-    onToggleActive: (type: 'section' | 'category' | 'item', id: string, currentState: boolean) => void
-    onGripMouseDown: (e: React.MouseEvent, id: string, type: 'section' | 'category' | 'item') => void
-    onGripMouseUp: (e: React.MouseEvent) => void
-    onGripMouseLeave: () => void
-    onGripTouchStart: (e: React.TouchEvent, id: string, type: 'section' | 'category' | 'item') => void
-    onGripTouchEnd: (e: React.TouchEvent) => void
-    formatPrice: (price: number) => string
-  }) {
-    const {
-      attributes,
-      listeners,
-      setNodeRef,
-      transform,
-      transition,
-      isDragging,
-    } = useSortable({ id: item.id })
-
-    const style = {
-      transform: CSS.Transform.toString(transform),
-      transition,
-      opacity: isDragging ? 0.5 : 1,
-    }
-
-    const isHolding = holdingId === item.id && holdingType === 'item'
-
-    return (
-      <div
-        ref={setNodeRef}
-        className={`flex items-center gap-2 sm:gap-3 p-2 rounded border relative ${isHolding ? 'scale-105 shadow-lg' : ''}`}
-        style={{
-          border: '1px solid #D1D5DB',
-          backgroundColor: '#FFFFFF',
-          ...style,
-        }}
-      >
-        {/* Grip Icon - Left Side (3 dots vertical) */}
-        <div
-          {...attributes}
-          {...listeners}
-          onMouseDown={(e) => onGripMouseDown(e, item.id, 'item')}
-          onMouseUp={onGripMouseUp}
-          onMouseLeave={handleGripMouseLeave}
-          onTouchStart={(e) => onGripTouchStart(e, item.id, 'item')}
-          onTouchEnd={onGripTouchEnd}
-          onClick={(e) => e.stopPropagation()}
-          className="p-1 rounded transition-colors cursor-grab active:cursor-grabbing flex-shrink-0"
-          style={{ 
-            color: '#475569',
-            touchAction: 'none',
-            userSelect: 'none',
-            WebkitUserSelect: 'none',
-          }}
-        >
-          <div className="flex flex-col gap-0.5 sm:gap-1">
-            <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-current"></div>
-            <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-current"></div>
-            <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-current"></div>
-            </div>
-            </div>
-        {/* Equals Sign */}
-        <div className="flex-shrink-0" style={{ color: '#94A3B8' }}>
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M3 8a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 12a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" />
-          </svg>
-          </div>
-        {/* Image Thumbnail */}
-        <div 
-          className="w-12 h-12 sm:w-16 sm:h-16 rounded bg-gray-700 overflow-hidden flex-shrink-0 cursor-pointer"
-          onClick={() => onEditItem(item)}
-        >
-          {(() => {
-            // Check R2 URL first, then fall back to old media ID
-            const imageUrl = item.imageR2Url || (item.imageMediaId ? `/assets/${item.imageMediaId}` : null)
-            return imageUrl ? (
-              <img
-                src={imageUrl}
-                alt={getAdminMenuName(item)}
-                className="w-full h-full object-cover"
-                loading="lazy"
-                decoding="async"
-                onError={(e) => {
-                  // Fallback if image fails to load
-                  e.currentTarget.style.display = 'none'
-                  const parent = e.currentTarget.parentElement
-                  if (parent) {
-                    const fallback = document.createElement('div')
-                    fallback.className = 'w-full h-full flex items-center justify-center text-xs'
-                    fallback.style.color = '#94A3B8'
-                    fallback.textContent = 'No Img'
-                    parent.appendChild(fallback)
-                  }
-                }}
-              />
-            ) : (
-              <div 
-                className="w-full h-full flex items-center justify-center text-xs"
-                style={{ color: '#94A3B8' }}
-              >
-                No Img
-              </div>
-            )
-          })()}
-        </div>
-        {/* Name and Price */}
-        <div 
-          className="flex-1 min-w-0 cursor-pointer"
-          onClick={() => onEditItem(item)}
-        >
-          <div 
-            className="font-medium truncate text-sm sm:text-base"
-                    style={{ 
-                      color: '#0F172A',
-                      backgroundColor: 'transparent',
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E6F7F2'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-          >
-            {getAdminMenuName(item)}
-          </div>
-          <div className="text-xs sm:text-sm text-[#FBBF24] font-bold">
-            {formatPrice(item.price)}
-          </div>
-        </div>
-        {/* Toggle and Delete */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={item.isActive}
-              onChange={(e) => {
-                e.stopPropagation()
-                onToggleActive('item', item.id, item.isActive)
-              }}
-              onClick={(e) => e.stopPropagation()}
-              className="sr-only peer"
-            />
-            <div 
-              className="w-9 h-5 sm:w-11 sm:h-6 peer-focus:outline-none rounded-full peer peer-checked:after:left-auto peer-checked:after:right-[2px] peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all border"
-              style={{
-                backgroundColor: item.isActive 
-                  ? '#27C499' 
-                  : '#EF4444',
-                border: '1px solid #D1D5DB',
-              }}
-            ></div>
-          </label>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation()
-              onDeleteItem('item', item.id, getAdminMenuName(item))
-            }}
-            className="h-10 w-10 p-0 sm:h-12 sm:w-12"
-          >
-            <Trash2 className="w-8 h-8 sm:w-10 sm:h-10" style={{ color: '#EF4444' }} />
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen p-2 sm:p-4" style={{ backgroundColor: '#F7F9F8' }}>
       <div className="max-w-6xl mx-auto">
@@ -1959,269 +1411,35 @@ export default function MenuBuilderPage() {
             ))}
           </div>
         ) : (
-          <DndContext
+          <MenuTree
+            sections={sections}
+            expandedSections={expandedSections}
+            expandedCategories={expandedCategories}
+            activeId={activeId}
+            activeType={activeType}
+            holdingId={holdingId}
+            holdingType={holdingType}
+            openMenuId={openMenuId}
+            openMenuType={openMenuType}
             sensors={sensors}
-            collisionDetection={closestCenter}
+            grip={grip}
             onDragStart={handleDragStart}
             onDragMove={handleDragMove}
             onDragEnd={handleDragEnd}
-          >
-            <div 
-              className="backdrop-blur-xl rounded-2xl border p-3 sm:p-6 space-y-3 sm:space-y-4"
-              style={{
-                backgroundColor: '#FFFFFF',
-                border: '1px solid #D1D5DB',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 0 20px rgba(39, 196, 153, 0.3), 0 0 40px rgba(39, 196, 153, 0.15)',
-              }}
-            >
-              {/* Always show sections with expand/collapse - sections start collapsed */}
-              <SortableContext items={sections.map(s => s.id)} strategy={verticalListSortingStrategy}>
-                {sections.map((section) => (
-                <div key={section.id} className="space-y-2">
-                  <SortableSection
-                    section={section}
-                    expandedSections={expandedSections}
-                    expandedCategories={expandedCategories}
-                    activeId={activeId}
-                    holdingId={holdingId}
-                    holdingType={holdingType}
-                    onToggleSection={toggleSection}
-                    onToggleCategory={toggleCategory}
-                    onEditSection={handleEditSection}
-                    onDeleteSection={handleDelete}
-                    onEditCategory={handleEditCategory}
-                    onDeleteCategory={handleDelete}
-                    onEditItem={handleEditItem}
-                    onDeleteItem={handleDelete}
-                    onToggleActive={toggleActive}
-                    onGripMouseDown={handleGripMouseDown}
-                    onGripMouseUp={handleGripMouseUp}
-                    onGripMouseLeave={handleGripMouseLeave}
-                    onGripTouchStart={handleGripTouchStart}
-                    onGripTouchEnd={handleGripTouchEnd}
-                    onShowAddCategory={setShowAddCategory}
-                    onShowAddItem={openAddItemModal}
-                    formatPrice={formatPriceWithCurrency}
-                  />
-                  {/* Categories - rendered outside section frame, directly under section name */}
-                  {expandedSections.has(section.id) && (
-                    <div className="space-y-2">
-                      <SortableContext items={section.categories.map(c => c.id)} strategy={verticalListSortingStrategy}>
-                        {section.categories && section.categories.length > 0 ? (
-                          section.categories.map((category) => (
-                            <div key={category.id} className="space-y-2">
-                              <SortableCategory
-                                category={category}
-                                sectionId={section.id}
-                                expandedCategories={expandedCategories}
-                                activeId={activeId}
-                                holdingId={holdingId}
-                                holdingType={holdingType}
-                                onToggleCategory={toggleCategory}
-                                onEditCategory={handleEditCategory}
-                                onDeleteCategory={handleDelete}
-                                onEditItem={handleEditItem}
-                                onDeleteItem={handleDelete}
-                                onToggleActive={toggleActive}
-                                onGripMouseDown={handleGripMouseDown}
-                                onGripMouseUp={handleGripMouseUp}
-                                onGripMouseLeave={handleGripMouseLeave}
-                                onGripTouchStart={handleGripTouchStart}
-                                onGripTouchEnd={handleGripTouchEnd}
-                                onShowAddItem={openAddItemModal}
-                                formatPrice={formatPriceWithCurrency}
-                                openMenuId={openMenuId}
-                                openMenuType={openMenuType}
-                                setOpenMenuId={setOpenMenuId}
-                                setOpenMenuType={setOpenMenuType}
-                              />
-                              {/* Items - rendered outside category frame, directly under category name */}
-                              {expandedCategories.has(category.id) && (
-                                <div className="space-y-2">
-                                  <SortableContext items={category.items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                                    {category.items && category.items.length > 0 ? (
-                                      <>
-                                        {category.items.map((item) => (
-                                          <SortableItem
-                                            key={item.id}
-                                            item={item}
-                                            activeId={activeId}
-                                            holdingId={holdingId}
-                                            holdingType={holdingType}
-                                            onEditItem={handleEditItem}
-                                            onDeleteItem={handleDelete}
-                                            onToggleActive={toggleActive}
-                                            onGripMouseDown={handleGripMouseDown}
-                                            onGripMouseUp={handleGripMouseUp}
-                                            onGripMouseLeave={handleGripMouseLeave}
-                                            onGripTouchStart={handleGripTouchStart}
-                                            onGripTouchEnd={handleGripTouchEnd}
-                                            formatPrice={formatPriceWithCurrency}
-                                          />
-                                        ))}
-                                        {/* Add Item Button */}
-                                        <Button
-                                          onClick={() => openAddItemModal(category.id)}
-                                          className="w-full mt-3 text-sm sm:text-base border"
-                                          style={{
-                                            backgroundColor: '#27C499',
-                                            color: '#FFFFFF',
-                                            border: '1px solid #D1D5DB',
-                                          }}
-                                          onMouseEnter={(e) => {
-                                            e.currentTarget.style.backgroundColor = '#20B08A'
-                                          }}
-                                          onMouseLeave={(e) => {
-                                            e.currentTarget.style.backgroundColor = '#27C499'
-                                          }}
-                                          variant="default"
-                                        >
-                                          <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
-                                          Add Item
-                                        </Button>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <div className="px-4 py-4 text-center text-sm" style={{ color: '#94A3B8' }}>
-                                          No items in this category
-                                        </div>
-                                        {/* Add Item Button */}
-                                        <Button
-                                          onClick={() => openAddItemModal(category.id)}
-                                          className="w-full mt-3 text-sm sm:text-base border"
-                                          style={{
-                                            backgroundColor: '#27C499',
-                                            color: '#FFFFFF',
-                                            border: '1px solid #D1D5DB',
-                                          }}
-                                          onMouseEnter={(e) => {
-                                            e.currentTarget.style.backgroundColor = '#20B08A'
-                                          }}
-                                          onMouseLeave={(e) => {
-                                            e.currentTarget.style.backgroundColor = '#27C499'
-                                          }}
-                                          variant="default"
-                                        >
-                                          <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
-                                          Add Item
-                                        </Button>
-                                      </>
-                                    )}
-                                  </SortableContext>
-                                </div>
-                              )}
-                            </div>
-                          ))
-                        ) : (
-                          <div className="px-4 py-4 text-center text-sm" style={{ color: '#94A3B8' }}>
-                            No categories in this section
-                          </div>
-                        )}
-                      </SortableContext>
-                      {/* Add Category Button */}
-                      <Button
-                        onClick={() => setShowAddCategory(section.id)}
-                        className="w-full mt-3 text-sm sm:text-base border"
-                        style={{
-                          backgroundColor: '#27C499',
-                          color: '#FFFFFF',
-                          border: '1px solid #D1D5DB',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#20B08A'
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = '#27C499'
-                        }}
-                        variant="default"
-                      >
-                        <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
-                        Add Category
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </SortableContext>
-            {/* Add Section Button - at bottom of sections */}
-            <div className="mt-4 pt-4 border-t" style={{ borderColor: '#E5E7EB' }}>
-              <Button
-                onClick={() => setShowAddSection(true)}
-                className="w-full sm:w-auto"
-                style={{
-                  backgroundColor: '#27C499',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  borderRadius: '0.5rem',
-                  padding: '0.75rem 1.5rem',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#20B08A'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#27C499'}
-              >
-                <Plus className="w-5 h-5" />
-                Add Section
-              </Button>
-            </div>
-            </div>
-            <DragOverlay>
-              {activeId && activeType ? (
-                <div className="opacity-80">
-                  {activeType === 'section' && (
-                    <div 
-                      className="border rounded-xl p-3 backdrop-blur-sm"
-                      style={{
-                        border: '1px solid #D1D5DB',
-                        backgroundColor: '#F7F9F8',
-                        color: '#475569',
-                      }}
-                    >
-                      {sections.find(s => s.id === activeId) ? getAdminMenuName(sections.find(s => s.id === activeId)!) : ''}
-                    </div>
-                  )}
-                  {activeType === 'category' && (
-                    <div 
-                      className="border rounded-lg p-2 backdrop-blur-sm"
-                      style={{
-                        border: '1px solid #D1D5DB',
-                        backgroundColor: '#F7F9F8',
-                        color: '#475569',
-                      }}
-                    >
-                      {(() => {
-                        const category = sections
-                          .flatMap(s => s.categories)
-                          .find(c => c.id === activeId)
-                        return category ? getAdminMenuName(category) : ''
-                      })()}
-                    </div>
-                  )}
-                  {activeType === 'item' && (
-                    <div 
-                      className="border rounded p-2 backdrop-blur-sm flex items-center gap-2"
-                      style={{
-                        border: '1px solid #D1D5DB',
-                        backgroundColor: '#FFFFFF',
-                        color: '#475569',
-                      }}
-                    >
-                      {(() => {
-                        const item = sections
-                          .flatMap(s => s.categories)
-                          .flatMap(c => c.items)
-                          .find(i => i.id === activeId)
-                        return item ? getAdminMenuName(item) : ''
-                      })()}
-                    </div>
-                  )}
-                </div>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
+            onToggleSection={toggleSection}
+            onToggleCategory={toggleCategory}
+            onEditSection={handleEditSection}
+            onEditCategory={handleEditCategory}
+            onEditItem={handleEditItem}
+            onDelete={handleDelete}
+            onToggleActive={toggleActive}
+            onToggleRowMenu={handleToggleRowMenu}
+            onCloseRowMenu={handleCloseRowMenu}
+            onAddCategory={handleAddCategoryClick}
+            onAddItem={openAddItemModal}
+            onAddSection={handleAddSectionClick}
+            formatPrice={formatPriceWithCurrency}
+          />
         )}
       </div>
 
