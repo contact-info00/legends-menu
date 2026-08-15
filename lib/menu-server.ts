@@ -6,7 +6,6 @@ import {
   type MenuSection,
   type MenuUiSettings,
   groupItemsByCategory,
-  parseMenuLanguage,
   pickDefaultCategory,
   pickDefaultSection,
 } from '@/lib/menu-types'
@@ -151,12 +150,13 @@ async function fetchPlatformFooterLogo(): Promise<string | null> {
 /**
  * Everything the menu page needs except the theme, which is served from the slug-scoped theme
  * cache that the surrounding layout already populates.
+ *
+ * The payload carries all three languages, so it is deliberately language-independent — the
+ * client picks the right field at render time. Keep it that way: caching below assumes it.
  */
 export type MenuPageData = Omit<MenuPageInitialData, 'theme'>
 
-async function loadMenuPageData(slug: string, langParam?: string | null): Promise<MenuPageData | null> {
-  parseMenuLanguage(langParam ?? undefined)
-
+async function loadMenuPageData(slug: string): Promise<MenuPageData | null> {
   const restaurant = await prisma.restaurant.findUnique({
     where: { slug },
     select: {
@@ -210,13 +210,10 @@ async function loadMenuPageData(slug: string, langParam?: string | null): Promis
   }
 }
 
-export async function getMenuPageData(
-  slug: string,
-  langParam?: string | null
-): Promise<MenuPageData | null> {
+export async function getMenuPageData(slug: string): Promise<MenuPageData | null> {
   const getCachedMenuPage = unstable_cache(
-    () => loadMenuPageData(slug, langParam),
-    [`menu-page-${slug}-${langParam || 'en'}`],
+    () => loadMenuPageData(slug),
+    [`menu-page-${slug}`],
     {
       tags: [
         'menu',
@@ -236,5 +233,5 @@ export async function getMenuPageData(
   }
 
   // Never trust a cached miss — re-query live DB before returning 404.
-  return loadMenuPageData(slug, langParam)
+  return loadMenuPageData(slug)
 }

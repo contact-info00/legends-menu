@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { fetchPublicRestaurant } from '@/lib/restaurant-client'
 
 export function BrandColorsProvider() {
   useEffect(() => {
@@ -16,31 +17,23 @@ export function BrandColorsProvider() {
 
     // Fetch brand colors and apply them with retry
     const fetchBrandColors = async (retryCount = 0) => {
-      try {
-        const res = await fetch(`/data/restaurant?slug=${slug}`)
-        if (!res.ok) {
-          // Don't retry on 404 (restaurant not found)
-          if (res.status === 404) {
-            return
-          }
-          throw new Error('Failed to fetch')
-        }
-        const data = await res.json()
-        if (data.brandColors) {
-          const colors = data.brandColors
-          Object.entries(colors).forEach(([key, value]) => {
-            const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase()
-            document.documentElement.style.setProperty(`--${cssKey}`, String(value))
-          })
-        }
-      } catch (error) {
-        console.error('Error fetching brand colors:', error)
+      const data = await fetchPublicRestaurant(slug)
+
+      if (!data) {
         if (retryCount < 1) {
           setTimeout(() => fetchBrandColors(retryCount + 1), 500)
         }
+        return
+      }
+
+      if (data.brandColors) {
+        Object.entries(data.brandColors).forEach(([key, value]) => {
+          const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase()
+          document.documentElement.style.setProperty(`--${cssKey}`, String(value))
+        })
       }
     }
-    fetchBrandColors()
+    void fetchBrandColors()
   }, [])
 
   return null

@@ -23,8 +23,10 @@ export default async function MenuPage({ params, searchParams }: MenuPageProps) 
   const initialLang = parseMenuLanguage(searchParams.lang)
 
   // Both reads share the caches the slug layout already warmed, so neither hits the DB again.
+  // Neither is language-scoped: the payload carries every language and the client localizes it,
+  // so switching language reuses these entries instead of forcing a cold load per language.
   const [menuData, themePayload] = await Promise.all([
-    getMenuPageData(slug, initialLang),
+    getMenuPageData(slug),
     getCachedThemeForSlug(slug),
   ])
 

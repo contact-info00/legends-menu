@@ -20,6 +20,7 @@ import {
   fetchThemeData,
   THEME_UPDATED_EVENT,
 } from '@/lib/theme-client'
+import { fetchPublicRestaurant } from '@/lib/restaurant-client'
 import type { MenuPageInitialData, MenuItem, MenuSection, MenuCategory } from '@/lib/menu-types'
 import { parseMenuLanguage } from '@/lib/menu-types'
 
@@ -93,7 +94,9 @@ export function MenuPageClient({ slug, initialLang, initialData }: MenuPageClien
   const loadedSectionsRef = useRef<Set<string>>(
     new Set(initialData.initialSectionId ? [initialData.initialSectionId] : [])
   )
-  const fetchingSectionRef = useRef<string | null>(null)
+  // A set rather than a single id: switching A -> B -> C leaves B in flight, and returning to B
+  // before it lands would otherwise start a second identical request for it.
+  const fetchingSectionsRef = useRef<Set<string>>(new Set())
   const [loadingSectionId, setLoadingSectionId] = useState<string | null>(null)
   // Track background image load state for logo priority control
   const [bgLoaded, setBgLoaded] = useState(false)
@@ -103,7 +106,7 @@ export function MenuPageClient({ slug, initialLang, initialData }: MenuPageClien
     categoryItemsCacheRef.current = categoryItemsCache
   }, [categoryItemsCache])
   
-  // Extract R2 origin from background URL and inject preconnect/preload into head
+  // Extract R2 origin from background URL and inject preconnect into head
   useEffect(() => {
     if (!theme?.menuBackgroundR2Url) {
       return
@@ -122,18 +125,6 @@ export function MenuPageClient({ slug, initialLang, initialData }: MenuPageClien
         document.head.appendChild(preconnectLink)
       }
       preconnectLink.href = origin
-      
-      // Inject preload link for background image
-      let preloadLink = document.querySelector('link[rel="preload"][as="image"][data-bg-preload]') as HTMLLinkElement
-      if (!preloadLink) {
-        preloadLink = document.createElement('link')
-        preloadLink.rel = 'preload'
-        preloadLink.as = 'image'
-        preloadLink.setAttribute('fetchpriority', 'high')
-        preloadLink.setAttribute('data-bg-preload', 'true')
-        document.head.appendChild(preloadLink)
-      }
-      preloadLink.href = theme.menuBackgroundR2Url
     } catch {
       // Invalid URL, skip preconnect
     }
@@ -175,11 +166,11 @@ export function MenuPageClient({ slug, initialLang, initialData }: MenuPageClien
   const fetchSectionItems = useCallback(async (sectionId: string) => {
     if (!slug || !sectionId) return
 
-    if (loadedSectionsRef.current.has(sectionId) || fetchingSectionRef.current === sectionId) {
+    if (loadedSectionsRef.current.has(sectionId) || fetchingSectionsRef.current.has(sectionId)) {
       return
     }
 
-    fetchingSectionRef.current = sectionId
+    fetchingSectionsRef.current.add(sectionId)
     setLoadingSectionId(sectionId)
 
     try {
@@ -223,9 +214,7 @@ export function MenuPageClient({ slug, initialLang, initialData }: MenuPageClien
     } catch (error) {
       console.error('Error fetching section items:', error)
     } finally {
-      if (fetchingSectionRef.current === sectionId) {
-        fetchingSectionRef.current = null
-      }
+      fetchingSectionsRef.current.delete(sectionId)
       setLoadingSectionId((current) => (current === sectionId ? null : current))
     }
   }, [slug])
@@ -253,37 +242,35 @@ export function MenuPageClient({ slug, initialLang, initialData }: MenuPageClien
     }
   }, [slug])
 
-  // Memoized fetch function for restaurant data (including service charge) - instant updates
+  // Memoized fetch function for restaurant data (including service charge) - instant updates.
+  // Goes through the shared client so a refresh here cannot race the root layout's own read.
   const fetchRestaurantData = useCallback(async () => {
-    try {
-      const res = await fetch(`/data/restaurant?slug=${encodeURIComponent(slug)}&t=${Date.now()}`, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0',
-        },
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setRestaurant(data)
-        // Set service charge from restaurant data
-        if (data.serviceChargePercent !== undefined && data.serviceChargePercent !== null) {
-          const serviceCharge = typeof data.serviceChargePercent === 'number' 
-            ? data.serviceChargePercent 
-            : parseFloat(String(data.serviceChargePercent))
-          setServiceChargePercent(isNaN(serviceCharge) ? 0 : serviceCharge)
-        } else {
-          setServiceChargePercent(0)
-        }
-      } else {
-        console.error('Error fetching restaurant data:', res.status, res.statusText)
-        setServiceChargePercent(0)
-      }
-    } catch (error) {
-      console.error('Error fetching restaurant data:', error)
+    const data = await fetchPublicRestaurant(slug, { bypassCache: true })
+
+    if (!data) {
       setServiceChargePercent(0)
+      return
     }
+
+    const rawServiceCharge = data.serviceChargePercent
+    const parsedServiceCharge =
+      rawServiceCharge === undefined || rawServiceCharge === null
+        ? 0
+        : typeof rawServiceCharge === 'number'
+          ? rawServiceCharge
+          : parseFloat(String(rawServiceCharge))
+    const serviceCharge = Number.isNaN(parsedServiceCharge) ? 0 : parsedServiceCharge
+
+    setRestaurant({
+      id: data.id,
+      nameKu: data.nameKu,
+      nameEn: data.nameEn,
+      nameAr: data.nameAr,
+      logoR2Url: data.logoR2Url ?? null,
+      logoMediaId: data.logoMediaId ?? null,
+      serviceChargePercent: serviceCharge,
+    })
+    setServiceChargePercent(serviceCharge)
   }, [slug]) // Dependency on slug
 
   useEffect(() => {
@@ -423,18 +410,32 @@ export function MenuPageClient({ slug, initialLang, initialData }: MenuPageClien
         })
     }
 
+    // Returning to the tab fires visibilitychange and focus back to back, and both want the same
+    // two refreshes. Collapsing them into one scheduled pass keeps the "catch admin edits" intent
+    // while halving the requests a returning visitor makes.
+    let returnRefreshTimer: ReturnType<typeof setTimeout> | null = null
+
+    const scheduleReturnRefresh = () => {
+      if (returnRefreshTimer !== null) {
+        return
+      }
+      returnRefreshTimer = setTimeout(() => {
+        returnRefreshTimer = null
+        fetchUiSettings()
+        fetchRestaurantData()
+      }, 150)
+    }
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         // Page became visible, refetch to get latest settings
-        fetchUiSettings()
-        fetchRestaurantData()
+        scheduleReturnRefresh()
       }
     }
 
     const handleFocus = () => {
       // Window regained focus, refetch to get latest settings
-      fetchUiSettings()
-      fetchRestaurantData()
+      scheduleReturnRefresh()
     }
 
     // Listen for storage events (when admin saves settings in another tab)
@@ -487,6 +488,9 @@ export function MenuPageClient({ slug, initialLang, initialData }: MenuPageClien
 
     return () => {
       abortController.abort()
+      if (returnRefreshTimer !== null) {
+        clearTimeout(returnRefreshTimer)
+      }
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('focus', handleFocus)
       window.removeEventListener('storage', handleStorageChange)
@@ -560,15 +564,21 @@ export function MenuPageClient({ slug, initialLang, initialData }: MenuPageClien
     const timeoutId2 = setTimeout(observeCategories, 800)
     const timeoutId3 = setTimeout(observeCategories, 1500)
 
-    // Re-observe when categoryItemsCache changes (new categories loaded)
-    const handleCacheUpdate = () => {
-      observeCategories()
+    // Switching section replaces the whole item grid, which fires this observer many times in a
+    // row. Re-scanning once per frame keeps the rebind off the critical path of that swap.
+    let pendingObserveFrame: number | null = null
+    const scheduleObserveCategories = () => {
+      if (pendingObserveFrame !== null) {
+        return
+      }
+      pendingObserveFrame = requestAnimationFrame(() => {
+        pendingObserveFrame = null
+        observeCategories()
+      })
     }
-    
+
     // Use MutationObserver to detect when new category sections are added to DOM
-    const mutationObserver = new MutationObserver(() => {
-      observeCategories()
-    })
+    const mutationObserver = new MutationObserver(scheduleObserveCategories)
     
     // Observe the main content container for new category sections
     const contentContainer = document.querySelector('[class*="pb-20"]')
@@ -584,6 +594,9 @@ export function MenuPageClient({ slug, initialLang, initialData }: MenuPageClien
       clearTimeout(timeoutId)
       clearTimeout(timeoutId2)
       clearTimeout(timeoutId3)
+      if (pendingObserveFrame !== null) {
+        cancelAnimationFrame(pendingObserveFrame)
+      }
       observer.disconnect()
       mutationObserver.disconnect()
     }
