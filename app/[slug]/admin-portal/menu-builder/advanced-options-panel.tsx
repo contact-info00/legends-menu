@@ -47,6 +47,15 @@ const ADMIN_INPUT_STYLE: CSSProperties = {
   color: '#0F172A',
 }
 
+const ADMIN_SELECT_STYLE: CSSProperties = {
+  ...ADMIN_INPUT_STYLE,
+  borderRadius: '0.75rem',
+  height: '2.5rem',
+  width: '100%',
+  padding: '0 0.75rem',
+  fontSize: '0.875rem',
+}
+
 const PRIMARY_BTN_STYLE: CSSProperties = {
   backgroundColor: '#27C499',
   color: '#FFFFFF',
@@ -234,7 +243,7 @@ export function AdvancedOptionsPanel({ item, isOpen, onClose }: AdvancedOptionsP
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               ...groupForm,
-              selectionMode: 'single',
+              selectionMode: 'multiple',
             }),
           })
           if (!response.ok) {
@@ -248,7 +257,7 @@ export function AdvancedOptionsPanel({ item, isOpen, onClose }: AdvancedOptionsP
             {
               ...created,
               options: created.options ?? [],
-              selectionMode: created.selectionMode ?? 'single',
+              selectionMode: 'multiple',
             },
           ])
           closeEditor()
@@ -267,7 +276,10 @@ export function AdvancedOptionsPanel({ item, isOpen, onClose }: AdvancedOptionsP
           const response = await fetch(`/api/admin/advanced-option-groups/${groupId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(groupForm),
+            body: JSON.stringify({
+              ...groupForm,
+              selectionMode: 'multiple',
+            }),
           })
           if (!response.ok) {
             throw new Error(await readErrorMessage(response, 'Failed to update option group'))
@@ -283,6 +295,7 @@ export function AdvancedOptionsPanel({ item, isOpen, onClose }: AdvancedOptionsP
                     nameKu: updated.nameKu,
                     nameEn: updated.nameEn,
                     nameAr: updated.nameAr,
+                    selectionMode: 'multiple',
                     isActive: updated.isActive,
                   }
                 : g
@@ -693,11 +706,10 @@ export function AdvancedOptionsPanel({ item, isOpen, onClose }: AdvancedOptionsP
                         <div className="font-medium truncate" style={{ color: '#0F172A' }}>
                           {group.nameEn}
                         </div>
-                        {!group.isActive && (
-                          <div className="text-xs mt-0.5" style={{ color: '#64748B' }}>
-                            Hidden
-                          </div>
-                        )}
+                        <div className="text-xs mt-0.5" style={{ color: '#64748B' }}>
+                          Selection: Multiple
+                          {!group.isActive ? ' · Hidden' : ''}
+                        </div>
                       </div>
                       <div className="relative flex items-center gap-0.5 shrink-0">
                         <button
@@ -956,6 +968,14 @@ export function AdvancedOptionsPanel({ item, isOpen, onClose }: AdvancedOptionsP
                     required
                     style={ADMIN_INPUT_STYLE}
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1" style={{ color: '#0F172A' }}>
+                    Selection
+                  </label>
+                  <select value="multiple" disabled style={ADMIN_SELECT_STYLE}>
+                    <option value="multiple">Multiple choice</option>
+                  </select>
                 </div>
                 <div className="flex gap-2 pt-2">
                   <Button
