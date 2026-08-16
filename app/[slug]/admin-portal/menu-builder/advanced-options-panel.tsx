@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import {
   ArrowDown,
   ArrowUp,
@@ -18,7 +18,6 @@ import {
 } from '@/lib/admin-notifications'
 import type {
   AdvancedOptionsPayload,
-  AdvancedSelectionMode,
 } from '@/lib/advanced-options'
 import { getAdminMenuName } from '@/lib/admin-display-name'
 import type { Item } from './menu-builder-types'
@@ -29,17 +28,29 @@ type Level = AdvancedOptionsPayload['levels'][number]
 
 type NameForm = { nameKu: string; nameEn: string }
 type OptionForm = NameForm & { priceAdjustment: string; isActive: boolean }
-type LevelForm = NameForm & { value: string }
-type GroupForm = NameForm & { selectionMode: AdvancedSelectionMode }
+type GroupForm = NameForm
 
 type EditorState =
   | { kind: 'add-group' }
   | { kind: 'edit-group'; group: Group }
   | { kind: 'add-option'; groupId: string }
   | { kind: 'edit-option'; groupId: string; option: Option }
-  | { kind: 'add-level' }
-  | { kind: 'edit-level'; level: Level }
   | null
+
+/** Fixed internal names for the Dry–Sweet scale (not shown as editable fields). */
+const DRY_SWEET_NAME_EN = 'Dry-Sweet'
+const DRY_SWEET_NAME_KU = 'وشک-شیرین'
+
+const ADMIN_INPUT_STYLE: CSSProperties = {
+  border: '1px solid #D1D5DB',
+  backgroundColor: '#FFFFFF',
+  color: '#0F172A',
+}
+
+const PRIMARY_BTN_STYLE: CSSProperties = {
+  backgroundColor: '#27C499',
+  color: '#FFFFFF',
+}
 
 interface AdvancedOptionsPanelProps {
   item: Item
@@ -59,19 +70,48 @@ async function readErrorMessage(response: Response, fallback: string): Promise<s
   return fallback
 }
 
-function LevelDotsPreview({ value }: { value: number }) {
+function DrySweetScale({
+  value,
+  onChange,
+  interactive = false,
+}: {
+  value: number
+  onChange?: (value: number) => void
+  interactive?: boolean
+}) {
   return (
-    <div className="flex items-center gap-1.5" aria-label={`Level ${value} of 5`}>
-      {Array.from({ length: 5 }, (_, i) => (
-        <span
-          key={i}
-          className="inline-block h-2.5 w-2.5 rounded-full"
-          style={{
-            backgroundColor: i < value ? '#0F172A' : 'transparent',
-            border: '1.5px solid #0F172A',
-          }}
-        />
-      ))}
+    <div className="flex items-center gap-3 w-full">
+      <span className="text-sm font-medium shrink-0" style={{ color: '#0F172A' }}>
+        Dry
+      </span>
+      <div className="flex flex-1 items-center justify-center gap-2.5" aria-label={`Level ${value} of 5`}>
+        {Array.from({ length: 5 }, (_, i) => {
+          const n = i + 1
+          const filled = n <= value
+          const DotTag = interactive ? 'button' : 'span'
+          return (
+            <DotTag
+              key={n}
+              type={interactive ? 'button' : undefined}
+              onClick={interactive && onChange ? () => onChange(n) : undefined}
+              className={interactive ? 'p-0.5 rounded-full hover:opacity-80' : undefined}
+              aria-label={interactive ? `Set level ${n}` : undefined}
+              aria-pressed={interactive ? filled : undefined}
+            >
+              <span
+                className="inline-block h-3 w-3 rounded-full"
+                style={{
+                  backgroundColor: filled ? '#0F172A' : 'transparent',
+                  border: '1.5px solid #0F172A',
+                }}
+              />
+            </DotTag>
+          )
+        })}
+      </div>
+      <span className="text-sm font-medium shrink-0" style={{ color: '#0F172A' }}>
+        Sweet
+      </span>
     </div>
   )
 }
@@ -82,10 +122,10 @@ export function AdvancedOptionsPanel({ item, isOpen, onClose }: AdvancedOptionsP
   const [levels, setLevels] = useState<Level[]>([])
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [editor, setEditor] = useState<EditorState>(null)
+  const [draftDrySweet, setDraftDrySweet] = useState(3)
   const [groupForm, setGroupForm] = useState<GroupForm>({
     nameKu: '',
     nameEn: '',
-    selectionMode: 'single',
   })
   const [optionForm, setOptionForm] = useState<OptionForm>({
     nameKu: '',
@@ -93,11 +133,8 @@ export function AdvancedOptionsPanel({ item, isOpen, onClose }: AdvancedOptionsP
     priceAdjustment: '',
     isActive: true,
   })
-  const [levelForm, setLevelForm] = useState<LevelForm>({
-    nameKu: '',
-    nameEn: '',
-    value: '3',
-  })
+
+  const drySweetLevel = levels[0] ?? null
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -107,8 +144,10 @@ export function AdvancedOptionsPanel({ item, isOpen, onClose }: AdvancedOptionsP
         throw new Error(await readErrorMessage(response, 'Failed to load advanced options'))
       }
       const data = await response.json()
+      const nextLevels: Level[] = data.levels ?? []
       setGroups(data.groups ?? [])
-      setLevels(data.levels ?? [])
+      setLevels(nextLevels)
+      setDraftDrySweet(nextLevels[0]?.value ?? 3)
     } catch (error) {
       adminNotifyError(error instanceof Error ? error.message : 'Failed to load advanced options')
       onClose()
@@ -144,7 +183,7 @@ export function AdvancedOptionsPanel({ item, isOpen, onClose }: AdvancedOptionsP
   const closeEditor = () => setEditor(null)
 
   const openAddGroup = () => {
-    setGroupForm({ nameKu: '', nameEn: '', selectionMode: 'single' })
+    setGroupForm({ nameKu: '', nameEn: '' })
     setEditor({ kind: 'add-group' })
     setOpenMenuId(null)
   }
@@ -153,7 +192,6 @@ export function AdvancedOptionsPanel({ item, isOpen, onClose }: AdvancedOptionsP
     setGroupForm({
       nameKu: group.nameKu,
       nameEn: group.nameEn,
-      selectionMode: group.selectionMode,
     })
     setEditor({ kind: 'edit-group', group })
     setOpenMenuId(null)
@@ -179,22 +217,6 @@ export function AdvancedOptionsPanel({ item, isOpen, onClose }: AdvancedOptionsP
     setOpenMenuId(null)
   }
 
-  const openAddLevel = () => {
-    setLevelForm({ nameKu: '', nameEn: '', value: '3' })
-    setEditor({ kind: 'add-level' })
-    setOpenMenuId(null)
-  }
-
-  const openEditLevel = (level: Level) => {
-    setLevelForm({
-      nameKu: level.nameKu,
-      nameEn: level.nameEn,
-      value: String(level.value),
-    })
-    setEditor({ kind: 'edit-level', level })
-    setOpenMenuId(null)
-  }
-
   const saveGroup = async () => {
     if (!groupForm.nameKu.trim() || !groupForm.nameEn.trim()) {
       adminNotifyError('English and Kurdish names are required')
@@ -210,7 +232,10 @@ export function AdvancedOptionsPanel({ item, isOpen, onClose }: AdvancedOptionsP
           const response = await fetch(`/api/admin/items/${item.id}/advanced-options/groups`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(groupForm),
+            body: JSON.stringify({
+              ...groupForm,
+              selectionMode: 'single',
+            }),
           })
           if (!response.ok) {
             throw new Error(await readErrorMessage(response, 'Failed to create option group'))
@@ -223,7 +248,7 @@ export function AdvancedOptionsPanel({ item, isOpen, onClose }: AdvancedOptionsP
             {
               ...created,
               options: created.options ?? [],
-              selectionMode: created.selectionMode ?? groupForm.selectionMode,
+              selectionMode: created.selectionMode ?? 'single',
             },
           ])
           closeEditor()
@@ -258,7 +283,6 @@ export function AdvancedOptionsPanel({ item, isOpen, onClose }: AdvancedOptionsP
                     nameKu: updated.nameKu,
                     nameEn: updated.nameEn,
                     nameAr: updated.nameAr,
-                    selectionMode: updated.selectionMode,
                     isActive: updated.isActive,
                   }
                 : g
@@ -277,8 +301,7 @@ export function AdvancedOptionsPanel({ item, isOpen, onClose }: AdvancedOptionsP
     }
 
     const priceRaw = optionForm.priceAdjustment.trim()
-    const priceAdjustment =
-      priceRaw === '' ? null : Number(priceRaw)
+    const priceAdjustment = priceRaw === '' ? null : Number(priceRaw)
     if (priceRaw !== '' && !Number.isFinite(priceAdjustment)) {
       adminNotifyError('Price adjustment must be a number')
       return
@@ -360,60 +383,19 @@ export function AdvancedOptionsPanel({ item, isOpen, onClose }: AdvancedOptionsP
     }
   }
 
-  const saveLevel = async () => {
-    if (!levelForm.nameKu.trim() || !levelForm.nameEn.trim()) {
-      adminNotifyError('English and Kurdish names are required')
-      return
-    }
-    const value = Number(levelForm.value)
-    if (!Number.isInteger(value) || value < 1 || value > 5) {
-      adminNotifyError('Level value must be 1–5')
-      return
-    }
+  const saveDrySweetLevel = async () => {
+    const value = Math.min(5, Math.max(1, draftDrySweet))
 
-    if (editor?.kind === 'add-level') {
-      await runAdminOperation({
-        loadingMessage: 'Creating level...',
-        successMessage: '✓ Level created',
-        errorMessage: 'Failed to create level',
-        operation: async () => {
-          const response = await fetch(`/api/admin/items/${item.id}/advanced-options/levels`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              nameKu: levelForm.nameKu,
-              nameEn: levelForm.nameEn,
-              value,
-            }),
-          })
-          if (!response.ok) {
-            throw new Error(await readErrorMessage(response, 'Failed to create level'))
-          }
-          return response.json()
-        },
-        onSuccess: (created: Level) => {
-          setLevels((prev) => [...prev, created])
-          closeEditor()
-        },
-      })
-      return
-    }
-
-    if (editor?.kind === 'edit-level') {
-      const levelId = editor.level.id
+    if (drySweetLevel) {
       await runAdminOperation({
         loadingMessage: 'Updating level...',
         successMessage: '✓ Level updated',
         errorMessage: 'Failed to update level',
         operation: async () => {
-          const response = await fetch(`/api/admin/item-levels/${levelId}`, {
+          const response = await fetch(`/api/admin/item-levels/${drySweetLevel.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              nameKu: levelForm.nameKu,
-              nameEn: levelForm.nameEn,
-              value,
-            }),
+            body: JSON.stringify({ value }),
           })
           if (!response.ok) {
             throw new Error(await readErrorMessage(response, 'Failed to update level'))
@@ -421,11 +403,64 @@ export function AdvancedOptionsPanel({ item, isOpen, onClose }: AdvancedOptionsP
           return response.json()
         },
         onSuccess: (updated: Level) => {
-          setLevels((prev) => prev.map((l) => (l.id === levelId ? { ...l, ...updated } : l)))
-          closeEditor()
+          setLevels([updated])
+          setDraftDrySweet(updated.value)
         },
       })
+      return
     }
+
+    await runAdminOperation({
+      loadingMessage: 'Saving level...',
+      successMessage: '✓ Level saved',
+      errorMessage: 'Failed to save level',
+      operation: async () => {
+        const response = await fetch(`/api/admin/items/${item.id}/advanced-options/levels`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nameEn: DRY_SWEET_NAME_EN,
+            nameKu: DRY_SWEET_NAME_KU,
+            value,
+          }),
+        })
+        if (!response.ok) {
+          throw new Error(await readErrorMessage(response, 'Failed to save level'))
+        }
+        return response.json()
+      },
+      onSuccess: (created: Level) => {
+        setLevels([created])
+        setDraftDrySweet(created.value)
+      },
+    })
+  }
+
+  const removeDrySweetLevel = async () => {
+    if (!drySweetLevel) return
+    if (!window.confirm('Remove Dry / Sweet level from this item?')) return
+
+    const previous = levels
+    setLevels([])
+    setDraftDrySweet(3)
+
+    await runAdminOperation({
+      loadingMessage: 'Removing level...',
+      successMessage: '✓ Level removed',
+      errorMessage: 'Failed to remove level',
+      operation: async () => {
+        const response = await fetch(`/api/admin/item-levels/${drySweetLevel.id}`, {
+          method: 'DELETE',
+        })
+        if (!response.ok) {
+          throw new Error(await readErrorMessage(response, 'Failed to remove level'))
+        }
+      },
+      onError: () => {
+        setLevels(previous)
+        setDraftDrySweet(previous[0]?.value ?? 3)
+      },
+    })
   }
 
   const deleteGroup = async (group: Group) => {
@@ -477,29 +512,6 @@ export function AdvancedOptionsPanel({ item, isOpen, onClose }: AdvancedOptionsP
         }
       },
       onError: () => setGroups(previous),
-    })
-  }
-
-  const deleteLevel = async (level: Level) => {
-    setOpenMenuId(null)
-    if (!window.confirm(`Delete level "${level.nameEn}"?`)) return
-
-    const previous = levels
-    setLevels((prev) => prev.filter((l) => l.id !== level.id))
-
-    await runAdminOperation({
-      loadingMessage: 'Deleting level...',
-      successMessage: '✓ Level deleted',
-      errorMessage: 'Failed to delete level',
-      operation: async () => {
-        const response = await fetch(`/api/admin/item-levels/${level.id}`, {
-          method: 'DELETE',
-        })
-        if (!response.ok) {
-          throw new Error(await readErrorMessage(response, 'Failed to delete level'))
-        }
-      },
-      onError: () => setLevels(previous),
     })
   }
 
@@ -611,350 +623,382 @@ export function AdvancedOptionsPanel({ item, isOpen, onClose }: AdvancedOptionsP
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-lg my-4 rounded-xl border bg-white shadow-xl max-h-[92vh] overflow-hidden flex flex-col"
-        style={{ borderColor: '#D1D5DB' }}
+        className="backdrop-blur-xl rounded-3xl border p-4 sm:p-6 w-full max-w-md mx-2 sm:mx-auto my-4 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
+        style={{
+          backgroundColor: '#FFFFFF',
+          border: '1px solid #D1D5DB',
+          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.06)',
+        }}
       >
-        <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-gray-200">
+        <div className="flex items-center justify-between mb-4">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-slate-900 font-semibold">
-              <Settings2 className="w-4 h-4 shrink-0" />
+            <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: '#0F172A' }}>
+              <Settings2 className="w-5 h-5 shrink-0" />
               Advanced Options
-            </div>
-            <div className="text-sm text-slate-500 truncate mt-0.5">
+            </h2>
+            <p className="text-sm mt-0.5 truncate" style={{ color: '#64748B' }}>
               Item: {getAdminMenuName(item)}
-            </div>
+            </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-gray-100"
+            style={{ color: '#475569', cursor: 'pointer' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#0F172A')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = '#475569')}
             aria-label="Close"
           >
-            <X className="w-5 h-5 text-slate-600" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
-          {loading ? (
-            <div className="space-y-3">
-              <div className="h-24 bg-gray-100 rounded-lg animate-pulse" />
-              <div className="h-24 bg-gray-100 rounded-lg animate-pulse" />
+        {loading ? (
+          <div className="space-y-3">
+            <div className="h-24 bg-gray-100 rounded-lg animate-pulse" />
+            <div className="h-24 bg-gray-100 rounded-lg animate-pulse" />
+          </div>
+        ) : (
+          <div className="space-y-5">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold" style={{ color: '#0F172A' }}>
+                Option Groups
+              </h3>
+              <Button
+                type="button"
+                size="sm"
+                onClick={openAddGroup}
+                className="h-8 gap-1"
+                style={PRIMARY_BTN_STYLE}
+              >
+                <Plus className="w-4 h-4" />
+                Add Option Group
+              </Button>
             </div>
-          ) : (
-            <>
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold text-slate-800">Option Groups</h3>
-                <Button type="button" size="sm" onClick={openAddGroup} className="h-8 gap-1">
-                  <Plus className="w-4 h-4" />
-                  Add Option Group
-                </Button>
-              </div>
 
-              {groups.length === 0 ? (
-                <p className="text-sm text-slate-500">
-                  No option groups yet. Add groups like Sauce or Sides.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {groups.map((group, groupIndex) => (
-                    <div
-                      key={group.id}
-                      className="rounded-lg border border-gray-200 bg-white p-3"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="font-medium text-slate-900 truncate">
-                            {group.nameEn}
-                          </div>
-                          <div className="text-xs text-slate-500 mt-0.5">
-                            Selection: {group.selectionMode === 'multiple' ? 'Multiple' : 'Single'}
-                            {!group.isActive ? ' · Hidden' : ''}
-                          </div>
+            {groups.length === 0 ? (
+              <p className="text-sm" style={{ color: '#64748B' }}>
+                No option groups yet. Add groups like Sauce or Sides.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {groups.map((group, groupIndex) => (
+                  <div
+                    key={group.id}
+                    className="rounded-xl p-3"
+                    style={{ border: '1px solid #D1D5DB', backgroundColor: '#FFFFFF' }}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-medium truncate" style={{ color: '#0F172A' }}>
+                          {group.nameEn}
                         </div>
-                        <div className="relative flex items-center gap-0.5 shrink-0">
-                          <button
-                            type="button"
-                            className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30"
-                            disabled={groupIndex === 0}
-                            onClick={() => void moveGroup(groupIndex, -1)}
-                            aria-label="Move group up"
-                          >
-                            <ArrowUp className="w-4 h-4 text-slate-600" />
-                          </button>
-                          <button
-                            type="button"
-                            className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30"
-                            disabled={groupIndex === groups.length - 1}
-                            onClick={() => void moveGroup(groupIndex, 1)}
-                            aria-label="Move group down"
-                          >
-                            <ArrowDown className="w-4 h-4 text-slate-600" />
-                          </button>
-                          <button
-                            type="button"
-                            className="p-1.5 rounded hover:bg-gray-100"
-                            onClick={() =>
-                              setOpenMenuId(openMenuId === group.id ? null : group.id)
-                            }
-                            aria-label="Group menu"
-                          >
-                            <MoreVertical className="w-4 h-4 text-slate-600" />
-                          </button>
-                          {openMenuId === group.id && (
-                            <div className="absolute right-0 top-8 z-10 w-36 rounded-md border border-gray-200 bg-white shadow-lg py-1">
-                              <button
-                                type="button"
-                                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
-                                onClick={() => openEditGroup(group)}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-50"
-                                onClick={() => void deleteGroup(group)}
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                        {!group.isActive && (
+                          <div className="text-xs mt-0.5" style={{ color: '#64748B' }}>
+                            Hidden
+                          </div>
+                        )}
                       </div>
-
-                      <div className="mt-3 space-y-1.5">
-                        {group.options.map((option, optionIndex) => (
+                      <div className="relative flex items-center gap-0.5 shrink-0">
+                        <button
+                          type="button"
+                          className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30"
+                          disabled={groupIndex === 0}
+                          onClick={() => void moveGroup(groupIndex, -1)}
+                          aria-label="Move group up"
+                        >
+                          <ArrowUp className="w-4 h-4" style={{ color: '#475569' }} />
+                        </button>
+                        <button
+                          type="button"
+                          className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30"
+                          disabled={groupIndex === groups.length - 1}
+                          onClick={() => void moveGroup(groupIndex, 1)}
+                          aria-label="Move group down"
+                        >
+                          <ArrowDown className="w-4 h-4" style={{ color: '#475569' }} />
+                        </button>
+                        <button
+                          type="button"
+                          className="p-1.5 rounded hover:bg-gray-100"
+                          onClick={() =>
+                            setOpenMenuId(openMenuId === group.id ? null : group.id)
+                          }
+                          aria-label="Group menu"
+                        >
+                          <MoreVertical className="w-4 h-4" style={{ color: '#475569' }} />
+                        </button>
+                        {openMenuId === group.id && (
                           <div
-                            key={option.id}
-                            className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-gray-50"
+                            className="absolute right-0 top-8 z-10 w-36 rounded-md py-1 shadow-lg"
+                            style={{ border: '1px solid #D1D5DB', backgroundColor: '#FFFFFF' }}
                           >
-                            <div className="flex-1 min-w-0">
-                              <div
-                                className={`text-sm truncate ${
-                                  option.isActive ? 'text-slate-800' : 'text-slate-400 line-through'
-                                }`}
-                              >
-                                {option.nameEn}
-                              </div>
-                              {option.priceAdjustment != null && option.priceAdjustment !== 0 && (
-                                <div className="text-xs text-amber-600">
-                                  {option.priceAdjustment > 0 ? '+' : ''}
-                                  {option.priceAdjustment}
-                                </div>
-                              )}
-                            </div>
                             <button
                               type="button"
-                              className="p-1 rounded hover:bg-gray-100 disabled:opacity-30"
-                              disabled={optionIndex === 0}
-                              onClick={() => void moveOption(group.id, optionIndex, -1)}
-                              aria-label="Move option up"
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                              style={{ color: '#0F172A' }}
+                              onClick={() => openEditGroup(group)}
                             >
-                              <ArrowUp className="w-3.5 h-3.5 text-slate-500" />
+                              Edit
                             </button>
                             <button
                               type="button"
-                              className="p-1 rounded hover:bg-gray-100 disabled:opacity-30"
-                              disabled={optionIndex === group.options.length - 1}
-                              onClick={() => void moveOption(group.id, optionIndex, 1)}
-                              aria-label="Move option down"
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                              style={{ color: '#EF4444' }}
+                              onClick={() => void deleteGroup(group)}
                             >
-                              <ArrowDown className="w-3.5 h-3.5 text-slate-500" />
+                              Delete
                             </button>
-                            <div className="relative">
-                              <button
-                                type="button"
-                                className="p-1 rounded hover:bg-gray-100"
-                                onClick={() =>
-                                  setOpenMenuId(
-                                    openMenuId === option.id ? null : option.id
-                                  )
-                                }
-                                aria-label="Option menu"
-                              >
-                                <MoreVertical className="w-3.5 h-3.5 text-slate-500" />
-                              </button>
-                              {openMenuId === option.id && (
-                                <div className="absolute right-0 top-7 z-10 w-40 rounded-md border border-gray-200 bg-white shadow-lg py-1">
-                                  <button
-                                    type="button"
-                                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
-                                    onClick={() => openEditOption(group.id, option)}
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
-                                    onClick={() => void toggleOptionActive(group.id, option)}
-                                  >
-                                    {option.isActive ? 'Disable' : 'Enable'}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-50"
-                                    onClick={() => void deleteOption(group.id, option)}
-                                  >
-                                    Delete
-                                  </button>
-                                </div>
-                              )}
-                            </div>
                           </div>
-                        ))}
+                        )}
                       </div>
-
-                      <button
-                        type="button"
-                        onClick={() => openAddOption(group.id)}
-                        className="mt-2 inline-flex items-center gap-1 text-sm text-[#27C499] hover:underline"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        Add option
-                      </button>
                     </div>
-                  ))}
-                </div>
-              )}
 
-              <div className="pt-2 border-t border-gray-100">
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <h3 className="text-sm font-semibold text-slate-800">Levels</h3>
-                  <Button type="button" size="sm" variant="outline" onClick={openAddLevel} className="h-8 gap-1">
-                    <Plus className="w-4 h-4" />
-                    Add Level
-                  </Button>
-                </div>
-                <p className="text-xs text-slate-500 mb-3">
-                  Optional 1–5 visual indicators (e.g. Dry, Sweet). Not limited to wine.
-                </p>
-
-                {levels.length === 0 ? (
-                  <p className="text-sm text-slate-500">No levels configured.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {levels.map((level) => (
-                      <div
-                        key={level.id}
-                        className="flex items-center gap-3 rounded-lg border border-gray-200 px-3 py-2"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-slate-900 truncate">
-                            {level.nameEn}
+                    <div className="mt-3 space-y-1.5">
+                      {group.options.map((option, optionIndex) => (
+                        <div
+                          key={option.id}
+                          className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-gray-50"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div
+                              className={`text-sm truncate ${!option.isActive ? 'line-through' : ''}`}
+                              style={{ color: option.isActive ? '#0F172A' : '#94A3B8' }}
+                            >
+                              {option.nameEn}
+                            </div>
+                            {option.priceAdjustment != null && option.priceAdjustment !== 0 && (
+                              <div className="text-xs" style={{ color: '#D97706' }}>
+                                {option.priceAdjustment > 0 ? '+' : ''}
+                                {option.priceAdjustment}
+                              </div>
+                            )}
                           </div>
-                          <div className="mt-1">
-                            <LevelDotsPreview value={level.value} />
+                          <button
+                            type="button"
+                            className="p-1 rounded hover:bg-gray-100 disabled:opacity-30"
+                            disabled={optionIndex === 0}
+                            onClick={() => void moveOption(group.id, optionIndex, -1)}
+                            aria-label="Move option up"
+                          >
+                            <ArrowUp className="w-3.5 h-3.5" style={{ color: '#64748B' }} />
+                          </button>
+                          <button
+                            type="button"
+                            className="p-1 rounded hover:bg-gray-100 disabled:opacity-30"
+                            disabled={optionIndex === group.options.length - 1}
+                            onClick={() => void moveOption(group.id, optionIndex, 1)}
+                            aria-label="Move option down"
+                          >
+                            <ArrowDown className="w-3.5 h-3.5" style={{ color: '#64748B' }} />
+                          </button>
+                          <div className="relative">
+                            <button
+                              type="button"
+                              className="p-1 rounded hover:bg-gray-100"
+                              onClick={() =>
+                                setOpenMenuId(openMenuId === option.id ? null : option.id)
+                              }
+                              aria-label="Option menu"
+                            >
+                              <MoreVertical className="w-3.5 h-3.5" style={{ color: '#64748B' }} />
+                            </button>
+                            {openMenuId === option.id && (
+                              <div
+                                className="absolute right-0 top-7 z-10 w-40 rounded-md py-1 shadow-lg"
+                                style={{ border: '1px solid #D1D5DB', backgroundColor: '#FFFFFF' }}
+                              >
+                                <button
+                                  type="button"
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                                  style={{ color: '#0F172A' }}
+                                  onClick={() => openEditOption(group.id, option)}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                                  style={{ color: '#0F172A' }}
+                                  onClick={() => void toggleOptionActive(group.id, option)}
+                                >
+                                  {option.isActive ? 'Disable' : 'Enable'}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                                  style={{ color: '#EF4444' }}
+                                  onClick={() => void deleteOption(group.id, option)}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          className="p-1.5 rounded hover:bg-gray-100"
-                          onClick={() => openEditLevel(level)}
-                          aria-label="Edit level"
-                        >
-                          <Settings2 className="w-4 h-4 text-slate-500" />
-                        </button>
-                        <button
-                          type="button"
-                          className="p-1.5 rounded hover:bg-gray-100"
-                          onClick={() => void deleteLevel(level)}
-                          aria-label="Delete level"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </button>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => openAddOption(group.id)}
+                      className="mt-2 inline-flex items-center gap-1 text-sm hover:underline"
+                      style={{ color: '#27C499' }}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add option
+                    </button>
                   </div>
-                )}
+                ))}
               </div>
-            </>
-          )}
-        </div>
+            )}
+
+            <div className="pt-3" style={{ borderTop: '1px solid #E5E7EB' }}>
+              <h3 className="text-sm font-semibold mb-1" style={{ color: '#0F172A' }}>
+                Dry / Sweet Level
+              </h3>
+              <p className="text-xs mb-3" style={{ color: '#64748B' }}>
+                Optional 1–5 scale. Left is Dry, right is Sweet.
+              </p>
+
+              <div
+                className="rounded-xl p-4 space-y-4"
+                style={{ border: '1px solid #D1D5DB', backgroundColor: '#FFFFFF' }}
+              >
+                <DrySweetScale
+                  value={draftDrySweet}
+                  interactive
+                  onChange={setDraftDrySweet}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    className="flex-1"
+                    onClick={() => void saveDrySweetLevel()}
+                    style={PRIMARY_BTN_STYLE}
+                  >
+                    {drySweetLevel ? 'Update Level' : 'Save Level'}
+                  </Button>
+                  {drySweetLevel && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => void removeDrySweetLevel()}
+                      style={{
+                        border: '1px solid #D1D5DB',
+                        color: '#EF4444',
+                        backgroundColor: '#FFFFFF',
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {editor && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"
+          className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm overflow-y-auto"
           onClick={closeEditor}
         >
           <div
-            className="w-full max-w-sm rounded-xl bg-white border border-gray-200 shadow-xl p-4 space-y-3"
+            className="backdrop-blur-xl rounded-3xl border p-4 sm:p-6 w-full max-w-md mx-2 sm:mx-auto"
             onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '1px solid #D1D5DB',
+              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.06)',
+            }}
           >
-            <div className="font-semibold text-slate-900">
-              {editor.kind === 'add-group' && 'Add Option Group'}
-              {editor.kind === 'edit-group' && 'Edit Option Group'}
-              {editor.kind === 'add-option' && 'Add Option'}
-              {editor.kind === 'edit-option' && 'Edit Option'}
-              {editor.kind === 'add-level' && 'Add Level'}
-              {editor.kind === 'edit-level' && 'Edit Level'}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold" style={{ color: '#0F172A' }}>
+                {editor.kind === 'add-group' && 'Add Option Group'}
+                {editor.kind === 'edit-group' && 'Edit Option Group'}
+                {editor.kind === 'add-option' && 'Add Option'}
+                {editor.kind === 'edit-option' && 'Edit Option'}
+              </h2>
+              <button
+                type="button"
+                onClick={closeEditor}
+                style={{ color: '#475569', cursor: 'pointer' }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#0F172A')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#475569')}
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
             {(editor.kind === 'add-group' || editor.kind === 'edit-group') && (
-              <>
+              <div className="space-y-4">
                 <div>
-                  <label className="text-xs text-slate-500">Name (English)</label>
-                  <Input
-                    value={groupForm.nameEn}
-                    onChange={(e) => setGroupForm((f) => ({ ...f, nameEn: e.target.value }))}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-500">Name (Kurdish)</label>
+                  <label className="block text-sm font-medium mb-1" style={{ color: '#0F172A' }}>
+                    Name (Kurdish)
+                  </label>
                   <Input
                     value={groupForm.nameKu}
                     onChange={(e) => setGroupForm((f) => ({ ...f, nameKu: e.target.value }))}
-                    className="mt-1"
+                    required
+                    style={ADMIN_INPUT_STYLE}
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-500">Selection</label>
-                  <select
-                    value={groupForm.selectionMode}
-                    onChange={(e) =>
-                      setGroupForm((f) => ({
-                        ...f,
-                        selectionMode: e.target.value as AdvancedSelectionMode,
-                      }))
-                    }
-                    className="mt-1 w-full h-10 rounded-md border border-gray-300 px-3 text-sm"
-                  >
-                    <option value="single">Single choice</option>
-                    <option value="multiple">Multiple choice</option>
-                  </select>
+                  <label className="block text-sm font-medium mb-1" style={{ color: '#0F172A' }}>
+                    Name (English)
+                  </label>
+                  <Input
+                    value={groupForm.nameEn}
+                    onChange={(e) => setGroupForm((f) => ({ ...f, nameEn: e.target.value }))}
+                    required
+                    style={ADMIN_INPUT_STYLE}
+                  />
                 </div>
-                <div className="flex justify-end gap-2 pt-1">
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    type="button"
+                    className="flex-1"
+                    onClick={() => void saveGroup()}
+                    style={PRIMARY_BTN_STYLE}
+                  >
+                    Save
+                  </Button>
                   <Button type="button" variant="outline" onClick={closeEditor}>
                     Cancel
                   </Button>
-                  <Button type="button" onClick={() => void saveGroup()}>
-                    Save
-                  </Button>
                 </div>
-              </>
+              </div>
             )}
 
             {(editor.kind === 'add-option' || editor.kind === 'edit-option') && (
-              <>
+              <div className="space-y-4">
                 <div>
-                  <label className="text-xs text-slate-500">Name (English)</label>
-                  <Input
-                    value={optionForm.nameEn}
-                    onChange={(e) => setOptionForm((f) => ({ ...f, nameEn: e.target.value }))}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-500">Name (Kurdish)</label>
+                  <label className="block text-sm font-medium mb-1" style={{ color: '#0F172A' }}>
+                    Name (Kurdish)
+                  </label>
                   <Input
                     value={optionForm.nameKu}
                     onChange={(e) => setOptionForm((f) => ({ ...f, nameKu: e.target.value }))}
-                    className="mt-1"
+                    required
+                    style={ADMIN_INPUT_STYLE}
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-500">
+                  <label className="block text-sm font-medium mb-1" style={{ color: '#0F172A' }}>
+                    Name (English)
+                  </label>
+                  <Input
+                    value={optionForm.nameEn}
+                    onChange={(e) => setOptionForm((f) => ({ ...f, nameEn: e.target.value }))}
+                    required
+                    style={ADMIN_INPUT_STYLE}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1" style={{ color: '#0F172A' }}>
                     Price adjustment (optional)
                   </label>
                   <Input
@@ -963,11 +1007,11 @@ export function AdvancedOptionsPanel({ item, isOpen, onClose }: AdvancedOptionsP
                       setOptionForm((f) => ({ ...f, priceAdjustment: e.target.value }))
                     }
                     placeholder="e.g. 2.5 or -1"
-                    className="mt-1"
+                    style={ADMIN_INPUT_STYLE}
                   />
                 </div>
                 {editor.kind === 'edit-option' && (
-                  <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <label className="flex items-center gap-2 text-sm" style={{ color: '#0F172A' }}>
                     <input
                       type="checkbox"
                       checked={optionForm.isActive}
@@ -978,61 +1022,20 @@ export function AdvancedOptionsPanel({ item, isOpen, onClose }: AdvancedOptionsP
                     Active / visible
                   </label>
                 )}
-                <div className="flex justify-end gap-2 pt-1">
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    type="button"
+                    className="flex-1"
+                    onClick={() => void saveOption()}
+                    style={PRIMARY_BTN_STYLE}
+                  >
+                    Save
+                  </Button>
                   <Button type="button" variant="outline" onClick={closeEditor}>
                     Cancel
                   </Button>
-                  <Button type="button" onClick={() => void saveOption()}>
-                    Save
-                  </Button>
                 </div>
-              </>
-            )}
-
-            {(editor.kind === 'add-level' || editor.kind === 'edit-level') && (
-              <>
-                <div>
-                  <label className="text-xs text-slate-500">Level name (English)</label>
-                  <Input
-                    value={levelForm.nameEn}
-                    onChange={(e) => setLevelForm((f) => ({ ...f, nameEn: e.target.value }))}
-                    placeholder="e.g. Dry"
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-500">Level name (Kurdish)</label>
-                  <Input
-                    value={levelForm.nameKu}
-                    onChange={(e) => setLevelForm((f) => ({ ...f, nameKu: e.target.value }))}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-500">Level value (1–5)</label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={5}
-                    value={levelForm.value}
-                    onChange={(e) => setLevelForm((f) => ({ ...f, value: e.target.value }))}
-                    className="mt-1"
-                  />
-                  <div className="mt-2">
-                    <LevelDotsPreview
-                      value={Math.min(5, Math.max(1, Number(levelForm.value) || 1))}
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 pt-1">
-                  <Button type="button" variant="outline" onClick={closeEditor}>
-                    Cancel
-                  </Button>
-                  <Button type="button" onClick={() => void saveLevel()}>
-                    Save
-                  </Button>
-                </div>
-              </>
+              </div>
             )}
           </div>
         </div>

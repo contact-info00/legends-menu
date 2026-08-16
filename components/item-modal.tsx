@@ -82,6 +82,17 @@ function LevelDots({ value }: { value: number }) {
   )
 }
 
+function drySweetLabels(lang: Language): { dry: string; sweet: string } {
+  switch (lang) {
+    case 'ku':
+      return { dry: 'وشک', sweet: 'شیرین' }
+    case 'ar':
+      return { dry: 'جاف', sweet: 'حلو' }
+    default:
+      return { dry: 'Dry', sweet: 'Sweet' }
+  }
+}
+
 export function ItemModal({
   item,
   currentLang,
@@ -256,20 +267,34 @@ export function ItemModal({
                 </div>
               ) : (
                 <>
-                  {levels.map((level) => (
-                    <div key={level.id} className="space-y-2">
-                      <div
-                        {...menuLocalizedTextProps(currentLang, 'text-sm font-medium')}
-                        style={{
-                          color:
-                            'var(--item-name-text-color, var(--auto-text-primary, #FFFFFF))',
-                        }}
-                      >
-                        {getLocalizedText(level, currentLang)}
+                  {levels.map((level) => {
+                    const labels = drySweetLabels(currentLang)
+                    return (
+                      <div key={level.id} className="flex items-center gap-3">
+                        <span
+                          {...menuLocalizedTextProps(currentLang, 'text-sm font-medium shrink-0')}
+                          style={{
+                            color:
+                              'var(--item-name-text-color, var(--auto-text-primary, #FFFFFF))',
+                          }}
+                        >
+                          {labels.dry}
+                        </span>
+                        <div className="flex-1 flex justify-center">
+                          <LevelDots value={level.value} />
+                        </div>
+                        <span
+                          {...menuLocalizedTextProps(currentLang, 'text-sm font-medium shrink-0')}
+                          style={{
+                            color:
+                              'var(--item-name-text-color, var(--auto-text-primary, #FFFFFF))',
+                          }}
+                        >
+                          {labels.sweet}
+                        </span>
                       </div>
-                      <LevelDots value={level.value} />
-                    </div>
-                  ))}
+                    )
+                  })}
 
                   {groups.map((group) => (
                     <div key={group.id} className="space-y-2">
