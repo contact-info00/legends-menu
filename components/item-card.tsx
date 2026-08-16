@@ -20,6 +20,7 @@ interface Item {
   imageMediaId: string | null
   imageR2Key?: string | null
   imageR2Url?: string | null
+  hasAdvancedOptions?: boolean
 }
 
 interface ItemCardProps {
@@ -155,6 +156,14 @@ function ItemCardComponent({ item, currentLang, onItemClick, onAddToBasket, quan
           >
             {getLocalizedText(item, currentLang)}
           </h3>
+          {item.hasAdvancedOptions && (
+            <div
+              className="mb-1 text-[11px] sm:text-xs opacity-80"
+              style={{ color: 'var(--item-description-text-color, var(--auto-text-secondary, rgba(255, 255, 255, 0.75)))' }}
+            >
+              {currentLang === 'ar' ? 'تخصيص' : currentLang === 'ku' ? 'هەڵبژاردن' : 'Customize'}
+            </div>
+          )}
           {/* Description removed from card - only shown in modal when item is clicked */}
           <div className="flex items-center justify-between">
             <span 
@@ -201,6 +210,7 @@ export const ItemCard = memo(ItemCardComponent, (prevProps, nextProps) => {
     prevProps.item.nameAr === nextProps.item.nameAr &&
     prevProps.item.imageR2Url === nextProps.item.imageR2Url &&
     prevProps.item.imageMediaId === nextProps.item.imageMediaId &&
+    prevProps.item.hasAdvancedOptions === nextProps.item.hasAdvancedOptions &&
     prevProps.quantity === nextProps.quantity &&
     prevProps.currency === nextProps.currency &&
     prevProps.currentLang === nextProps.currentLang &&

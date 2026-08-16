@@ -1158,6 +1158,7 @@ export function MenuPageClient({ slug, initialLang, initialData }: MenuPageClien
         isOpen={isItemModalOpen}
         onClose={() => setIsItemModalOpen(false)}
         currency={uiSettings.currency}
+        slug={slug}
       />
 
       <SearchDrawer

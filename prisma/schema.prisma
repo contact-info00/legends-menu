@@ -40,6 +40,9 @@ model Restaurant {
   Category                             Category[]
   feedback                             Feedback[]
   Item                                 Item[]
+  advancedOptionGroups                 AdvancedOptionGroup[]
+  advancedOptions                      AdvancedOption[]
+  itemLevels                           ItemLevel[]
   Media_Media_restaurantIdToRestaurant Media[]           @relation("Media_restaurantIdToRestaurant")
   footerLogo                           Media?            @relation("RestaurantFooterLogo", fields: [footerLogoMediaId], references: [id])
   logo                                 Media?            @relation("RestaurantLogo", fields: [logoMediaId], references: [id])
@@ -93,29 +96,95 @@ model Category {
 }
 
 model Item {
-  id            String     @id @default(cuid())
-  categoryId    String
-  nameKu        String
-  nameEn        String
-  nameAr        String
-  descriptionKu String?
-  descriptionEn String?
-  descriptionAr String?
-  price         Float
-  imageMediaId  String?
-  imageR2Key    String?
-  imageR2Url    String?
-  sortOrder     Int        @default(0)
-  isActive      Boolean    @default(true)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  restaurantId  String
-  category      Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  image         Media?     @relation("ItemImage", fields: [imageMediaId], references: [id])
-  Restaurant    Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  id                   String                @id @default(cuid())
+  categoryId           String
+  nameKu               String
+  nameEn               String
+  nameAr               String
+  descriptionKu        String?
+  descriptionEn        String?
+  descriptionAr        String?
+  price                Float
+  imageMediaId         String?
+  imageR2Key           String?
+  imageR2Url           String?
+  sortOrder            Int                   @default(0)
+  isActive             Boolean               @default(true)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  restaurantId         String
+  category             Category              @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  image                Media?                @relation("ItemImage", fields: [imageMediaId], references: [id])
+  Restaurant           Restaurant            @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  advancedOptionGroups AdvancedOptionGroup[]
+  itemLevels           ItemLevel[]
 
   @@index([categoryId])
   @@index([restaurantId])
+}
+
+/// Configurable option groups for an item (e.g. Sauce, Sides). Names are not hardcoded.
+model AdvancedOptionGroup {
+  id            String           @id @default(cuid())
+  itemId        String
+  restaurantId  String
+  nameKu        String
+  nameEn        String
+  nameAr        String
+  /// "single" | "multiple"
+  selectionMode String           @default("single")
+  sortOrder     Int              @default(0)
+  isActive      Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  item          Item             @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  restaurant    Restaurant       @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  options       AdvancedOption[]
+
+  @@index([itemId])
+  @@index([restaurantId])
+  @@index([itemId, isActive, sortOrder])
+}
+
+model AdvancedOption {
+  id              String              @id @default(cuid())
+  groupId         String
+  restaurantId    String
+  nameKu          String
+  nameEn          String
+  nameAr          String
+  priceAdjustment Float?
+  sortOrder       Int                 @default(0)
+  isActive        Boolean             @default(true)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  group           AdvancedOptionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  restaurant      Restaurant          @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@index([restaurantId])
+  @@index([groupId, isActive, sortOrder])
+}
+
+/// Generic 1–5 visual level (e.g. Dry / Sweet for wine). Not product-type specific.
+model ItemLevel {
+  id           String     @id @default(cuid())
+  itemId       String
+  restaurantId String
+  nameKu       String
+  nameEn       String
+  nameAr       String
+  value        Int
+  sortOrder    Int        @default(0)
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  item         Item       @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+  @@index([restaurantId])
+  @@index([itemId, isActive, sortOrder])
 }
 
 model Feedback {

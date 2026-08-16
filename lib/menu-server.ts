@@ -36,7 +36,51 @@ const ITEM_SELECT = {
   sortOrder: true,
   isActive: true,
   categoryId: true,
+  _count: {
+    select: {
+      advancedOptionGroups: { where: { isActive: true } },
+      itemLevels: { where: { isActive: true } },
+    },
+  },
 } as const
+
+function mapMenuItem(item: {
+  id: string
+  nameKu: string
+  nameEn: string
+  nameAr: string
+  descriptionKu: string | null
+  descriptionEn: string | null
+  descriptionAr: string | null
+  price: number
+  imageR2Url: string | null
+  imageMediaId: string | null
+  sortOrder: number
+  isActive: boolean
+  categoryId: string
+  _count: {
+    advancedOptionGroups: number
+    itemLevels: number
+  }
+}): MenuItem {
+  return {
+    id: item.id,
+    nameKu: item.nameKu,
+    nameEn: item.nameEn,
+    nameAr: item.nameAr,
+    descriptionKu: item.descriptionKu,
+    descriptionEn: item.descriptionEn,
+    descriptionAr: item.descriptionAr,
+    price: Number(item.price),
+    imageR2Url: item.imageR2Url,
+    imageMediaId: item.imageMediaId,
+    sortOrder: item.sortOrder,
+    isActive: item.isActive,
+    categoryId: item.categoryId,
+    hasAdvancedOptions:
+      item._count.advancedOptionGroups > 0 || item._count.itemLevels > 0,
+  }
+}
 
 async function fetchUiSettings(restaurantId: string): Promise<MenuUiSettings> {
   try {
@@ -133,10 +177,7 @@ async function fetchSectionItems(
     orderBy: { sortOrder: 'asc' },
   })
 
-  return items.map((item) => ({
-    ...item,
-    price: Number(item.price),
-  }))
+  return items.map(mapMenuItem)
 }
 
 async function fetchPlatformFooterLogo(): Promise<string | null> {

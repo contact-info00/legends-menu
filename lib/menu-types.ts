@@ -15,6 +15,8 @@ export interface MenuItem {
   sortOrder: number
   isActive: boolean
   categoryId?: string
+  /** True when the item has at least one active option group or level. */
+  hasAdvancedOptions?: boolean
 }
 
 export interface MenuCategory {

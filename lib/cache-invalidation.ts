@@ -27,6 +27,7 @@ export function invalidateMenuDataCaches(restaurantId: string) {
   revalidateTag('menu')
   revalidateTag('menu-bootstrap')
   revalidateTag('menu-items')
+  revalidateTag('advanced-options')
   revalidateTag(`restaurant-${restaurantId}`)
 }
 

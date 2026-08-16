@@ -28,6 +28,7 @@ import {
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import type { GripHandlers } from './menu-builder-rows'
 import { MenuTree } from './menu-builder-tree'
+import { AdvancedOptionsPanel } from './advanced-options-panel'
 import type { Category, Item, MenuEntityType, MenuRowType, Section } from './menu-builder-types'
 
 const SCROLL_SPEED = 50 // pixels per interval - increased for faster scrolling
@@ -58,6 +59,7 @@ export default function MenuBuilderPage() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [editingItem, setEditingItem] = useState<string | null>(null)
+  const [advancedOptionsItem, setAdvancedOptionsItem] = useState<Item | null>(null)
   const [editingSection, setEditingSection] = useState<string | null>(null)
   const [editingCategory, setEditingCategory] = useState<string | null>(null)
   const [uploadingImage, setUploadingImage] = useState<string | null>(null)
@@ -1180,6 +1182,10 @@ export default function MenuBuilderPage() {
     }
   }, [closeAddItemModal])
 
+  const handleAdvancedOptions = useCallback((item: Item) => {
+    setAdvancedOptionsItem(item)
+  }, [])
+
   const handleUpdateSection = async (e: React.FormEvent, sectionId: string) => {
     e.preventDefault()
     const formDataToSave = { ...editSectionForm }
@@ -1431,6 +1437,7 @@ export default function MenuBuilderPage() {
             onEditSection={handleEditSection}
             onEditCategory={handleEditCategory}
             onEditItem={handleEditItem}
+            onAdvancedOptions={handleAdvancedOptions}
             onDelete={handleDelete}
             onToggleActive={toggleActive}
             onToggleRowMenu={handleToggleRowMenu}
@@ -2159,6 +2166,14 @@ export default function MenuBuilderPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {advancedOptionsItem && (
+        <AdvancedOptionsPanel
+          item={advancedOptionsItem}
+          isOpen={!!advancedOptionsItem}
+          onClose={() => setAdvancedOptionsItem(null)}
+        />
       )}
     </div>
   )

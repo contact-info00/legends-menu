@@ -26,7 +26,50 @@ const ITEM_SELECT = {
   sortOrder: true,
   isActive: true,
   categoryId: true,
+  _count: {
+    select: {
+      advancedOptionGroups: { where: { isActive: true } },
+      itemLevels: { where: { isActive: true } },
+    },
+  },
 } as const
+
+function mapPublicItem(
+  item: {
+    id: string
+    nameKu: string
+    nameEn: string
+    nameAr: string
+    descriptionKu: string | null
+    descriptionEn: string | null
+    descriptionAr: string | null
+    price: number
+    imageR2Url: string | null
+    imageMediaId: string | null
+    sortOrder: number
+    isActive: boolean
+    categoryId: string
+    _count: { advancedOptionGroups: number; itemLevels: number }
+  }
+) {
+  return {
+    id: item.id,
+    nameKu: item.nameKu,
+    nameEn: item.nameEn,
+    nameAr: item.nameAr,
+    descriptionKu: item.descriptionKu,
+    descriptionEn: item.descriptionEn,
+    descriptionAr: item.descriptionAr,
+    price: Number(item.price),
+    imageR2Url: item.imageR2Url,
+    imageMediaId: item.imageMediaId,
+    sortOrder: item.sortOrder,
+    isActive: item.isActive,
+    categoryId: item.categoryId,
+    hasAdvancedOptions:
+      item._count.advancedOptionGroups > 0 || item._count.itemLevels > 0,
+  }
+}
 
 async function fetchMenuItems(
   slug: string,
@@ -52,7 +95,7 @@ async function fetchMenuItems(
       select: ITEM_SELECT,
       orderBy: { sortOrder: 'asc' },
     })
-    return { items }
+    return { items: items.map(mapPublicItem) }
   }
 
   if (sectionId) {
@@ -69,7 +112,7 @@ async function fetchMenuItems(
       select: ITEM_SELECT,
       orderBy: { sortOrder: 'asc' },
     })
-    return { items }
+    return { items: items.map(mapPublicItem) }
   }
 
   return { items: [] }

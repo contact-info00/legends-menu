@@ -62,6 +62,7 @@ export interface MenuTreeProps {
   onEditSection: (section: Section) => void
   onEditCategory: (category: Category) => void
   onEditItem: (item: Item) => void
+  onAdvancedOptions: (item: Item) => void
   onDelete: (type: MenuEntityType, id: string, name: string) => void
   onToggleActive: (type: MenuEntityType, id: string, currentState: boolean) => void
   onToggleRowMenu: (id: string, type: MenuRowType, isOpen: boolean) => void
@@ -96,6 +97,7 @@ export const MenuTree = memo(function MenuTree({
   onEditSection,
   onEditCategory,
   onEditItem,
+  onAdvancedOptions,
   onDelete,
   onToggleActive,
   onToggleRowMenu,
@@ -178,6 +180,7 @@ export const MenuTree = memo(function MenuTree({
                                         isHolding={holdingId === item.id && holdingType === 'item'}
                                         grip={grip}
                                         onEditItem={onEditItem}
+                                        onAdvancedOptions={onAdvancedOptions}
                                         onDelete={onDelete}
                                         onToggleActive={onToggleActive}
                                         formatPrice={formatPrice}

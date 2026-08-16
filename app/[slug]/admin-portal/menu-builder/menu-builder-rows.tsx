@@ -1,7 +1,7 @@
 'use client'
 
 import { memo } from 'react'
-import { ChevronDown, ChevronRight, Edit2, Trash2, MoreVertical } from 'lucide-react'
+import { ChevronDown, ChevronRight, Edit2, Trash2, MoreVertical, Settings2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getAdminMenuName } from '@/lib/admin-display-name'
 import { useSortable } from '@dnd-kit/sortable'
@@ -347,6 +347,7 @@ export interface SortableItemProps {
   isHolding: boolean
   grip: GripHandlers
   onEditItem: (item: Item) => void
+  onAdvancedOptions: (item: Item) => void
   onDelete: (type: MenuEntityType, id: string, name: string) => void
   onToggleActive: (type: MenuEntityType, id: string, currentState: boolean) => void
   formatPrice: (price: number) => string
@@ -357,6 +358,7 @@ export const SortableItem = memo(function SortableItem({
   isHolding,
   grip,
   onEditItem,
+  onAdvancedOptions,
   onDelete,
   onToggleActive,
   formatPrice,
@@ -430,12 +432,25 @@ export const SortableItem = memo(function SortableItem({
         </div>
         <div className="text-xs sm:text-sm text-[#FBBF24] font-bold">{formatPrice(item.price)}</div>
       </div>
-      {/* Toggle and Delete */}
-      <div className="flex items-center gap-2 flex-shrink-0">
+      {/* Toggle, Advanced Options, Delete */}
+      <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
         <VisibilityToggle
           isActive={item.isActive}
           onChange={() => onToggleActive('item', item.id, item.isActive)}
         />
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={(e) => {
+            e.stopPropagation()
+            onAdvancedOptions(item)
+          }}
+          className="h-9 w-9 p-0 sm:h-10 sm:w-10"
+          title="Advanced Options"
+          aria-label="Advanced Options"
+        >
+          <Settings2 className="w-5 h-5 sm:w-5 sm:h-5" style={{ color: '#64748B' }} />
+        </Button>
         <Button
           size="sm"
           variant="ghost"
