@@ -9,6 +9,7 @@ import {
   pickDefaultCategory,
   pickDefaultSection,
 } from '@/lib/menu-types'
+import { mapPublicMenuItem, PUBLIC_MENU_ITEM_SELECT } from '@/lib/menu-public-item'
 
 const DEFAULT_UI_SETTINGS: MenuUiSettings = {
   sectionTitleSize: 22,
@@ -20,66 +21,6 @@ const DEFAULT_UI_SETTINGS: MenuUiSettings = {
   bottomNavSectionSize: 13,
   bottomNavCategorySize: 13,
   currency: 'IQD',
-}
-
-const ITEM_SELECT = {
-  id: true,
-  nameKu: true,
-  nameEn: true,
-  nameAr: true,
-  descriptionKu: true,
-  descriptionEn: true,
-  descriptionAr: true,
-  price: true,
-  imageR2Url: true,
-  imageMediaId: true,
-  sortOrder: true,
-  isActive: true,
-  categoryId: true,
-  _count: {
-    select: {
-      advancedOptionGroups: { where: { isActive: true } },
-      itemLevels: { where: { isActive: true } },
-    },
-  },
-} as const
-
-function mapMenuItem(item: {
-  id: string
-  nameKu: string
-  nameEn: string
-  nameAr: string
-  descriptionKu: string | null
-  descriptionEn: string | null
-  descriptionAr: string | null
-  price: number
-  imageR2Url: string | null
-  imageMediaId: string | null
-  sortOrder: number
-  isActive: boolean
-  categoryId: string
-  _count: {
-    advancedOptionGroups: number
-    itemLevels: number
-  }
-}): MenuItem {
-  return {
-    id: item.id,
-    nameKu: item.nameKu,
-    nameEn: item.nameEn,
-    nameAr: item.nameAr,
-    descriptionKu: item.descriptionKu,
-    descriptionEn: item.descriptionEn,
-    descriptionAr: item.descriptionAr,
-    price: Number(item.price),
-    imageR2Url: item.imageR2Url,
-    imageMediaId: item.imageMediaId,
-    sortOrder: item.sortOrder,
-    isActive: item.isActive,
-    categoryId: item.categoryId,
-    hasAdvancedOptions:
-      item._count.advancedOptionGroups > 0 || item._count.itemLevels > 0,
-  }
 }
 
 async function fetchUiSettings(restaurantId: string): Promise<MenuUiSettings> {
@@ -173,11 +114,11 @@ async function fetchSectionItems(
         restaurantId,
       },
     },
-    select: ITEM_SELECT,
+    select: PUBLIC_MENU_ITEM_SELECT,
     orderBy: { sortOrder: 'asc' },
   })
 
-  return items.map(mapMenuItem)
+  return items.map(mapPublicMenuItem)
 }
 
 async function fetchPlatformFooterLogo(): Promise<string | null> {
@@ -254,7 +195,7 @@ async function loadMenuPageData(slug: string): Promise<MenuPageData | null> {
 export async function getMenuPageData(slug: string): Promise<MenuPageData | null> {
   const getCachedMenuPage = unstable_cache(
     () => loadMenuPageData(slug),
-    [`menu-page-${slug}`],
+    [`menu-page-v2-${slug}`],
     {
       tags: [
         'menu',

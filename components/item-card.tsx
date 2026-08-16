@@ -142,35 +142,45 @@ function ItemCardComponent({ item, currentLang, onItemClick, onAddToBasket, quan
           )}
         </div>
 
-        {/* Content */}
-        <div className={`p-1.5 flex-shrink-0 relative z-10 ${useSolidBg ? '' : 'backdrop-blur-sm'}`} style={{
-          backgroundColor: useSolidBg && surfaceBgColor ? surfaceBgColor : 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))',
-          margin: 0,
-        }}>
-          <h3 
+        {/* Content — fixed structure so cards stay equal height in the grid */}
+        <div
+          className={`p-1.5 flex-shrink-0 relative z-10 flex flex-col ${useSolidBg ? '' : 'backdrop-blur-sm'}`}
+          style={{
+            backgroundColor:
+              useSolidBg && surfaceBgColor
+                ? surfaceBgColor
+                : 'var(--auto-surface-bg, rgba(255, 255, 255, 0.1))',
+            margin: 0,
+            minHeight: '4.75rem',
+          }}
+        >
+          <h3
             {...menuItemNameLocalizedTextProps(currentLang, 'mb-1')}
-            style={{ 
+            style={{
               color: 'var(--item-name-text-color, var(--auto-text-primary, #FFFFFF))',
-              fontSize: 'var(--menu-item-name-size)'
+              fontSize: 'var(--menu-item-name-size)',
             }}
           >
             {getLocalizedText(item, currentLang)}
           </h3>
-          {item.hasAdvancedOptions && (
-            <div
-              className="mb-1 text-[11px] sm:text-xs opacity-80"
-              style={{ color: 'var(--item-description-text-color, var(--auto-text-secondary, rgba(255, 255, 255, 0.75)))' }}
-            >
-              {currentLang === 'ar' ? 'تخصيص' : currentLang === 'ku' ? 'هەڵبژاردن' : 'Customize'}
-            </div>
-          )}
-          {/* Description removed from card - only shown in modal when item is clicked */}
-          <div className="flex items-center justify-between">
-            <span 
+          {/* Reserved meta row: keeps card height stable with/without Advanced Options */}
+          <div
+            className="mb-1 text-[11px] sm:text-xs opacity-80 min-h-[1rem]"
+            style={{
+              color:
+                'var(--item-description-text-color, var(--auto-text-secondary, rgba(255, 255, 255, 0.75)))',
+              visibility: item.hasAdvancedOptions ? 'visible' : 'hidden',
+            }}
+            aria-hidden={!item.hasAdvancedOptions}
+          >
+            {currentLang === 'ar' ? 'تخصيص' : currentLang === 'ku' ? 'هەڵبژاردن' : 'Customize'}
+          </div>
+          <div className="flex items-center justify-between mt-auto">
+            <span
               className="font-bold"
-              style={{ 
+              style={{
                 color: 'var(--item-price-text-color, var(--price-text, #FBBF24))',
-                fontSize: 'var(--menu-item-price-size)' 
+                fontSize: 'var(--menu-item-price-size)',
               }}
             >
               {formatPrice(item.price, currency)}
@@ -181,11 +191,11 @@ function ItemCardComponent({ item, currentLang, onItemClick, onAddToBasket, quan
                 isAdding ? 'scale-110' : ''
               }`}
               style={{
-                backgroundColor: isAdding 
-                  ? 'var(--auto-lighter-surface, rgba(84, 28, 36, 0.9))' 
+                backgroundColor: isAdding
+                  ? 'var(--auto-lighter-surface, rgba(84, 28, 36, 0.9))'
                   : 'var(--app-bg, #400810)',
                 color: 'var(--auto-text-primary, #FFFFFF)',
-                boxShadow: `0 0 12px var(--auto-primary-glow-subtle, rgba(64, 8, 16, 0.25)), 0 4px 16px var(--auto-shadow-color, rgba(0, 0, 0, 0.3)), inset 0 1px 0 rgba(255, 255, 255, 0.2)`
+                boxShadow: `0 0 12px var(--auto-primary-glow-subtle, rgba(64, 8, 16, 0.25)), 0 4px 16px var(--auto-shadow-color, rgba(0, 0, 0, 0.3)), inset 0 1px 0 rgba(255, 255, 255, 0.2)`,
               }}
               aria-label="Add to basket"
             >

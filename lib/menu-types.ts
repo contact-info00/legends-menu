@@ -1,4 +1,39 @@
 import type { Language } from '@/lib/i18n'
+import type { AdvancedSelectionMode } from '@/lib/advanced-options'
+
+/** Customer-facing advanced option group (display data only). */
+export interface MenuAdvancedOption {
+  id: string
+  nameKu: string
+  nameEn: string
+  nameAr: string
+  priceAdjustment: number | null
+  sortOrder: number
+}
+
+export interface MenuAdvancedOptionGroup {
+  id: string
+  nameKu: string
+  nameEn: string
+  nameAr: string
+  selectionMode: AdvancedSelectionMode
+  sortOrder: number
+  options: MenuAdvancedOption[]
+}
+
+export interface MenuItemLevel {
+  id: string
+  nameKu: string
+  nameEn: string
+  nameAr: string
+  value: number
+  sortOrder: number
+}
+
+export interface MenuItemAdvancedOptions {
+  groups: MenuAdvancedOptionGroup[]
+  levels: MenuItemLevel[]
+}
 
 export interface MenuItem {
   id: string
@@ -17,6 +52,8 @@ export interface MenuItem {
   categoryId?: string
   /** True when the item has at least one active option group or level. */
   hasAdvancedOptions?: boolean
+  /** Embedded at menu load so item open needs no extra request. */
+  advancedOptions?: MenuItemAdvancedOptions
 }
 
 export interface MenuCategory {

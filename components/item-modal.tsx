@@ -1,60 +1,19 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { X } from 'lucide-react'
 import { Language } from '@/lib/i18n'
 import { getLocalizedText, getLocalizedDescription } from '@/lib/i18n'
 import { formatPrice } from '@/lib/utils'
 import { menuItemNameLocalizedTextProps, menuLocalizedTextProps } from '@/lib/menu-typography'
-
-interface Item {
-  id: string
-  nameKu: string
-  nameEn: string
-  nameAr: string
-  descriptionKu?: string | null
-  descriptionEn?: string | null
-  descriptionAr?: string | null
-  price: number
-  imageMediaId: string | null
-  imageR2Key?: string | null
-  imageR2Url?: string | null
-  hasAdvancedOptions?: boolean
-}
-
-type PublicGroup = {
-  id: string
-  nameKu: string
-  nameEn: string
-  nameAr: string
-  sortOrder: number
-  options: Array<{
-    id: string
-    nameKu: string
-    nameEn: string
-    nameAr: string
-    priceAdjustment: number | null
-    sortOrder: number
-  }>
-}
-
-type PublicLevel = {
-  id: string
-  nameKu: string
-  nameEn: string
-  nameAr: string
-  value: number
-  sortOrder: number
-}
+import type { MenuItem } from '@/lib/menu-types'
 
 interface ItemModalProps {
-  item: Item | null
+  item: MenuItem | null
   currentLang: Language
   isOpen: boolean
   onClose: () => void
   currency?: 'IQD' | 'USD'
-  slug?: string
 }
 
 function LevelDots({ value }: { value: number }) {
@@ -97,72 +56,14 @@ export function ItemModal({
   isOpen,
   onClose,
   currency = 'IQD',
-  slug,
 }: ItemModalProps) {
-  const [loadingOptions, setLoadingOptions] = useState(false)
-  const [groups, setGroups] = useState<PublicGroup[]>([])
-  const [levels, setLevels] = useState<PublicLevel[]>([])
-  const [selectedByGroup, setSelectedByGroup] = useState<Record<string, string[]>>({})
-
-  useEffect(() => {
-    if (!isOpen || !item?.hasAdvancedOptions || !slug) {
-      setGroups([])
-      setLevels([])
-      setSelectedByGroup({})
-      return
-    }
-
-    let cancelled = false
-    setLoadingOptions(true)
-
-    fetch(`/api/${slug}/public/items/${item.id}/advanced-options`)
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error('Failed to load options')
-        }
-        return response.json()
-      })
-      .then((data) => {
-        if (cancelled) return
-        const nextGroups: PublicGroup[] = Array.isArray(data.groups) ? data.groups : []
-        setGroups(nextGroups)
-        setLevels(Array.isArray(data.levels) ? data.levels : [])
-        const initial: Record<string, string[]> = {}
-        nextGroups.forEach((group) => {
-          initial[group.id] = []
-        })
-        setSelectedByGroup(initial)
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setGroups([])
-          setLevels([])
-          setSelectedByGroup({})
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingOptions(false)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [isOpen, item?.id, item?.hasAdvancedOptions, slug])
-
   if (!isOpen || !item) return null
 
-  const toggleOption = (groupId: string, optionId: string) => {
-    setSelectedByGroup((prev) => {
-      const current = prev[groupId] ?? []
-      const exists = current.includes(optionId)
-      return {
-        ...prev,
-        [groupId]: exists
-          ? current.filter((id) => id !== optionId)
-          : [...current, optionId],
-      }
-    })
-  }
+  const advancedOptions = item.advancedOptions
+  const groups = advancedOptions?.groups ?? []
+  const levels = advancedOptions?.levels ?? []
+  const hasAdvancedOptions =
+    item.hasAdvancedOptions === true && (groups.length > 0 || levels.length > 0)
 
   return (
     <div
@@ -247,105 +148,83 @@ export function ItemModal({
             </p>
           )}
 
-          {item.hasAdvancedOptions && (
+          {hasAdvancedOptions && (
             <div className="space-y-5 mt-2">
-              {loadingOptions ? (
-                <div className="space-y-2">
-                  <div className="h-4 w-32 rounded bg-white/10 animate-pulse" />
-                  <div className="h-16 rounded bg-white/5 animate-pulse" />
-                </div>
-              ) : (
-                <>
-                  {levels.map((level) => {
-                    const labels = drySweetLabels(currentLang)
-                    return (
-                      <div key={level.id} className="flex items-center gap-3">
-                        <span
-                          {...menuLocalizedTextProps(currentLang, 'text-sm font-medium shrink-0')}
-                          style={{
-                            color:
-                              'var(--item-name-text-color, var(--auto-text-primary, #FFFFFF))',
-                          }}
-                        >
-                          {labels.dry}
-                        </span>
-                        <div className="flex-1 flex justify-center">
-                          <LevelDots value={level.value} />
-                        </div>
-                        <span
-                          {...menuLocalizedTextProps(currentLang, 'text-sm font-medium shrink-0')}
-                          style={{
-                            color:
-                              'var(--item-name-text-color, var(--auto-text-primary, #FFFFFF))',
-                          }}
-                        >
-                          {labels.sweet}
-                        </span>
-                      </div>
-                    )
-                  })}
+              {levels.map((level) => {
+                const labels = drySweetLabels(currentLang)
+                return (
+                  <div key={level.id} className="flex items-center gap-3">
+                    <span
+                      {...menuLocalizedTextProps(currentLang, 'text-sm font-medium shrink-0')}
+                      style={{
+                        color:
+                          'var(--item-name-text-color, var(--auto-text-primary, #FFFFFF))',
+                      }}
+                    >
+                      {labels.dry}
+                    </span>
+                    <div className="flex-1 flex justify-center">
+                      <LevelDots value={level.value} />
+                    </div>
+                    <span
+                      {...menuLocalizedTextProps(currentLang, 'text-sm font-medium shrink-0')}
+                      style={{
+                        color:
+                          'var(--item-name-text-color, var(--auto-text-primary, #FFFFFF))',
+                      }}
+                    >
+                      {labels.sweet}
+                    </span>
+                  </div>
+                )
+              })}
 
-                  {groups.map((group) => (
-                    <div key={group.id} className="space-y-2">
-                      <div
-                        {...menuLocalizedTextProps(currentLang, 'text-sm font-medium')}
+              {groups.map((group) => (
+                <div key={group.id} className="space-y-2">
+                  <div
+                    {...menuLocalizedTextProps(currentLang, 'text-sm font-medium')}
+                    style={{
+                      color:
+                        'var(--item-name-text-color, var(--auto-text-primary, #FFFFFF))',
+                    }}
+                  >
+                    {getLocalizedText(group, currentLang)}
+                  </div>
+                  <ul className="space-y-1.5 list-none p-0 m-0">
+                    {group.options.map((option) => (
+                      <li
+                        key={option.id}
+                        className="flex items-center gap-3 rounded-xl px-3 py-2 border"
                         style={{
-                          color:
-                            'var(--item-name-text-color, var(--auto-text-primary, #FFFFFF))',
+                          borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.15))',
                         }}
                       >
-                        {getLocalizedText(group, currentLang)}
-                      </div>
-                      <div className="space-y-1.5">
-                        {group.options.map((option) => {
-                          const checked = (selectedByGroup[group.id] ?? []).includes(option.id)
-                          return (
-                            <label
-                              key={option.id}
-                              className="flex items-center gap-3 cursor-pointer rounded-xl px-3 py-2 border"
-                              style={{
-                                borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.15))',
-                                backgroundColor: checked
-                                  ? 'var(--auto-surface-bg, rgba(255, 255, 255, 0.08))'
-                                  : 'transparent',
-                              }}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={() => toggleOption(group.id, option.id)}
-                                className="accent-[#27C499]"
-                              />
-                              <span
-                                {...menuLocalizedTextProps(currentLang, 'flex-1 text-sm')}
-                                style={{
-                                  color:
-                                    'var(--item-name-text-color, var(--auto-text-primary, #FFFFFF))',
-                                }}
-                              >
-                                {getLocalizedText(option, currentLang)}
-                              </span>
-                              {option.priceAdjustment != null &&
-                                option.priceAdjustment !== 0 && (
-                                  <span
-                                    className="text-xs font-medium"
-                                    style={{
-                                      color:
-                                        'var(--item-price-text-color, var(--price-text, #FBBF24))',
-                                    }}
-                                  >
-                                    {option.priceAdjustment > 0 ? '+' : ''}
-                                    {formatPrice(option.priceAdjustment, currency)}
-                                  </span>
-                                )}
-                            </label>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </>
-              )}
+                        <span
+                          {...menuLocalizedTextProps(currentLang, 'flex-1 text-sm')}
+                          style={{
+                            color:
+                              'var(--item-name-text-color, var(--auto-text-primary, #FFFFFF))',
+                          }}
+                        >
+                          {getLocalizedText(option, currentLang)}
+                        </span>
+                        {option.priceAdjustment != null && option.priceAdjustment !== 0 && (
+                          <span
+                            className="text-xs font-medium"
+                            style={{
+                              color:
+                                'var(--item-price-text-color, var(--price-text, #FBBF24))',
+                            }}
+                          >
+                            {option.priceAdjustment > 0 ? '+' : ''}
+                            {formatPrice(option.priceAdjustment, currency)}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </div>
           )}
         </div>

@@ -1,74 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
+import { mapPublicMenuItem, PUBLIC_MENU_ITEM_SELECT } from '@/lib/menu-public-item'
 
 // Public read-only JSON; CDN may cache by full URL (slug + sectionId/categoryId).
 // Admin mutations invalidate via the `menu-items` / `restaurant-slug-*` tags.
 export const revalidate = 30
 export const runtime = 'nodejs'
 
-
 const CACHE_HEADERS = {
   'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
-}
-
-const ITEM_SELECT = {
-  id: true,
-  nameKu: true,
-  nameEn: true,
-  nameAr: true,
-  descriptionKu: true,
-  descriptionEn: true,
-  descriptionAr: true,
-  price: true,
-  imageR2Url: true,
-  imageMediaId: true,
-  sortOrder: true,
-  isActive: true,
-  categoryId: true,
-  _count: {
-    select: {
-      advancedOptionGroups: { where: { isActive: true } },
-      itemLevels: { where: { isActive: true } },
-    },
-  },
-} as const
-
-function mapPublicItem(
-  item: {
-    id: string
-    nameKu: string
-    nameEn: string
-    nameAr: string
-    descriptionKu: string | null
-    descriptionEn: string | null
-    descriptionAr: string | null
-    price: number
-    imageR2Url: string | null
-    imageMediaId: string | null
-    sortOrder: number
-    isActive: boolean
-    categoryId: string
-    _count: { advancedOptionGroups: number; itemLevels: number }
-  }
-) {
-  return {
-    id: item.id,
-    nameKu: item.nameKu,
-    nameEn: item.nameEn,
-    nameAr: item.nameAr,
-    descriptionKu: item.descriptionKu,
-    descriptionEn: item.descriptionEn,
-    descriptionAr: item.descriptionAr,
-    price: Number(item.price),
-    imageR2Url: item.imageR2Url,
-    imageMediaId: item.imageMediaId,
-    sortOrder: item.sortOrder,
-    isActive: item.isActive,
-    categoryId: item.categoryId,
-    hasAdvancedOptions:
-      item._count.advancedOptionGroups > 0 || item._count.itemLevels > 0,
-  }
 }
 
 async function fetchMenuItems(
@@ -92,10 +33,10 @@ async function fetchMenuItems(
         categoryId,
         isActive: true,
       },
-      select: ITEM_SELECT,
+      select: PUBLIC_MENU_ITEM_SELECT,
       orderBy: { sortOrder: 'asc' },
     })
-    return { items: items.map(mapPublicItem) }
+    return { items: items.map(mapPublicMenuItem) }
   }
 
   if (sectionId) {
@@ -109,10 +50,10 @@ async function fetchMenuItems(
           restaurantId: restaurant.id,
         },
       },
-      select: ITEM_SELECT,
+      select: PUBLIC_MENU_ITEM_SELECT,
       orderBy: { sortOrder: 'asc' },
     })
-    return { items: items.map(mapPublicItem) }
+    return { items: items.map(mapPublicMenuItem) }
   }
 
   return { items: [] }
@@ -139,12 +80,12 @@ export async function GET(
       )
     }
 
-    const cacheKey = `menu-items-${slug}-${categoryId || 'all'}-${sectionId || 'none'}`
+    const cacheKey = `menu-items-v2-${slug}-${categoryId || 'all'}-${sectionId || 'none'}`
     const getCachedItems = unstable_cache(
       () => fetchMenuItems(slug, categoryId, sectionId),
       [cacheKey],
       {
-        tags: ['menu-items', 'menu', `restaurant-slug-${slug}`],
+        tags: ['menu-items', 'menu', `restaurant-slug-${slug}`, 'advanced-options'],
         revalidate: 30,
       }
     )
