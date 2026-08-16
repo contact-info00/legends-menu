@@ -7,7 +7,6 @@ import { Language } from '@/lib/i18n'
 import { getLocalizedText, getLocalizedDescription } from '@/lib/i18n'
 import { formatPrice } from '@/lib/utils'
 import { menuItemNameLocalizedTextProps, menuLocalizedTextProps } from '@/lib/menu-typography'
-import type { AdvancedSelectionMode } from '@/lib/advanced-options'
 
 interface Item {
   id: string
@@ -29,7 +28,6 @@ type PublicGroup = {
   nameKu: string
   nameEn: string
   nameAr: string
-  selectionMode: AdvancedSelectionMode
   sortOrder: number
   options: Array<{
     id: string
@@ -104,15 +102,11 @@ export function ItemModal({
   const [loadingOptions, setLoadingOptions] = useState(false)
   const [groups, setGroups] = useState<PublicGroup[]>([])
   const [levels, setLevels] = useState<PublicLevel[]>([])
-  const [singleSelections, setSingleSelections] = useState<Record<string, string>>({})
-  const [multiSelections, setMultiSelections] = useState<Record<string, string[]>>({})
 
   useEffect(() => {
     if (!isOpen || !item?.hasAdvancedOptions || !slug) {
       setGroups([])
       setLevels([])
-      setSingleSelections({})
-      setMultiSelections({})
       return
     }
 
@@ -128,22 +122,8 @@ export function ItemModal({
       })
       .then((data) => {
         if (cancelled) return
-        const nextGroups: PublicGroup[] = Array.isArray(data.groups) ? data.groups : []
-        const nextLevels: PublicLevel[] = Array.isArray(data.levels) ? data.levels : []
-        setGroups(nextGroups)
-        setLevels(nextLevels)
-
-        const singles: Record<string, string> = {}
-        const multis: Record<string, string[]> = {}
-        nextGroups.forEach((group) => {
-          if (group.selectionMode === 'multiple') {
-            multis[group.id] = []
-          } else if (group.options[0]) {
-            singles[group.id] = group.options[0].id
-          }
-        })
-        setSingleSelections(singles)
-        setMultiSelections(multis)
+        setGroups(Array.isArray(data.groups) ? data.groups : [])
+        setLevels(Array.isArray(data.levels) ? data.levels : [])
       })
       .catch(() => {
         if (!cancelled) {
@@ -161,19 +141,6 @@ export function ItemModal({
   }, [isOpen, item?.id, item?.hasAdvancedOptions, slug])
 
   if (!isOpen || !item) return null
-
-  const toggleMulti = (groupId: string, optionId: string) => {
-    setMultiSelections((prev) => {
-      const current = prev[groupId] ?? []
-      const exists = current.includes(optionId)
-      return {
-        ...prev,
-        [groupId]: exists
-          ? current.filter((id) => id !== optionId)
-          : [...current, optionId],
-      }
-    })
-  }
 
   return (
     <div
@@ -307,66 +274,39 @@ export function ItemModal({
                       >
                         {getLocalizedText(group, currentLang)}
                       </div>
-                      <div className="space-y-2">
-                        {group.options.map((option) => {
-                          const isMulti = group.selectionMode === 'multiple'
-                          const checked = isMulti
-                            ? (multiSelections[group.id] ?? []).includes(option.id)
-                            : singleSelections[group.id] === option.id
-
-                          return (
-                            <label
-                              key={option.id}
-                              className="flex items-center gap-3 cursor-pointer rounded-xl px-3 py-2 border"
+                      <ul className="space-y-1.5">
+                        {group.options.map((option) => (
+                          <li
+                            key={option.id}
+                            className="flex items-center gap-3 rounded-xl px-3 py-2 border"
+                            style={{
+                              borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.15))',
+                            }}
+                          >
+                            <span
+                              {...menuLocalizedTextProps(currentLang, 'flex-1 text-sm')}
                               style={{
-                                borderColor: 'var(--auto-border, rgba(255, 255, 255, 0.15))',
-                                backgroundColor: checked
-                                  ? 'var(--auto-surface-bg, rgba(255, 255, 255, 0.08))'
-                                  : 'transparent',
+                                color:
+                                  'var(--item-name-text-color, var(--auto-text-primary, #FFFFFF))',
                               }}
                             >
-                              <input
-                                type={isMulti ? 'checkbox' : 'radio'}
-                                name={`group-${group.id}`}
-                                checked={checked}
-                                onChange={() => {
-                                  if (isMulti) {
-                                    toggleMulti(group.id, option.id)
-                                  } else {
-                                    setSingleSelections((prev) => ({
-                                      ...prev,
-                                      [group.id]: option.id,
-                                    }))
-                                  }
-                                }}
-                                className="accent-[#27C499]"
-                              />
+                              {getLocalizedText(option, currentLang)}
+                            </span>
+                            {option.priceAdjustment != null && option.priceAdjustment !== 0 && (
                               <span
-                                {...menuLocalizedTextProps(currentLang, 'flex-1 text-sm')}
+                                className="text-xs font-medium"
                                 style={{
                                   color:
-                                    'var(--item-name-text-color, var(--auto-text-primary, #FFFFFF))',
+                                    'var(--item-price-text-color, var(--price-text, #FBBF24))',
                                 }}
                               >
-                                {getLocalizedText(option, currentLang)}
+                                {option.priceAdjustment > 0 ? '+' : ''}
+                                {formatPrice(option.priceAdjustment, currency)}
                               </span>
-                              {option.priceAdjustment != null &&
-                                option.priceAdjustment !== 0 && (
-                                  <span
-                                    className="text-xs font-medium"
-                                    style={{
-                                      color:
-                                        'var(--item-price-text-color, var(--price-text, #FBBF24))',
-                                    }}
-                                  >
-                                    {option.priceAdjustment > 0 ? '+' : ''}
-                                    {formatPrice(option.priceAdjustment, currency)}
-                                  </span>
-                                )}
-                            </label>
-                          )
-                        })}
-                      </div>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   ))}
                 </>
